@@ -1,1 +1,1 @@
-Test 4
+This application will read manga on the machine
