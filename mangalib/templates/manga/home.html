@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+
+{% from 'manga/manga.html' import manga_card %}
+
+{% block content %}
+    <div class="w3-row w3-padding">
+        <div class="w3-col w3-container l1"></div>
+        <div class="w3-col l10">
+            <a href="{{ url_for('manga.latest') }}" class="w3-text-white w3-xxlarge text-shadow"><strong>Latest Uploads</strong></a>
+            {% if latest|length == 0 %}
+                <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
+            {% else %}
+                <div class="w3-grid-padding w3-padding w3-border-bottom" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+                    {% for entry in latest %}
+                        {{ manga_card(entry.title_id, entry.title, entry.uploader, entry.upload_date) }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="w3-col w3-rest"></div>
+    </div>
+{% endblock %}

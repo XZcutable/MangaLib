@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+
+{% block style %}
+<style>
+    .selected {
+        background-color: lightgray;
+    }
+
+    .settings-content {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block script %}
+<script>
+    function showContent(id) {
+        contents = document.querySelectorAll('.selected').values()
+        contents.forEach(element => element.classList.remove('selected'));
+
+        contents = document.querySelectorAll('.settings-content').values()
+        contents.forEach(element => element.classList.remove('w3-show'));
+
+        document.querySelector(`div#${id}`)?.classList.add("w3-show")
+
+        document.querySelector(`button#${id}`)?.classList.add('selected')
+    }
+
+    function onLoad() {
+        showContent("{{ request.args['current_settings'] or  'acount-settings' }}");
+        // {% if isOwner %}
+        getPaths().then(response => {
+            response.paths.forEach(addPathToTable);
+        });
+        // {% endif %}
+    }
+
+    // {% if isOwner %}
+    function addPathToTable(path) {
+        const row_template = `
+            <tr>
+                <td><button class="w3-button w3-bold w3-block w3-left-align w3-large" onclick="removePathFromTable(&quot;${path}&quot;,this.parentNode.parentNode)">${path}</button></td>
+            </tr>
+            `
+        paths_table = document.getElementById("media-paths").innerHTML += row_template
+    }
+
+    function onFolderPicked(folder) {
+        addPath(folder).then(result => {
+            if( result.success ) {
+                addPathToTable(folder);
+            }
+        }).catch(() => {
+            location.reload();
+        });
+    }
+
+    function removePathFromTable(path, node) {
+        if(confirm(`Remove '${path}'' from Path?`)) {
+            removePath(path).then(result => {
+                if(result.success) {
+                    node.remove();
+                }
+            }).catch(() => {
+                location.reload();
+            })
+        }
+    }
+
+    async function getPaths() {
+        const url = "{{ url_for('api.getPaths') }}";
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+            throw new Error(`Response status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(error.message);
+            return { 'paths': [], 'error': error.message }
+        }
+    }
+
+    async function addPath(path) {
+        const url = `{{ url_for('api.addPath') }}?path=${encodeURIComponent(path)}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+            throw new Error(`Response status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(error.message);
+            return { 'success': false, 'error': error.message }
+        }
+    }
+
+    async function removePath(path) {
+        const url = `{{ url_for('api.removePath') }}?path=${encodeURIComponent(path)}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+            throw new Error(`Response status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(error.message);
+            return { 'success': false, 'error': error.message }
+        }
+    }
+
+    async function rescanPaths() {
+        const url = `{{ url_for('api.scanPaths') }}`;
+        try {
+            const response = await fetch(url, {method: "POST"});
+            if (!response.ok) {
+            throw new Error(`Response status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(error.message);
+            return { 'success': false, 'error': error.message }
+        } finally {
+            location.reload();
+        }
+    }
+    // {% endif %}
+
+    addEventListener("load", onLoad)
+</script>
+{% endblock %}
+
+{% block body %}
+<div class="w3-row">
+    <div id="settings-sidebar"
+        class="w3-col l2 w3-xlarge w3-sidebar w3-bar-block w3-dark-grey w3-collapse w3-card text-shadow">
+        <h3 class="w3-bar-item no-hover w3-xxlarge"><u>Settings</u></h3>
+        <a href="/settings">
+            <button id="acount-settings" class="w3-bar-item w3-round-large w3-button">
+                Account Settings
+            </button>
+        </a>
+        {% if isAdmin %}
+        <a href="?current_settings=admin-settings">
+            <button id="admin-settings" class="w3-bar-item w3-round-large w3-button">
+                Adminstration
+            </button>
+        </a>
+        {% endif %}
+        {% if isOwner %}
+        <a href="?current_settings=owner-settings">
+            <button id="owner-settings" class="w3-bar-item w3-round-large w3-button">
+                Config
+            </button>
+        </a>
+        {% endif %}
+    </div>
+    <div class="w3-flex w3-display-container" style="margin-left: calc(2/12*100%); height: calc(100vh - 52px);">
+        <div class="w3-main w3-col l4 w3-padding w3-grey" >
+            <div id="acount-settings" class="settings-content">
+                <div class="no-hover w3-xxlarge"><u>Account Settings</u></div>
+                <form method="post" name="change-password">
+                    <div class="w3-xlarge no-hover">Change Password:</div>
+                    <div class="w3-row w3-flex" style="padding: 4px 0px;">
+                        <label class="w3-col l3" style="padding:2px 0;" for="old-password">Old Password:</label>
+                        <input class="w3-col w3-rest" type="password" id="old-password" name="old-password">
+                    </div>
+                    <div class="w3-row w3-flex" style="padding: 4px 0px;">
+                        <label class="w3-col l3" style="padding:2px 0;" for="new-password">New Password:</label>
+                        <input class="w3-col w3-rest" type="password" id="new-password" name="new-password">
+                    </div>
+                    <div class="w3-row w3-flex" style="padding: 4px 0px;">
+                        <label class="w3-col l3" style="padding:2px 0;" for="repeat-password">Repeat Password:</label>
+                        <input class="w3-col w3-rest" type="password" id="repeat-password" name="repeat-password">
+                    </div>
+                    <div class="w3-row" style="padding: 4px 0px;">
+                        <input class="w3-button w3-light-grey w3-round-large" type="submit" value="Change Password"
+                            formaction="{{ url_for('auth.changePassword', redirect='settings') }}">
+                    </div>
+                </form>
+                <div class="w3-xlarge no-hover">Change Username:</div>
+                <div class="w3-row w3-flex" style="padding: 4px 0px;">
+                    <label class="w3-col l3" style="padding:2px 0;" for="new-username">New Username:</label>
+                    <input class="w3-col w3-rest" type="text" id="new-username" name="new-username">
+                </div>
+                <div class="w3-row" style="padding: 4px 0px;">
+                    <button id="change-username-btn">Change Username</button>
+                </div>
+            </div>
+            {% if isAdmin %}
+            <div id="admin-settings" class="settings-content">
+                <div class="no-hover w3-xxlarge"><u>Admin Settings</u></div>
+            </div>
+            {% endif %}
+            {% if isOwner %}
+            <div id="owner-settings" class="settings-content">
+                <div class="no-hover w3-xxlarge"><u>Config Settings</u></div>
+                <button class="w3-button w3-xlarge w3-block w3-dark-grey">Local Paths</button>
+                <div id="local-paths" class="w3-container w3-padding"
+                    style="border-style: solid; border-width: thick; border-color: black;">
+                    <table id="path-table" class="w3-table w3-left-align w3-striped w3-card">
+                        <thead class="w3-dark-grey">
+                            <tr>
+                                <th>Paths</th>
+                            </tr>
+                        </thead>
+                        <tbody id="media-paths"></tbody>
+                    </table>
+                    <br>
+                    <div>
+                        <button onclick="openFolderPicker()" class="w3-button w3-round-large w3-light-grey w3-card w3-large">
+                            Add Path
+                        </button>
+                        <button onclick="rescanPaths()" class="w3-button w3-round-large w3-light-grey w3-card w3-large">
+                            Scan Paths
+                        </button>
+                    </div>
+
+                <div id="folder-picker" class="w3-display-middle w3-col l5">
+                    {% from 'api/picker.html' import folder_picker %}
+                    {{ folder_picker('/', []) }}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

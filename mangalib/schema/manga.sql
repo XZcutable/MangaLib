@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS manga;
+
+CREATE TABLE manga (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uploader INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    upload_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_score INTEGER NOT NULL DEFAULT 0,
+    user_score_count INTEGER NOT NULL DEFAULT 0,
+    rating TEXT NOT NULL DEFAULT "unrated",
+    manga_path TEXT NOT NULL
+);

@@ -1,0 +1,147 @@
+{% macro folder_picker(cur_dir, list_dir) -%}
+{% if g.user['role'] == 'owner' %}
+<script>
+    function openFolderPicker() {
+        document.getElementById('folder_picker').classList.remove('w3-hide');
+    }
+
+    function closeFolderPicker() {
+        document.getElementById('folder_picker').classList.add('w3-hide');
+        loadDir('/');
+    }
+
+    function clearTable() {
+        document.getElementById("folder-picker-table").innerHTML = ""
+    }
+
+    function deactivateOpenButton() {
+        document.getElementById("folder-picker-button-open").classList.add('w3-disabled');
+    }
+
+    function activateOpenButton() {
+        document.getElementById("folder-picker-button-open").classList.remove('w3-disabled');
+    }
+
+    function validateAndCheckFolderPath(loadOnValid=false) {
+        deactivateOpenButton();
+
+        path_input.value = path_input.value.replace('\\', '/');
+        if (path_input.value === '') {
+            deactivateOpenButton();
+        }
+        
+        isDir(path_input.value).then(isValid => {
+            if(isValid) {
+                activateOpenButton();
+                if(loadOnValid) {
+                    loadDir(path_input.value);
+                }
+            }
+        });
+    }
+
+    async function isDir(dir) {
+        const url = "{{ url_for('api.isDir') }}" + `?dir=${encodeURIComponent(dir)}`
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`);
+            }
+            const result = await response.json();
+            return result.valid;
+        } catch (error) {
+            console.error(error.message);
+            return false;
+        }
+    }
+
+    function loadDir(dir) {
+        console.log(dir)
+        clearTable()
+
+        listDir(dir).then(result => {
+            dir = result.dir;
+            console.log(dir)
+
+            if (dir !== '/') { // if it is not the root folder of the machine
+                createRow(dir, "..");
+            }
+            // Clears the text box on dir being root
+            document.getElementById("folder-picker-path").value = dir === '/' ? '' : dir;
+            validateAndCheckFolderPath();
+
+            result.folders?.forEach(folder => createRow(dir, folder))
+        });
+    }
+
+    function createRow(dir, folder, name = '') {
+        if (dir === '/') {
+            dir = '';
+        } else {
+            //dir += '/';
+        }
+        
+        const row_template = `
+            <tr>
+                <td><button class="w3-button w3-bold w3-block w3-left-align w3-large" onclick="loadDir(&quot;${dir + folder}&quot;)">${name || folder}</button></td>
+            </tr>
+            `
+        document.getElementById("folder-picker-table").innerHTML += row_template
+    }
+
+    async function listDir(dir) {
+        const url = "{{ url_for('api.listDirs') }}" + `?dir=${encodeURIComponent(dir)}`
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`);
+            }
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(error.message);
+            return [];
+        }
+    }
+
+    function onLoad() {
+        loadDir('/');
+
+        path_input = document.getElementById("folder-picker-path");
+        path_input.addEventListener('keypress', function (event) {
+            if (event.key === "Enter") {
+                validateAndCheckFolderPath(true);
+            }
+        });
+    }
+
+    addEventListener('load', onLoad);
+</script>
+<div id="folder_picker" class="w3-block w3-padding w3-card w3-round-large w3-dark-grey w3-hide">
+    <div class="w3-flex">
+        <div class="w3-xxlarge text-shadow no-hover w3-block">
+            <h1>Folder Picker</h1>
+        </div>
+        <div style="margin: 0;">
+            <button class="w3-xxlarge w3-flex w3-hover-shadow w3-hover-grey w3-round-large"
+                onclick="closeFolderPicker()" style="background-color: transparent;border-style: none;">
+                <i class="fa fa-window-close"></i>
+            </button>
+        </div>
+    </div>
+    <div class="w3-border w3-margin-bottom w3-round-large" style="height: 300px; overflow-y: scroll;">
+        <table class="w3-table w3-hoverable w3-striped w3-grey">
+            <tbody id="folder-picker-table">
+
+            </tbody>
+        </table>
+    </div>
+    <div class="w3-flex w3-xlarge" style="margin-bottom: 5px; gap:8px">
+        <input id="folder-picker-path" class="w3-block w3-large w3-round-large" type="text" value="{{ cur_dir }}">
+        <div class="w3-white w3-round-large">
+            <button id="folder-picker-button-open" class="w3-button w3-round-large" onclick="const path = path_input.value; closeFolderPicker(); onFolderPicked(path);">Open</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+{%- endmacro %}

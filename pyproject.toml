@@ -1,0 +1,11 @@
+[project]
+name = "Manga Library"
+version = "1.0.0"
+description = "Host and view your Manga locally"
+dependencies = [
+    "flask",
+]
+
+[build-system]
+requires = "flit_core<4"
+build-backend = "filt_core.build.api"

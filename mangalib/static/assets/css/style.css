@@ -1,0 +1,19 @@
+body {
+    background-color: #1a1a1a;
+}
+
+.no-hover {
+    user-select: none;
+}
+
+.text-shadow {
+    text-shadow:1px 1px #444;
+}
+
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
