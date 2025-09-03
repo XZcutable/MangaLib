@@ -2,8 +2,6 @@ from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for, Flask
 )
 
-from mangalib.blueprints.db import get_manga_db as get_db
-
 from datetime import datetime
 
 bp = Blueprint('manga', __name__, url_prefix='/')
@@ -31,10 +29,10 @@ def upload():
     pass
 
 def getLatest(count = 10):
-    db = get_db()
-    latest = db.execute(
-        'SELECT id, title, uploader'
-        'FROM manga'
-        'ORDER BY upload_date DESC'
-    ).fetchmany(count)
+    # db = get_db()
+    # latest = db.execute(
+    #     'SELECT id, title, uploader'
+    #     'FROM manga'
+    #     'ORDER BY upload_date DESC'
+    # ).fetchmany(count)
     return latest

@@ -2,6 +2,12 @@
 {% block title %}Register{% endblock %}
 
 {% block content %}
+{% if registrationOpen %}
     {% set submit = "Register" %}
     {% include 'auth/user_form.html' %}
+{% else %}
+    <div>
+        <p>Registration is Closed</p>
+    </div>
+{% endif %}
 {% endblock %}

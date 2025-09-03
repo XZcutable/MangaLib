@@ -5,11 +5,13 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mangalib.blueprints.db import get_user_db as get_db
+from mangalib.models.db_base import db,Users
 
 import click
 
-from ..lib.enum import Access
+from mangalib.lib.enum import Access
+
+from sqlalchemy import exc
 
 bp = Blueprint('auth', __name__, url_prefix='')
 public_access = ['auth.login', 'auth.register', 'auth.logout']
@@ -26,9 +28,10 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = get_db().execute(
-            "SELECT * FROM user WHERE id = ?", (user_id,)
-        ).fetchone()
+        g.user = Users.query.filter_by(id=user_id).first()
+        # .execute(
+        #     "SELECT * FROM user WHERE id = ?", (user_id,)
+        # ).fetchone()
 
     g.requires_clearance = True
 
@@ -46,24 +49,8 @@ def load_logged_in_user():
         return redirect(url_for('auth.login'))
 
 def init_app(app: Flask):    
-    app.cli.add_command(testRegister)
+    pass
 
-@click.command('test-reg')
-def testRegister():
-    try:
-        db = get_db()
-        user_id = db.execute(
-            "INSERT INTO user (username, password) VALUES (?, ?)",
-            ('test', generate_password_hash('test')),
-        ).lastrowid
-        if user_id == 1:
-            print('Registered user is owner')
-            db.execute(
-                "UPDATE user SET role = 'owner' WHERE id = 1"
-            )
-        #db.commit()
-    except db.IntegrityError:
-        print("Already Registered")
 
 @bp.route('/auth/change-password', methods=('POST',))
 def changePassword():
@@ -80,12 +67,15 @@ def changePassword():
         error = "Invalid Password: Password should be 6-20 characters long, have at least 1 number, uppercase, lowercase, and symbol (#?!@$%.,^&*-_])"
 
     if error is None:
-        db = get_db()
-        db.execute(
-            "UPDATE user SET password = ? WHERE id = ?",
-            (generate_password_hash(new_password), g.user['id'])
-        )
-        db.commit()
+        user: Users = Users.query.filter_by(id = g.user['id']).first()
+        if user:
+            user.password = generate_password_hash(new_password)
+            db.session.commit()
+        # db.execute(
+        #     "UPDATE user SET password = ? WHERE id = ?",
+        #     (generate_password_hash(new_password), g.user['id'])
+        # )
+        # db.commit()
         flash("Password Updated", 'success')
     else:
         flash(error, 'error')
@@ -103,49 +93,47 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        db = get_db()
 
         if not username:
             error = 'Username is required'
         elif not password:
             error = 'Password is required'
-        
-        if error is None:
-            try:
-                user_id = db.execute(
-                    "INSERT INTO user (username, password) VALUES (?, ?)",
-                    (username, generate_password_hash(password),),
-                ).lastrowid
-                if user_id == 1:
-                    db.execute(
-                        "UPDATE user SET role = 'owner', approved = TRUE WHERE id = 1"
-                    )
-                    db.commit()
+        else:
+            print("Creating user")
+            user = Users(username=username, password=generate_password_hash(password))
+            exisiting_user = Users.query.filter_by(username=username).first()
+            if exisiting_user:
+                error = f"User {username} is already registered"
+            else:
+                db.session.add(user)
+                user = Users.query.filter_by(username=username).first()
+
+                if user.id == 1:
+                    user.role = Access.OWNER.toString()
+                    user.approved = True
                     flash("Registration Successfull", 'success')
-                    return redirect(url_for("auth.login"))
                 elif current_app.config['ALLOW_NEW_USERS']:
                     if current_app.config['AUTO_APPROVE_NEW_USERS']:
-                        db.execute(
-                            "UPDATE user SET approved = TRUE WHERE id = ?",
-                            (user_id,)
-                        )
-                        db.commit()
+                        user.approved = True
                         flash("Registration Successfull", 'success')
                     else:
                         flash('Successfully registered, please wait to be approved', 'success')
-                        db.commit()
-                    return redirect(url_for("auth.login", last_username=username))
                 else:
                     error = 'Registration is closed'
-                    
-            except db.IntegrityError:
-                error = f"User {username} is already registered"
-            
+            if error is None:
+                # db.session.add(user)
+                db.session.commit()
+                return redirect(url_for("auth.login", last_username=username))
+            else:
+                db.session.rollback()
+        
         if error is not None:
             flash(error, 'error')
             return render_template('auth/register.html', last_username=username, last_password=password)
     else:
-        return render_template('auth/register.html')
+        owner = Users.query.filter_by(id=1).first()
+        registrationOpen = owner is None or current_app.config['ALLOW_NEW_USERS']
+        return render_template('auth/register.html', registrationOpen=registrationOpen)
 
 @bp.route('/login', methods=('GET', 'POST'))
 def login():
@@ -157,21 +145,22 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        db = get_db()
+        # db = get_db()
         error = None
 
-        user = db.execute(
-            "SELECT * FROM user WHERE username = ?", (username,)
-        ).fetchone()
+        user: Users = Users.query.filter_by(username=username).first()
+        # db.execute(
+        #     "SELECT * FROM user WHERE username = ?", (username,)
+        # ).fetchone()
 
         if user is None:
             error = 'Invalid username'
-        elif not check_password_hash(user['password'], password):
+        elif not check_password_hash(user.password, password):
             error = 'Incorrect password'
 
         if error is None:
             session.clear()
-            session['user_id'] = user['id']
+            session['user_id'] = user.id
             g.user = user
             flash("Login Successful", 'success')
             return redirect('/')
