@@ -5,7 +5,7 @@ from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 
 from datetime import datetime, timezone
 
-import click
+import click, json
 
 def init_app(app: Flask):
     db.init_app(app)
@@ -38,7 +38,7 @@ class Users(db.Model):
     date_created: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now(timezone.utc))
 
     def __repr__(self):
-        return f'<Name {self.username} ID {self.id}> ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
+        return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
 
 class Manga(db.Model):
     id = Column(Integer, primary_key=True, nullable=False)
@@ -49,3 +49,6 @@ class Manga(db.Model):
     user_score_count: Mapped[int] = mapped_column(nullable=False, default=0)
     rating: Mapped[str] = mapped_column(nullable=False, default="unrated")
     date_uploaded: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f'<Title {self.title}> (Pages: {len(json.loads(self.pages))}) ID {self.id} Uploaded: "{self.date_uploaded}"'

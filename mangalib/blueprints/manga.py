@@ -4,7 +4,12 @@ from flask import (
 
 from datetime import datetime
 
-import os
+from . import api
+from .db import Manga, db
+
+import os, json
+
+image_types = ('.jpg', '.jpeg', '.png', '.webp')
 
 bp = Blueprint('manga', __name__, url_prefix='/')
 
@@ -45,3 +50,16 @@ def registerMangaPath(dir, folderName):
         return
     
     print(f"Registering: {path}")
+    pages = []
+    for file in api.lsFiles(path)['files']:
+        ext = os.path.splitext(file)[1]
+        if ext in image_types:
+            pages.append(os.path.join(path, file))
+
+    # print(pages)
+    manga: Manga | None = Manga.query.filter_by(title=folderName).first()
+    if manga is None:
+        manga: Manga = Manga(title=folderName, manga_path=path, pages=json.dumps(pages))
+        db.session.add(manga)
+        db.session.commit()
+        print(manga)

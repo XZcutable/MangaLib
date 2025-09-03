@@ -1,0 +1,9 @@
+Implement a way to view images in manga
+
+Figure out if page implementation makes sense or if I should change it
+
+Add thumbnail support, allow the user to upload one or use the first page by default
+
+Implement title renaming (changes the folder too)
+
+Add metadata file that the user can edit and it stores on the system with the author name, publish date, user scores

@@ -6,7 +6,7 @@ from flask import (
 
 from . import settings
 from .auth import owner_access
-from .manga import registerMangaPath
+from . import manga
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -19,7 +19,8 @@ def scanPaths():
         folders = lsDirs(path)['folders']
         print(f"Need to scan {len(folders)} folders")
         for folder in folders:
-            registerMangaPath(path, folder)
+            manga.registerMangaPath(path, folder)
+    
     flash("Scanning", 'info')
     return {'result': 'success'}
 
