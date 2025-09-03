@@ -4,6 +4,8 @@ from flask import (
 
 from datetime import datetime
 
+import os
+
 bp = Blueprint('manga', __name__, url_prefix='/')
 
 testLatest = [{'title_id': 0, 'title': 'test', 'uploader': 1, 'upload_date': datetime.now()}] * 10
@@ -36,3 +38,10 @@ def getLatest(count = 10):
     #     'ORDER BY upload_date DESC'
     # ).fetchmany(count)
     return latest
+
+def registerMangaPath(dir, folderName):
+    path = os.path.join(dir, folderName)
+    if(not os.path.isdir(path)):
+        return
+    
+    print(f"Registering: {path}")

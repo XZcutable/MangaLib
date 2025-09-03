@@ -1,20 +1,25 @@
 import os
 
 from flask import (
-    Blueprint, flash, redirect, render_template, request, session, url_for, Flask, current_app, make_response
+    Blueprint, flash, request
 )
 
-from .auth import owner_access
 from . import settings
+from .auth import owner_access
+from .manga import registerMangaPath
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
 @bp.route('/scan-paths', methods=['POST'])
 @owner_access
 def scanPaths():
-    # paths = getPaths()['paths']
-    # for path in paths:
-    #     lsFiles(path)
+    paths = getPaths()['paths']
+    print(f"Need to scan {len(paths)} paths")
+    for path in paths:
+        folders = lsDirs(path)['folders']
+        print(f"Need to scan {len(folders)} folders")
+        for folder in folders:
+            registerMangaPath(path, folder)
     flash("Scanning", 'info')
     return {'result': 'success'}
 

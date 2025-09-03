@@ -2,9 +2,9 @@ import json, os
 from flask import (
     Blueprint, g, render_template, Flask, current_app
 )
-from mangalib.blueprints.db import get_user_db as get_db
+from mangalib.blueprints.db import db
 
-from ..lib.enum import Access
+from mangalib.lib.enum import Access
 
 bp = Blueprint('settings', __name__, url_prefix='/settings')
 

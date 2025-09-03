@@ -2,7 +2,7 @@ import os
 
 from flask import Flask, g
 
-from mangalib.blueprints import db, auth, manga
+from mangalib.blueprints import db, auth, manga, settings, api
 
 import tomllib
 
@@ -18,12 +18,12 @@ def create_app():
 
     db.init_app(app)
     auth.init_app(app)
-    # settings.init_app(app)
+    settings.init_app(app)
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(manga.bp)
-    # app.register_blueprint(settings.bp)
-    # app.register_blueprint(api.bp)
+    app.register_blueprint(settings.bp)
+    app.register_blueprint(api.bp)
 
     app.add_url_rule('/', endpoint='home')
     app.add_url_rule('/manga', endpoint='manga')

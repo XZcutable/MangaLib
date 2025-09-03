@@ -1,25 +1,23 @@
-import functools
-
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for, Flask, current_app, abort, make_response
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mangalib.models.db_base import db,Users
-
-import click
-
+from mangalib.blueprints.db import db, Users
 from mangalib.lib.enum import Access
-
-from sqlalchemy import exc
 
 bp = Blueprint('auth', __name__, url_prefix='')
 public_access = ['auth.login', 'auth.register', 'auth.logout']
 
-import re
+import re, functools, click
 
 valid_password_regex = r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&\.,*-_()]).{6,20}$"
 valid_password_pattern = re.compile(valid_password_regex)
+
+def init_app(app: Flask):    
+    app.cli.add_command(register_user)
+    app.cli.add_command(change_user_role)
+    app.cli.add_command(change_user_password)
 
 @bp.before_app_request
 def load_logged_in_user():
@@ -29,9 +27,6 @@ def load_logged_in_user():
         g.user = None
     else:
         g.user = Users.query.filter_by(id=user_id).first()
-        # .execute(
-        #     "SELECT * FROM user WHERE id = ?", (user_id,)
-        # ).fetchone()
 
     g.requires_clearance = True
 
@@ -47,10 +42,6 @@ def load_logged_in_user():
             flash("Account Needed", 'error')
 
         return redirect(url_for('auth.login'))
-
-def init_app(app: Flask):    
-    pass
-
 
 @bp.route('/auth/change-password', methods=('POST',))
 def changePassword():
@@ -71,11 +62,6 @@ def changePassword():
         if user:
             user.password = generate_password_hash(new_password)
             db.session.commit()
-        # db.execute(
-        #     "UPDATE user SET password = ? WHERE id = ?",
-        #     (generate_password_hash(new_password), g.user['id'])
-        # )
-        # db.commit()
         flash("Password Updated", 'success')
     else:
         flash(error, 'error')
@@ -121,7 +107,6 @@ def register():
                 else:
                     error = 'Registration is closed'
             if error is None:
-                # db.session.add(user)
                 db.session.commit()
                 return redirect(url_for("auth.login", last_username=username))
             else:
@@ -145,14 +130,9 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        # db = get_db()
         error = None
 
         user: Users = Users.query.filter_by(username=username).first()
-        # db.execute(
-        #     "SELECT * FROM user WHERE username = ?", (username,)
-        # ).fetchone()
-
         if user is None:
             error = 'Invalid username'
         elif not check_password_hash(user.password, password):
@@ -217,3 +197,59 @@ def moderator_access(view):
         return view(**kwargs)
     
     return wrapped_view
+
+@click.command("register-user")
+@click.option("-u", "--username")
+@click.option("-p", "--password")
+@click.option("-r", "--role", default="user")
+def register_user(username, password, role):
+    if Users.query.filter_by(username=username).first() is None:
+        user: Users = Users(username=username, password=generate_password_hash(password))
+        db.session.add(user)
+        user = Users.query.filter_by(username=username).first()
+        if Access.OWNER == role:
+            if user.id == 1:
+                user.role = Access.OWNER.toString()
+                user.approved = True
+                db.session.commit()
+                click.echo(f"Registered user: {username}")
+            else:
+                click.echo("Cannot make account Owner, only the first registered user can be the owner")
+        else:
+            user.role = (Access.fromString(role) or Access.USER).toString()
+            user.approved = True
+            db.session.commit()
+            click.echo(f"Registered user: {username}")
+    else:
+        click.echo("Username is already registered")
+
+@click.command("change-user-role")
+@click.option("-u", "--username")
+@click.option("-r", "--role", default="user")
+def change_user_role(username, role):
+    user: Users | None = Users.query.filter_by(username=username).first()
+    if user is not None:
+        old_role = Access.fromString(user.role)
+        if Access.OWNER == role:
+            if user.id == 1:
+                user.role = Access.OWNER.toString()
+                click.echo(f"Success changed {username} role from '{old_role}' to '{user.role}'")
+                db.session.commit()
+            else:
+                click.echo("Cannot make account Owner, only the first registered user can be the owner")
+        else:
+            user.role = (Access.fromString(role) or Access.USER).toString()
+            click.echo(f"Successfully changed {username} role from '{old_role}' to '{user.role}'")
+            db.session.commit()
+    else:
+        click.echo("Username is not registered")
+
+@click.command("change-user-password")
+@click.option("-u", "--username")
+@click.option("-p", "--password")
+def change_user_password(username, password):
+    user: Users | None = Users.query.filter_by(username=username).first()
+    if user is not None:
+        user.password = generate_password_hash(password)
+        db.session.commit()
+        click.echo(f"Success changed {username} password")

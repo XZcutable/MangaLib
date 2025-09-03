@@ -25,6 +25,9 @@ class Access(Enum):
                 return Access.OWNER
             case _:
                 return Access.NONE
+            
+    def __bool__(self):
+        return self is not None and self is not Access.NONE
     
     def __str__(self):
         return self.value[1]
