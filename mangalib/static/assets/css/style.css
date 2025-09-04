@@ -1,5 +1,6 @@
-body {
+html, body {
     background-color: #1a1a1a;
+    height: 98%;
 }
 
 .no-hover {
@@ -16,4 +17,23 @@ a {
 
 a:hover {
     text-decoration: underline;
+}
+
+.main-body {
+    height: 100%;
+    width: 100%;
+}
+
+.main-content {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+div.manga-page {
+    height: 100%;
+}
+
+div.manga-page img {
+    height: 100%;
 }

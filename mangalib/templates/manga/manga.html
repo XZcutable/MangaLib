@@ -1,7 +1,7 @@
-{% macro manga_card(title_id, title, uploader, upload_date) -%}
+{% macro manga_card(manga_id, title) -%}
     <div class="w3-card w3-round-large">
-        <a href="{{ url_for('manga') }}?id={{ title_id }}">
-            <img src="/static/test-thumbnail.jpg" alt="Thumbnail" style="width: 100%;" class="w3-round-large w3-hover-opacity">
+        <a href="{{ url_for('manga') }}/{{ manga_id }}/1">
+            <img src="{{ url_for('manga-image') }}/{{ manga_id }}/1" alt="Thumbnail" style="width: 100%;" class="w3-round-large w3-hover-opacity">
             <span class="w3-small w3-padding-small w3-text-white text-shadow w3-left">{{ title }}</span>
         </a>
     </div>

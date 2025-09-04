@@ -24,7 +24,7 @@ class Base(DeclarativeBase, MappedAsDataclass):
 
 db = SQLAlchemy(model_class=Base)
 
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from mangalib.lib.enum import Access
 
@@ -44,11 +44,12 @@ class Manga(db.Model):
     id = Column(Integer, primary_key=True, nullable=False)
     title: Mapped[str] = mapped_column(nullable=False)
     manga_path: Mapped[str] = mapped_column(nullable=False)
-    pages: Mapped[str] = mapped_column(nullable=False, default="{}")
-    user_score_total: Mapped[int] = mapped_column(nullable=False, default=0)
-    user_score_count: Mapped[int] = mapped_column(nullable=False, default=0)
-    rating: Mapped[str] = mapped_column(nullable=False, default="unrated")
     date_uploaded: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now(timezone.utc))
 
     def __repr__(self):
         return f'<Title {self.title}> (Pages: {len(json.loads(self.pages))}) ID {self.id} Uploaded: "{self.date_uploaded}"'
+    
+class Pages(db.Model):
+    manga_id: Mapped[ForeignKey] = mapped_column(ForeignKey("manga.id"), primary_key=True)
+    file_name: Mapped[str] = mapped_column(nullable=False)
+    page_order: Mapped[int] = mapped_column(primary_key=True)

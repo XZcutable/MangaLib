@@ -1,9 +1,13 @@
-Implement a way to view images in manga
+Implement data editing
 
-Figure out if page implementation makes sense or if I should change it
+Implement page count in manga
 
-Add thumbnail support, allow the user to upload one or use the first page by default
+implment manga info page
 
-Implement title renaming (changes the folder too)
+Implement view all
 
-Add metadata file that the user can edit and it stores on the system with the author name, publish date, user scores
+implement random manga
+
+Better fit content in screen
+
+Better fit for mobile

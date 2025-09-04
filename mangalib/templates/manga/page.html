@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Manga Title Here{% endblock %}
+
+{% block content %}
+<div class="manga-page w3-center">
+    <a href="{{ next_page }}">
+        <img class="w3-card" src="{{ page_image }}" alt="Page">
+    </a>
+</div>
+{% endblock %}
