@@ -1,8 +1,3 @@
-html, body {
-    background-color: #1a1a1a;
-    height: 98%;
-}
-
 .no-hover {
     user-select: none;
 }
@@ -19,15 +14,44 @@ a:hover {
     text-decoration: underline;
 }
 
-.main-body {
+
+html {
     height: 100%;
-    width: 100%;
+}
+
+body {
+    background-color: #1a1a1a;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.flash-success {
+    color:#fff!important;
+    background-color:#4CAF50!important;
+}
+
+.flash-error {
+    color:#fff!important;
+    background-color:#f44336!important;
+}
+
+.flash-warning {
+    color:#fff!important;
+    background-color:#ffeb3b!important;
+}
+
+.flash-info {
+    color:#fff!important;
+    background-color:#9e9e9e!important;
+}
+
+.nav-bar {
 }
 
 .main-content {
     height: 100%;
-    margin: 0;
-    padding: 0;
+    overflow: scroll;
 }
 
 div.manga-page {
@@ -36,4 +60,5 @@ div.manga-page {
 
 div.manga-page img {
     height: 100%;
+    width: fit-content;
 }

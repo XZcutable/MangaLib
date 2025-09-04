@@ -5,6 +5,8 @@
 <head>
     <title>{% block title %}{% endblock %} - Manga Host</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Manga Hosted Locally">
     <link rel="stylesheet" href="/static/assets/css/style.css">
     <link rel="stylesheet" href="/static/assets/css/w3.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -13,74 +15,72 @@
 </head>
 {% endblock %}
 
-<body>
-    <header>
-        <nav class="w3-bar w3-asphalt w3-xlarge">
-            <a href="/" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-home"></i></a>
-            <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-rss">&nbsp;Latest</i></a>
-            <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-random">&nbsp;Random</i></a>
-            <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-upload">&nbsp;Upload</i></a>
-            <div class="w3-right">
-                {% if g.user %}
-                    <div class="w3-dropdown-hover" style="background-color: transparent;">
-                        <div class="w3-text-white w3-button text-shadow w3-round-large"><i class="w3-xlarge fa fa-user-o">&nbsp;&nbsp;{{ g.user['username'] }}</i></div>
-                        <div class="w3-dropdown-content w3-bar-block w3-card-4 w3-round-large">
-                            <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button w3-round-large" style="margin: 0;"><i class="w3-xlarge fa fa-gear">&nbsp;Settings</i></a>
-                            <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button w3-round-large" style="margin: 0;"><i class="w3-xlarge fa fa-sign-out">&nbsp;Logout</i></a>
-                        </div>
-                    </div>
-                {% else %}
-                    {% if request.path == url_for('auth.login') %}
-                    <span class="w3-bar-item w3-dark-grey no-hover  w3-round-large"><i class="w3-xlarge fa fa-sign-in">&nbsp;Login</i></span>
-                    {% else %}
-                    <a href="{{ url_for('auth.login') }}" class="w3-bar-item w3-button  w3-round-large"><i class="w3-xlarge fa fa-sign-in">
-                            Login</i></a>
-                    {% endif %}
-                    {% if request.path == url_for('auth.register') %}
-                    <span class="w3-bar-item w3-dark-grey no-hover w3-round-large"><i class="w3-xlarge fa fa-pencil-square-o">
-                            Register</i></span>
-                    {% else %}
-                    <a href="{{ url_for('auth.register') }}" class="w3-bar-item w3-button w3-round-large"><i
-                            class="w3-xlarge fa fa-pencil-square-o">&nbsp;Register</i></a>
-                    {% endif %}
-                {% endif %}
-                <input type="search" placeholder="Search..." id="search-input" class="w3-bar-item  w3-round-large">
-                <button id="search-button" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-search"></i></button>
-            </div>
-        </nav>
+<body class="w3-display-container w3-border">
+    <script>
+        function toggleMenu() {
+            var menu = document.getElementById("mobile-menu");
+            if(menu.classList.contains("w3-show")) {
+                menu.classList.remove("w3-show")
+            } else {
+                menu.classList.add("w3-show")
+            }
+        }
+    </script>
+    <div class="nav-bar w3-padding w3-bar w3-asphalt">
+        <a href="{{ url_for('home') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-home"></i></a>
+        {% if g.user %}
+        <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-rss">&nbsp;Latest</i></a>
+        <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-random">&nbsp;Random</i></a>
+        <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-upload">&nbsp;Upload</i></a>
 
-        {% for message in get_flashed_messages(category_filter=('success',)) %}
-        <div class="flash w3-green w3-center w3-padding w3-button w3-block" style="border:4px solid white"
-            onclick="this.remove()"><span class="no-hover">{{ message }}</span></div>
-        {% endfor %}
-        {% for message in get_flashed_messages(category_filter=('info',)) %}
-        <div class="flash w3-grey w3-center w3-padding w3-button w3-block" style="border:4px solid white"
-            onclick="this.remove()"><span class="no-hover">{{ message }}</span></div>
-        {% endfor %}
-        {% for message in get_flashed_messages(category_filter=('warning',)) %}
-        <div class="flash w3-yellow w3-center w3-padding w3-button w3-block" style="border:4px solid white"
-            onclick="this.remove()"><span class="no-hover">{{ message }}</span></div>
-        {% endfor %}
-        {% for message in get_flashed_messages(category_filter=('error',)) %}
-        <div class="flash w3-red w3-center w3-padding w3-button w3-block" style="border:4px solid white"
-            onclick="this.remove()"><span class="no-hover">{{ message }}</span></div>
-        {% endfor %}
-    </header>
-    {% block body %}
-        <div class="main-body w3-row">
-            <div class="main-content w3-container w3-col l2">{% block left_banner %}{% endblock %}</div>
-            <div class="main-content w3-container w3-col l8 m12">{% block content %}{% endblock %}</div>
-            <div class="main-content w3-container w3-col l2">{% block right_banner %}{% endblock %}</div>
+        <div class="w3-right">
+            <div class="w3-dropdown-hover" style="background-color: transparent;">
+                <button class="w3-text-white w3-button text-shadow w3-round-large"><i class="fa fa-user-o">&nbsp;&nbsp;{{ g.user['username'] }}</i></button>
+                <div class="w3-dropdown-content w3-bar-block w3-round-large">
+                    <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-gear">&nbsp;Settings</i></a>
+                    <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
+                </div>
+            </div>
+            <input type="search" placeholder="Search..." id="search-input" class="w3-bar-item w3-round-large">
+            <button id="search-button" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-search"></i></button>
         </div>
-    {% endblock %}
-    {% block footer %}
-        <!-- <footer id="footer" class="w3-row w3-border-top w3-grey">
+
+        <a href="javascript:void(0)" class="w3-bar-item w3-button w3-right w3-hide-large w3-hide-medium" onclick="toggleMenu()">&#9776;</a>
+        {% else %}
+            {% if request.path == url_for('auth.register') %}
+            <span class="w3-bar-item w3-dark-grey no-hover w3-right"><i class="fa fa-pencil-square-o">&nbsp;Register</i></span>
+            <a href="{{ url_for('auth.login') }}" class="w3-bar-item w3-button w3-right"><i class="fa fa-sign-in">&nbsp;Login</i></a>
+            {% elif request.path == url_for('auth.login') %}
+            <a href="{{ url_for('auth.register') }}" class="w3-bar-item w3-button w3-right"><i class="fa fa-pencil-square-o">&nbsp;Register</i></a>
+            <span class="w3-bar-item w3-dark-grey no-hover w3-right"><i class="fa fa-sign-in">&nbsp;Login</i></span>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {% if g.user %}
+    <div id="mobile-menu" class="nav-bar w3-bar-block w3-asphalt w3-hide w3-hide-large w3-hide-medium">
+        <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button"><i class="fa fa-rss">&nbsp;Latest</i></a>
+        <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button"><i class="fa fa-random">&nbsp;Random</i></a>
+        <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button"><i class="fa fa-upload">&nbsp;Upload</i></a>
+    </div>
+    {% endif %}
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="flash flash-{{category}} w3-center w3-button" onclick="this.remove()"><span class="no-hover">{{ message }}</span></div>
+    {% endfor %}
+    <div class="w3-display-container main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    
+    <!-- {% block footer %}
+        <footer id="footer" class="w3-row w3-border-top w3-grey">
             <a href="/" class="w3-bar-item w3-button">Link</a>
             <a href="/" class="w3-bar-item w3-button">Link</a>
             <a href="/" class="w3-bar-item w3-button">Link</a>
             <a href="/" class="w3-bar-item w3-button">Link</a>
-        </footer> -->
-    {% endblock %}
+        </footer>
+    {% endblock %} -->
+    </div>
 </body>
 
 </html>
