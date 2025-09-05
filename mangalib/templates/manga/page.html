@@ -1,10 +1,149 @@
 {% extends 'base.html' %}
 {% block title %}Manga Title Here{% endblock %}
 
+{% block script %}
+<script>
+    addEventListener('load', onLoad);
+
+    document.addEventListener("keydown", function(event) {
+        if (event.key === "ArrowRight" || event.key === "d") {
+            nextPage();
+        } else if (event.key === "ArrowLeft" || event.key === "a") {
+            prevPage();
+        }
+    });
+
+    function onLoad() {
+        document.getElementById("page").addEventListener('touchstart', touchStart)
+        document.getElementById("page").addEventListener('touchmove', touchMove)
+        document.getElementById("page").addEventListener('touchend', touchEnd)
+        document.getElementById("page").addEventListener('touchcancel', touchCancel)
+
+        document.getElementById("page").addEventListener('mousedown', mouseDown)
+        document.getElementById("page").addEventListener('mouseup', mouseUp)
+    }
+
+    let clicking = false;
+    let mouseX = 0
+
+    function mouseDown(event) {
+        clicking = event.button == 0;
+        mouseX = event.clientX;
+    }
+
+    function mouseUp(event) {
+        if(clicking && event.button == 0) {
+            clicking = false;
+
+            let isClickedLeft1 = mouseX < (event.currentTarget.offsetWidth / 2);
+            mouseX = event.clientX;
+            let isClickedLeft2 = mouseX < (event.currentTarget.offsetWidth / 2);
+
+            if(isClickedLeft1 === isClickedLeft2) {
+                if(isClickedLeft1) {
+                    prevPage();
+
+                }
+                else {
+                    nextPage();
+                }
+            }
+        }
+    }
+
+
+    let startX = -1;
+    let dragging = false;
+    let dir = 0;
+    let dragDist = 50;
+    let minBeforeMove = 30
+
+    function touchStart(event) {
+        event.preventDefault();
+
+        if (event.touches.length == 1) {
+            startX = event.touches[0].clientX;
+        }
+    }
+
+    function touchMove(event) {
+        event.preventDefault();
+
+        if (event.touches.length == 1 && startX >= 0) {
+            let delta = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
+            if(!dragging && Math.abs(delta) >= minBeforeMove) {
+                dragging = true;
+            } else if(dragging) {
+                let curDir = Math.sign(delta);
+                if(curDir != dir) {
+                    dir = curDir;
+                    startX = event.touches[0].clientX;
+                    delta = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
+                }
+                event.currentTarget.style.transform = `translate(${delta}px, 0px)`;
+            }
+           
+        }
+    }
+
+    function touchEnd(event) {
+        event.preventDefault();
+
+        if(dragging) {
+            let endX = event.changedTouches[0].clientX;
+            if(Math.abs(endX - startX) > dragDist) {
+                if (endX < startX) {
+                    nextPage();
+                } else {
+                    prevPage();
+                }
+            }
+        } else {
+            let endX = event.changedTouches[0].clientX;
+            let isTappedLeft = startX < (event.currentTarget.offsetWidth / 2);
+            if (isTappedLeft) {
+                prevPage();
+            } else {
+                nextPage();
+            }
+        }
+        startX = -1;
+        dir = 0;
+        dragging = false;
+        event.currentTarget.style.transform = `translate(0px, 0px)`;
+    }
+
+    function touchCancel(event) {
+        event.preventDefault();
+
+        startX = -1;
+        dir = 0;
+        dragging = false;
+        event.currentTarget.style.transform = `translate(0px, 0px)`;
+    }
+
+    function nextPage() {
+        window.location = "{{ next_page }}";
+    }
+
+    function prevPage() {
+        // {% if prev_page %}
+        window.location = "{{ prev_page }}";
+        // {% endif %}
+    }
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="manga-page w3-center w3-border">
-    <a href="{{ next_page }}">
-        <img class="w3-image" src="{{ page_image }}" alt="Page">
-    </a>
+    <!-- <a href="{{ next_page }}"> -->
+        <div id="page" cl style="width: 100%;height: 100%;">
+            <img class="w3-image no-hover" src="{{ page_image }}" alt="Page">
+        </div>
+    <!-- </a> -->
 </div>
+{% endblock %}
+
+{% block content_footer %}
+<div class="w3-center text-shadow w3-text-white">{{ current_page }} / {{ total_pages }}</div>
 {% endblock %}

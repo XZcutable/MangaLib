@@ -2,6 +2,11 @@
     user-select: none;
 }
 
+img.no-hover {
+    user-select: none;
+    pointer-events: none;
+}
+
 .text-shadow {
     text-shadow:1px 1px #444;
 }
@@ -46,7 +51,17 @@ body {
     background-color:#9e9e9e!important;
 }
 
-.nav-bar {
+.user-menu button {
+    border-radius: 8px 8px 0px 0px;
+    width: 160px!important;
+}
+
+.user-menu > .w3-dropdown-content {
+    border-radius: 0px 0px 8px 8px;
+}
+
+.user-menu .w3-dropdown-content a:last-child {
+    border-radius: 0px 0px 8px 8px;
 }
 
 .main-content {
@@ -54,11 +69,20 @@ body {
     overflow: scroll;
 }
 
-div.manga-page {
+.manga-page {
     height: 100%;
 }
 
-div.manga-page img {
+.manga-page img {
     height: 100%;
     width: fit-content;
+}
+
+.manga-search > input {
+    border-radius: 8px 0px 0px 8px;
+}
+
+.manga-search > button {
+    padding-left: 0;
+    border-radius: 0px 8px 8px 0px;
 }

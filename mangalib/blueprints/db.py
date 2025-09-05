@@ -41,10 +41,20 @@ class Users(db.Model):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
 
 class Manga(db.Model):
-    id = Column(Integer, primary_key=True, nullable=False)
     title: Mapped[str] = mapped_column(nullable=False)
     manga_path: Mapped[str] = mapped_column(nullable=False)
+    pages: Mapped[int] = mapped_column(nullable=False)
+    id = Column(Integer, primary_key=True, nullable=False, default=0)
     date_uploaded: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now(timezone.utc))
+
+    def asDict(self):
+        return {
+            'title': self.title,
+            'manga_path': self.manga_path,
+            'pages': self.pages,
+            'id': self.id,
+            'date_uploaded': self.date_uploaded
+        }
 
     def __repr__(self):
         return f'<Title {self.title}> (Pages: {len(json.loads(self.pages))}) ID {self.id} Uploaded: "{self.date_uploaded}"'
