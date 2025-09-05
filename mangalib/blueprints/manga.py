@@ -9,7 +9,7 @@ from .db import db, Manga, Pages
 
 from sqlalchemy import text
 
-import os, json
+import os, random
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp')
 
@@ -76,10 +76,14 @@ def get_manga_page(manga_id, page):
 @bp.route('/latest')
 def latest():
     pass
+    
+    
 
 @bp.route('/random')
-def random():
-    pass
+def random_manga():
+    mangas = Manga.query.all()
+    random_manga_id = random.randrange(1, len(mangas))
+    return redirect(f"{url_for('manga')}/{random_manga_id}/1")
 
 @bp.route('/upload', methods=('GET', 'POST'))
 def upload():
