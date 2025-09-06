@@ -7,11 +7,11 @@ from datetime import datetime
 from . import api
 from .db import db, Manga, Pages
 
-from sqlalchemy import text
+from sqlalchemy import asc, desc
 
 import os, random
 
-image_types = ('.jpg', '.jpeg', '.png', '.webp')
+image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
 bp = Blueprint('manga', __name__, url_prefix='/')
 
@@ -116,19 +116,13 @@ def clear_manga():
     session['current_page'] = None
 
 def getLatest(count = 10):
-    latest = db.session.execute(text(
-        'SELECT id, title '
-        'FROM manga '
-        'ORDER BY date_uploaded ASC'
-    )).fetchmany(count)
+    latest = Manga.query.order_by(Manga.date_uploaded, desc(Manga.id)).values(Manga.id, Manga.title)
+    latest = [title for title in latest] # TODO get the first 10
     return latest
 
 def getAllTitles():
-    titles = db.session.execute(text(
-        'SELECT id, title '
-        'FROM manga '
-        'ORDER BY date_uploaded DESC'
-    )).all()
+    titles = [title for title in Manga.query.values(Manga.id, Manga.title)]
+    titles.sort(key=lambda manga: manga.id)
     return titles
 
 def registerMangaPath(dir, folderName):
@@ -152,6 +146,7 @@ def registerMangaPath(dir, folderName):
         print(manga.id)
     else:
         print(f"Updating {folderName}")
+        manga.manga_path = path
 
     # print(f"Registering {len(files)} pages to {folderName}")
     index = 1

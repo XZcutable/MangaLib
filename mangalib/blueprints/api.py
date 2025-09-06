@@ -17,7 +17,7 @@ def scanPaths():
     print(f"Need to scan {len(paths)} paths")
     for path in paths:
         folders = lsDirs(path)['folders']
-        print(f"Need to scan {len(folders)} folders")
+        # print(f"Need to scan {len(folders)} folders")
         for folder in folders:
             manga.registerMangaPath(path, folder)
     
