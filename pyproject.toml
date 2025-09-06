@@ -1,5 +1,5 @@
 [project]
-name = "Manga Library"
+name = "MyMangaLibrary"
 version = "1.0.0"
 description = "Host and view your Manga locally"
 dependencies = [
@@ -7,5 +7,5 @@ dependencies = [
 ]
 
 [build-system]
-requires = "flit_core<4"
+requires = ["flit_core<4"]
 build-backend = "filt_core.build.api"
