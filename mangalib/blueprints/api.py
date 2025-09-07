@@ -102,7 +102,8 @@ def lsDirs(dir: str | None):
         dir = os.path.normpath(dir).replace('\\', '/')
 
     if dir == '/':
-        return { 'dir': '/', 'folders': getRootFolders() }
+        (dir, folder) = getRootFolders()
+        return { 'dir': dir, 'folders':  folder}
     elif os.path.isdir(dir):
         if not dir.endswith(':/'):
             dir += '/'
@@ -130,9 +131,11 @@ def isDir():
 
 def getRootFolders():
     if os.name == 'nt':
-        return [f'{drive}:/' for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if os.path.exists(f'{drive}:/')]
+        folders = [f'{drive}:/' for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if os.path.exists(f'{drive}:/')]
+        return ('', folders)
     elif os.name == 'posix': 
-        return os.listdir('/')
+        folders = os.listdir('/')
+        return ('/', folders)
     else:
         return []
     
