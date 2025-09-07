@@ -5,18 +5,19 @@
 
 {% block content %}
     <div class="w3-row w3-padding">
-        <div class="w3-col w3-container l1"></div>
-        <div class="w3-col l10">
-            <a href="{{ url_for('manga.latest') }}" class="w3-text-white w3-xxlarge text-shadow"><strong>Latest Uploads</strong></a>
+        <div class="w3-col w3-container l3 w3-hide-small"></div>
+        <div class="w3-col l6 w3-mobile">
+            <span class="w3-text-white w3-xxlarge text-shadow no-hover"><strong>All Uploads</strong></span>
             {% if titles|length == 0 %}
-                <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
+            <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
             {% else %}
-                <div class="w3-grid-padding w3-padding w3-border-bottom" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
-                    {% for id, title in titles %}
-                        {{ manga_card(id, title) }}
-                    {% endfor %}
-                </div>
+            <div class="w3-grid-padding w3-padding manga-grid">
+                {% for id, title in titles %}
+                {{ manga_card(id, title) }}
+                {% endfor %}
+            </div>
             {% endif %}
         </div> 
+        <div class="w3-col w3-container l3 w3-hide-small"></div>
     </div>
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Manga Title Here{% endblock %}
+{% block title %}{{manga_title}}{% endblock %}
 
 {% block script %}
 <script>
@@ -13,50 +13,74 @@
         }
     });
 
+    function playLeftGrad() {
+       let grad = document.getElementById("left-grad");
+       grad.classList.add("left-grad");
+    }
+
+    function playRightGrad() {
+       let grad = document.getElementById("right-grad");
+       grad.classList.add("right-grad");
+    }
+
     function onLoad() {
+        document.getElementById("left-grad").onanimationend = (event) => event.currentTarget.classList.remove("left-grad")
+        document.getElementById("right-grad").onanimationend = (event) => event.currentTarget.classList.remove("right-grad")
+
         let page = document.getElementById("page");
+        let zone = document.getElementById("page-zone");
+
         let aspect = page.naturalHeight / page.naturalWidth;
         
-        if(aspect > 2) {
-            page.classList.remove("fill-height")
+        if (page.naturalWidth > page.naturalHeight) {
+            zone.classList.remove("fill-height");
+        } else if(aspect >= 2.5) {
+            zone.classList.remove("fill-height");
         }
 
         page.classList.remove("w3-hide")
 
-        var pages = document.getElementsByClassName("page-content");
-        for(var i = 0; i < pages.length; i++) {
-            let page = pages[i];
-            page.addEventListener('touchstart', touchStart)
-            page.addEventListener('touchmove', touchMove)
-            page.addEventListener('touchend', touchEnd)
-            page.addEventListener('touchcancel', touchCancel)
+        zone.addEventListener('touchstart', touchStart)
+        zone.addEventListener('touchmove', touchMove)
+        zone.addEventListener('touchend', touchEnd)
+        zone.addEventListener('touchcancel', touchCancel)
 
-            page.addEventListener('mousedown', mouseDown)
-            page.addEventListener('mouseup', mouseUp)
-        };
+        zone.addEventListener('mousedown', mouseDown)
+        zone.addEventListener('mouseup', mouseUp)
     }
+
+    let sides = 0.25;
 
     let clicking = false;
     let mouseX = 0
 
     function mouseDown(event) {
         clicking = event.button == 0;
-        mouseX = event.clientX;
+        mouseX = event.offsetX;
     }
 
     function mouseUp(event) {
         if(clicking && event.button == 0) {
             clicking = false;
 
-            let isClickedLeft1 = mouseX < (event.currentTarget.offsetWidth / 2);
-            mouseX = event.clientX;
-            let isClickedLeft2 = mouseX < (event.currentTarget.offsetWidth / 2);
+            
+            let clickedOnLeft = mouseX <= (event.currentTarget.offsetWidth / 2 * sides);
+            let clickedOnRight = mouseX >= (event.currentTarget.offsetWidth / 2 * (2 - sides));
 
-            if(isClickedLeft1 === isClickedLeft2) {
-                if(isClickedLeft1) {
+            // console.log(mouseX, event.currentTarget.offsetWidth / 2  * sides)
+            mouseX = event.offsetX;
+
+            let clickedOnLeft2 = mouseX <= (event.currentTarget.offsetWidth / 2 * sides);
+            let clickedOnRight2 = mouseX >= (event.currentTarget.offsetWidth / 2 * (2 - sides));
+
+            if(clickedOnLeft === clickedOnLeft2) {
+                if(clickedOnLeft) {
                     prevPage();
                 }
-                else {
+            }
+
+            if(clickedOnRight === clickedOnRight2) {
+                if(clickedOnRight) {
                     nextPage();
                 }
             }
@@ -69,10 +93,12 @@
     let dir = 0;
     let dragDist = 40;
     let minXBeforeDrag = 30;
-    
-    let minYBeforeScroll = 30;
+
+
+    let minYBeforeScroll = 10;
     let startY = 0;
     let scrolling = false;
+    let animPlayed = false;
 
     function touchStart(event) {
         if (event.touches.length == 1) {
@@ -83,21 +109,29 @@
     }
 
     function touchMove(event) {
-        if(scrolling) {
-            return;
-        }
-
         if (event.touches.length == 1) {
+
+            if(scrolling) {
+                return;
+            }
+
             let yDelta = Math.abs(event.touches[0].clientY - startY);
 
             if(!dragging && yDelta >= minYBeforeScroll) {
                 scrolling = true;
                 return;
+            } else {
+                event.preventDefault();
             }
 
-            let deltaX = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
+            let deltaX = event.touches[0].clientX - startX;
+            let clampedX = Math.min(dragDist, Math.max(-dragDist, deltaX));
+
             if(!dragging && Math.abs(deltaX) >= minXBeforeDrag) {
                 dragging = true;
+                startX = event.touches[0].clientX;
+                deltaX = event.touches[0].clientX - startX;
+                clampedX = Math.min(dragDist, Math.max(-dragDist, deltaX));
             } 
             
             if(dragging) {
@@ -105,9 +139,18 @@
                 if(curDir != dir) {
                     dir = curDir;
                     startX = event.touches[0].clientX;
-                    deltaX = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
+                    clampedX = Math.min(dragDist, Math.max(-dragDist, deltaX));
+                    animPlayed = false;
+                } else if(!animPlayed && Math.abs(deltaX) >= dragDist) {
+                    if(curDir > 0) {
+                        playLeftGrad();
+                        animPlayed = true;
+                    } else if(curDir < 0) {
+                        playRightGrad();
+                        animPlayed = true;
+                    }
                 }
-                event.currentTarget.style.transform = `translate(${deltaX}px, 0px)`;
+                event.currentTarget.style.transform = `translate(${clampedX}px, 0px)`;
             }
         }
     }
@@ -135,6 +178,7 @@
         }
         dragging = false;
         scrolling = false;
+        animPlayed = false;
         event.currentTarget.style.transform = `translate(0px, 0px)`;
     }
 
@@ -158,10 +202,16 @@
 {% endblock %}
 
 {% block content %}
-<div class="manga-page w3-center">
+<div class="manga-page">
     <div class="page-content fill-height">
+        <div id="left-grad" class=""></div>
+        <div id="right-grad" class=""></div>
         <!-- Need DIV for mouse events -->
-        <img id="page" class="no-hover fill-height w3-hide" src="{{ page_image }}" alt="Page">
+        <div id="page-zone" class="page-zone fill-height">
+            <i class="fa fa-spinner load-spin"></i>
+            <img id="page" class="no-hover fill-height w3-hide" src="{{ page_image }}" alt="Page">
+            
+        </div>
     </div>
 </div>
 {% endblock %}

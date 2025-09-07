@@ -36,6 +36,8 @@ def read_manga(manga_id, page=None):
 
     if manga is None:
         manga = set_current_manga(manga_id)
+    elif manga['id'] != manga_id:
+        manga = set_current_manga(manga_id)
 
     if manga:
         next_page = page + 1
@@ -53,7 +55,7 @@ def read_manga(manga_id, page=None):
 
         page_image = f"{url_for('manga-image')}/{manga_id}/{page}"
         
-        return render_template('manga/page.html', current_page=page, next_page=next_page, prev_page=prev_page, page_image=page_image, total_pages=manga['pages'])
+        return render_template('manga/page.html', manga_title=manga['title'], current_page=page, next_page=next_page, prev_page=prev_page, page_image=page_image, total_pages=manga['pages'])
     else:
         return redirect(url_for('home')) # TODO Change to not found
     
@@ -116,7 +118,7 @@ def clear_manga():
     session['current_page'] = None
 
 def getLatest(count = 10):
-    latest = Manga.query.order_by(Manga.date_uploaded, desc(Manga.id)).values(Manga.id, Manga.title)
+    latest = Manga.query.order_by(Manga.date_uploaded, desc(Manga.id)).limit(10).values(Manga.id, Manga.title)
     latest = [title for title in latest] # TODO get the first 10
     return latest
 
@@ -139,13 +141,13 @@ def registerMangaPath(dir, folderName):
     
     manga: Manga | None = Manga.query.filter_by(title=folderName).first()
     if manga is None:
-        print(f"Registering {folderName}")
+        # print(f"Registering {folderName}")
         manga: Manga = Manga(title=folderName, manga_path=path, pages=0)
         db.session.add(manga)
         manga: Manga = Manga.query.filter_by(title=folderName).first()
-        print(manga.id)
+        # print(manga.id)
     else:
-        print(f"Updating {folderName}")
+        # print(f"Updating {folderName}")
         manga.manga_path = path
 
     # print(f"Registering {len(files)} pages to {folderName}")
