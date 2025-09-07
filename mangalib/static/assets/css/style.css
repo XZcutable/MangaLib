@@ -191,18 +191,19 @@ body {
 }
 
 .manga-grid {
-    grid-template-columns:1fr 1fr;
+    /* grid-template-columns:1fr 1fr; */
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr))
 }
 
 @media (min-width:601px) {
     .manga-grid {
-        grid-template-columns:1fr 1fr 1fr 1fr;
+        grid-template-columns:repeat(auto-fit,minmax(200px,1fr))
     }
 }
 
 @media screen and (min-width:993px) {
     .manga-grid {
-        grid-template-columns:1fr 1fr 1fr 1fr 1fr;
+        grid-template-columns:repeat(auto-fit,minmax(200px,1fr))
     }
 }
 
