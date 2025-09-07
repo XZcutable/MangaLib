@@ -2,10 +2,3 @@ SECRET_KEY = 'REPLACE THIS'
 PORT = 6883
 ALLOW_NEW_USERS = false
 AUTO_APPROVE_NEW_USERS = true
-
-USER_DB = 'user.sqlite'
-USER_SCHEMA = 'user.sql'
-
-MANGA_DB = 'manga.sqlite'
-MANGA_SCHEMA = 'manga.sql'
-

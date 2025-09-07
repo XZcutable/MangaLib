@@ -96,7 +96,10 @@ def lsDirs(dir: str | None):
     if dir.endswith(':/..'):
         dir = '/'
 
-    dir = os.path.normpath(dir).replace('\\', '/')
+    if dir.startswith('/'):
+        dir = ('/' + os.path.normpath(dir).replace('\\', '/')).replace('//', '/')
+    else:
+        dir = os.path.normpath(dir).replace('\\', '/')
 
     if dir == '/':
         return { 'dir': '/', 'folders': getRootFolders() }

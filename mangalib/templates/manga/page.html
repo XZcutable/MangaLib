@@ -14,9 +14,18 @@
     });
 
     function onLoad() {
+        let page = document.getElementById("page");
+        let aspect = page.naturalHeight / page.naturalWidth;
+        
+        if(aspect > 2) {
+            page.classList.remove("fill-height")
+        }
+
+        page.classList.remove("w3-hide")
+
         var pages = document.getElementsByClassName("page-content");
         for(var i = 0; i < pages.length; i++) {
-            var page = pages[i];
+            let page = pages[i];
             page.addEventListener('touchstart', touchStart)
             page.addEventListener('touchmove', touchMove)
             page.addEventListener('touchend', touchEnd)
@@ -58,35 +67,53 @@
     let startX = -1;
     let dragging = false;
     let dir = 0;
-    let dragDist = 50;
-    let minBeforeMove = 30
+    let dragDist = 40;
+    let minXBeforeDrag = 30;
+    
+    let minYBeforeScroll = 30;
+    let startY = 0;
+    let scrolling = false;
 
     function touchStart(event) {
         if (event.touches.length == 1) {
             startX = event.touches[0].clientX;
+            startY = event.touches[0].clientY;
+            dir = 0;
         }
     }
 
     function touchMove(event) {
-        if (event.touches.length == 1 && startX >= 0) {
-            let delta = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
-            if(!dragging && Math.abs(delta) >= minBeforeMove) {
+        if(scrolling) {
+            return;
+        }
+
+        if (event.touches.length == 1) {
+            let yDelta = Math.abs(event.touches[0].clientY - startY);
+
+            if(!dragging && yDelta >= minYBeforeScroll) {
+                scrolling = true;
+                return;
+            }
+
+            let deltaX = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
+            if(!dragging && Math.abs(deltaX) >= minXBeforeDrag) {
                 dragging = true;
-            } else if(dragging) {
-                let curDir = Math.sign(delta);
+            } 
+            
+            if(dragging) {
+                let curDir = Math.sign(deltaX);
                 if(curDir != dir) {
                     dir = curDir;
                     startX = event.touches[0].clientX;
-                    delta = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
+                    deltaX = Math.min(dragDist, Math.max(-dragDist, event.touches[0].clientX - startX));
                 }
-                event.currentTarget.style.transform = `translate(${delta}px, 0px)`;
+                event.currentTarget.style.transform = `translate(${deltaX}px, 0px)`;
             }
-           
         }
     }
 
     function touchEnd(event) {
-        event.preventDefault();
+        // event.preventDefault();
 
         if(dragging) {
             let endX = event.changedTouches[0].clientX;
@@ -97,7 +124,7 @@
                     prevPage();
                 }
             }
-        } else {
+        } else if(!scrolling) {
             let endX = event.changedTouches[0].clientX;
             let isTappedLeft = startX < (event.currentTarget.offsetWidth / 2);
             if (isTappedLeft) {
@@ -106,18 +133,15 @@
                 nextPage();
             }
         }
-        startX = -1;
-        dir = 0;
         dragging = false;
+        scrolling = false;
         event.currentTarget.style.transform = `translate(0px, 0px)`;
     }
 
     function touchCancel(event) {
-        event.preventDefault();
-
-        startX = -1;
-        dir = 0;
+        // event.preventDefault();
         dragging = false;
+        scrolling = false;
         event.currentTarget.style.transform = `translate(0px, 0px)`;
     }
 
@@ -134,9 +158,10 @@
 {% endblock %}
 
 {% block content %}
-<div class="manga-page">
-    <div class="page-content w3-center" style="width: 100%;height: 100%;">
-        <img class="w3-image no-hover" src="{{ page_image }}" alt="Page">
+<div class="manga-page w3-center">
+    <div class="page-content fill-height">
+        <!-- Need DIV for mouse events -->
+        <img id="page" class="no-hover fill-height w3-hide" src="{{ page_image }}" alt="Page">
     </div>
 </div>
 {% endblock %}
