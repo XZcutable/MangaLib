@@ -2,3 +2,5 @@ SECRET_KEY = 'REPLACE THIS'
 PORT = 6883
 ALLOW_NEW_USERS = false
 AUTO_APPROVE_NEW_USERS = true
+
+DATABASE_PATH='/media/xzcutable/HomeLab NAS/Databases/mangalib'

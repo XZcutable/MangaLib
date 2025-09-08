@@ -51,7 +51,7 @@
             if( result.success ) {
                 addPathToTable(folder);
             }
-        }).catch(() => {
+        }).finally(() => {
             location.reload();
         });
     }

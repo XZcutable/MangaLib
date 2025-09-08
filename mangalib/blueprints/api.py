@@ -19,7 +19,7 @@ def scanPaths():
         folders = lsDirs(path)['folders']
         # print(f"Need to scan {len(folders)} folders")
         for folder in folders:
-            manga.registerMangaPath(path, folder)
+            manga.scanMangaPath(path, folder)
     
     flash("Scanning", 'info')
     return {'result': 'success'}
@@ -43,11 +43,11 @@ def addPath():
                 error = "Path is already registered"
             elif settings.addPath(path):
                 result = { 'success': True }
-                # flash("Path Added", 'success')
+                flash("Path Added", 'success')
             else:
                 error = 'Unable to add path'
-        except:
-            error = 'Error while adding path'
+        except Exception as e:
+            error = f'Error while adding path: {e}'
         
     if error is not None:
         flash(error, 'error')
@@ -111,7 +111,7 @@ def lsDirs(dir: str | None):
     else:
         return { 'dir': dir, 'folders': [] }
     
-def lsFiles(dir: str | None):
+def lsFiles(dir: str | None, filters: tuple | None):
     if not dir:
         return { 'dir': dir, 'files': [] }
     

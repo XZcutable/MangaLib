@@ -9,7 +9,6 @@ import tomllib
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_file(f'{app.root_path}/config.toml', load=tomllib.load, text=False)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
 
     try:
         os.makedirs(app.instance_path)

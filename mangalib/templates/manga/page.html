@@ -49,7 +49,7 @@
         zone.addEventListener('mouseup', mouseUp)
     }
 
-    let sides = 0.25;
+    let sides = 0.3;
 
     let clicking = false;
     let mouseX = 0
@@ -166,14 +166,6 @@
                 } else {
                     prevPage();
                 }
-            }
-        } else if(!scrolling) {
-            let endX = event.changedTouches[0].clientX;
-            let isTappedLeft = startX < (event.currentTarget.offsetWidth / 2);
-            if (isTappedLeft) {
-                prevPage();
-            } else {
-                nextPage();
             }
         }
         dragging = false;
