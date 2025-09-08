@@ -29,16 +29,22 @@
 
         let page = document.getElementById("page");
         let zone = document.getElementById("page-zone");
+        let content = document.getElementById("page-content");
+        let load_icon = document.getElementById("load-icon");
 
         let aspect = page.naturalHeight / page.naturalWidth;
         
         if (page.naturalWidth > page.naturalHeight) {
             zone.classList.remove("fill-height");
+            content.classList.remove("fill-height");
+            content.classList.add("center-image")
         } else if(aspect >= 2.5) {
             zone.classList.remove("fill-height");
+            content.classList.remove("fill-height");
         }
-
-        page.classList.remove("w3-hide")
+        
+        page.classList.remove("w3-hide");
+        load_icon.classList.add("w3-hide");
 
         zone.addEventListener('touchstart', touchStart)
         zone.addEventListener('touchmove', touchMove)
@@ -195,14 +201,13 @@
 
 {% block content %}
 <div class="manga-page">
-    <div class="page-content fill-height">
+    <div id="page-content" class="page-content fill-height">
         <div id="left-grad" class=""></div>
         <div id="right-grad" class=""></div>
         <!-- Need DIV for mouse events -->
         <div id="page-zone" class="page-zone fill-height">
-            <i class="fa fa-spinner load-spin"></i>
+            <i id="load-icon" class="fa fa-spinner load-spin"></i>
             <img id="page" class="no-hover fill-height w3-hide" src="{{ page_image }}" alt="Page">
-            
         </div>
     </div>
 </div>

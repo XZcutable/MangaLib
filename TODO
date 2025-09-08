@@ -18,3 +18,8 @@ Add back and forth buttons by pages
 add a jump to page on pages
 
 Right click scan and have targeted scanning
+
+Properly filter out folders with no files to view (ie. pdf)
+eventually add pdf support
+
+Porperly implement chapters

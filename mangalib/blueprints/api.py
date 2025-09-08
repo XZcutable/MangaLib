@@ -119,7 +119,7 @@ def lsFiles(dir: str | None, filters: tuple | None):
     if os.path.isfile(dir):
         return { 'dir': dir, 'files': [ dir ] }
     elif os.path.isdir(dir):
-        return { 'dir': dir, 'files': [ file for file in os.listdir(dir) if isValidFile(dir, file) ] }
+        return { 'dir': dir, 'files': [ file for file in os.listdir(dir) if isValidFile(dir, file, filters) ] }
     
 @bp.route('/is-dir')
 @owner_access
@@ -143,6 +143,12 @@ def isValidPath(dir: str, path: str):
     isDir = os.path.isdir(f'{dir}/{path}/')
     return isDir and not path.startswith('.') and not path.startswith('$')
 
-def isValidFile(dir: str, file: str):
-    isFile = os.path.isfile(f'{dir}/{file}')
-    return isFile and not file.startswith('.') and not file.startswith('$')
+def isValidFile(dir: str, file: str, filters: tuple | None):
+    if os.path.isfile(f'{dir}/{file}'):
+        if not file.startswith('.') and not file.startswith('$'):
+            if filters is None:
+                return True
+            else:
+                return os.path.splitext(file)[1] in filters
+    
+    return False

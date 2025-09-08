@@ -7,7 +7,7 @@ from datetime import datetime
 from . import api
 from .db import db, Manga, Chapter, Page
 
-from sqlalchemy import asc, desc
+from sqlalchemy import asc, desc, ForeignKey, text
 
 import os, random
 
@@ -147,11 +147,18 @@ def scanMangaPath(dir, folderName):
         return
     
     manga = updateOrSetManga(title=folderName, manga_path=path)
+    files_scanned = False
 
     if(len(folders) == 0):
         scanToChapter(manga, path, 1, files)
+        manga.chapters = 1
+        manga.pages = len(files)
+        files_scanned = True
     else:
-        scanToChapter(manga, path, 0, files)
+        if len(files) > 0:
+            scanToChapter(manga, path, 0, files)
+            manga.pages = len(files)
+            files_scanned = True
 
         index = 1
         for folder in folders:
@@ -162,14 +169,21 @@ def scanMangaPath(dir, folderName):
                 continue
             else:
                 scanToChapter(manga, chapter_path, index, chapter_files)
+                index += 1
+        if index > 1:
+            manga.chapters = index - 1
+            files_scanned = True
 
-    db.session.commit()
-    
+    if files_scanned:
+        db.session.commit()
+    else:
+        db.session.rollback()
 
 def updateOrSetManga(title, manga_path):
+    print(f"Getting: {title}")
     manga = Manga.query.filter_by(title=title, manga_path=manga_path).one_or_none()
     if manga is None:
-        manga = Manga(title=title, manga_path=manga_path, pages=0)
+        manga = Manga(title=title, manga_path=manga_path)
         db.session.add(manga)
         manga: Manga = Manga.query.filter_by(title=manga.title).one_or_404()
         return manga
@@ -177,35 +191,30 @@ def updateOrSetManga(title, manga_path):
         manga.manga_path = manga_path
         return manga
 
-def getOrUpdateChapter(manga: Manga, chapter_path: str, chapter: int):
-    chapter: Chapter | None = Chapter.query.filter_by(manga_id=manga.id, chapter=chapter).one_or_none()
+def getOrUpdateChapter(manga: Manga, chapter_path: str, order: int):
+    print(f"Looking for Chapter {chapter_path} ({order})")
+    chapter: Chapter | None = Chapter.query.filter_by(manga_id=manga.id, order=order).one_or_none()
     if chapter is None:
-        chapter = Chapter(manga_id=manga.id, path=chapter_path, chapter=chapter)
+        chapter = Chapter(manga_id=manga.id, order=order, path=chapter_path)
         db.session.add(chapter)
-        chapter = Chapter.query.filter_by(manga_id=chapter.manga_id, chapter=chapter.chapter).one_or_404()
+        chapter = Chapter.query.filter_by(manga_id=chapter.manga_id, order=chapter.order).one_or_404()
         return chapter
     else:
         chapter.path = chapter_path
         return chapter
     
-def scanToChapter(manga: Manga, chapter_path: str, chapter: int, files: list):
-    chapter = getOrUpdateChapter(manga, chapter_path, chapter)
+def scanToChapter(manga: Manga, chapter_path: str, order: int, files: list):
+    chapter = getOrUpdateChapter(manga, chapter_path, order)
     index = 1
     for file in files:
-        page: Page = Page.query.filter_by(manga_id=manga.id, page_order=index).one_or_none()
-        if page is None:
-            page = Page(manga_id=manga.id, file_name=file, page_order=index)
-            db.session.add(page)
-        else:
-            page.file_name = file
+        updateOrGetPage(manga, chapter, file, index)
         index += 1
 
-
     manga.pages = index - 1
-    Page.query.where(Page.page_order > manga.pages).delete()
-    print(f"Scanned {manga.pages} pages to chapter {chapter}")
+    Page.query.filter_by(manga_id=manga.id).filter(order > Page.page_order).delete()
+    print(f"Scanned {manga.pages} pages to chapter {order}")
 
-def updateOrGetPage(manga: Manga, file_name: str, page_order: int):
+def updateOrGetPage(manga: Manga, chapter: Chapter, file_name: str, page_order: int):
     page: Page = Page.query.filter_by(manga_id=manga.id, page_order=page_order).one_or_none()
     if page is None:
         page = Page(manga_id=manga.id, file_name=file_name, page_order=page_order)

@@ -1,13 +1,13 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
-from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
+from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, Relationship, relationship
 
 from datetime import datetime, timezone
 
 import click, json
 
-from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy import Column, Integer, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from mangalib.lib.enum import Access
 
@@ -51,17 +51,19 @@ class Users(db.Model):
 
 # Manga, Chapters, Pages, metadata
 class Manga(db.Model):
-    id = Column(Integer, primary_key=True, nullable=False)
-    title: Mapped[str] = mapped_column(nullable=False)
-    manga_path: Mapped[str] = mapped_column(nullable=False)
-    pages: Mapped[int] = mapped_column(nullable=False)
-    date_uploaded: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now(timezone.utc))
+    id = Column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column()
+    manga_path: Mapped[str] = mapped_column()
+    pages: Mapped[int] = mapped_column(default=0)
+    chapters: Mapped[int] = mapped_column(default=1)
+    date_uploaded: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
 
     def asDict(self):
         return {
             'title': self.title,
             'manga_path': self.manga_path,
             'pages': self.pages,
+            'chapters': self.chapters,
             'id': self.id,
             'date_uploaded': self.date_uploaded
         }
@@ -71,15 +73,15 @@ class Manga(db.Model):
 
 class Chapter(db.Model):
     manga_id: Mapped[ForeignKey] = mapped_column(ForeignKey("manga.id"), primary_key=True)
-    chapter: Mapped[int] = mapped_column(primary_key=True)
-    path: Mapped[str] = mapped_column(nullable=False)
-    title: Mapped[str] = mapped_column(nullable=True)
+    order: Mapped[int] = mapped_column(primary_key=True)
+    path: Mapped[str] = mapped_column()
+    title: Mapped[str] = mapped_column(default="")
 
 class Page(db.Model):
     manga_id: Mapped[ForeignKey] = mapped_column(ForeignKey("manga.id"), primary_key=True)
-    file_name: Mapped[str] = mapped_column(nullable=False)
+    # chapter: Mapped[ForeignKey] = mapped_column(ForeignKey("chapter.order"), primary_key=True)
     page_order: Mapped[int] = mapped_column(primary_key=True)
-    chapter: Mapped[ForeignKey] = mapped_column(ForeignKey("chapter.manga_id"), ForeignKey("chapter.chapter"))
+    file_name: Mapped[str] = mapped_column()
 
 class Metadata(db.Model):
     manga_id: Mapped[ForeignKey] = mapped_column(ForeignKey("manga.id"), primary_key=True)

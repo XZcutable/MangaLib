@@ -87,26 +87,23 @@ body {
     justify-content: center;
 }
 
-.manga-page .page-content {
+.page-content:not(.center-image) {
     /* border: 3px red;
     border-style: solid; */
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    position: relative;
+    height: 100%;
 }
+
+/* .page-content:is(.center-image) {
+    border: 3px red;
+    border-style: solid;
+} */
 
 .page-zone {
     /* border: 3px blue;
     border-style: solid; */
 
     height: min-content;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: relative;
 }
 
 .fill {
@@ -118,23 +115,22 @@ body {
     height: 100%!important;
 }
 
-.fill-width {
-    width: 100%;
-}
-
 .load-spin {
-    animation:load-spin 1s infinite linear;
+    animation:load-spin 0.75s infinite linear;
     background-color: #1b1b1b2b;
     font-size:64px!important;
     border-radius: 100%;
     padding: 5px;
     position: absolute; 
+
+    top:50%;
+    left: calc(50% - 38px);
+
     z-index: -1;
 }
 
 .left-grad {
     background-image: linear-gradient(to left, transparent, white);
-    /* background-color: purple; */
     height: 100%;
     width: 50%;
     left: 0;
@@ -148,7 +144,6 @@ body {
 
 .right-grad {
     background-image: linear-gradient(to right, transparent, white);
-    /* background-color: green; */
     height: 100%;
     width: 50%;
     right: 0;
