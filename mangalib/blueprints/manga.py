@@ -116,12 +116,12 @@ def clear_manga():
     session['current_page'] = None
 
 def getLatest(count = 10):
-    latest = Manga.query.order_by(Manga.date_uploaded, desc(Manga.id)).limit(10).values(Manga.id, Manga.title)
+    latest = Manga.query.order_by(Manga.date_uploaded, desc(Manga.id)).filter(Manga.chapters > 0).limit(10).values(Manga.id, Manga.title)
     latest = [title for title in latest] # TODO get the first 10
     return latest
 
 def getAllTitles():
-    titles = [title for title in Manga.query.values(Manga.id, Manga.title)]
+    titles = [title for title in Manga.query.filter(Manga.chapters > 0).values(Manga.id, Manga.title)]
     titles.sort(key=lambda manga: manga.id)
     return titles
 
@@ -131,7 +131,8 @@ def scanMangaPath(dir, folderName):
         print(f"Skipping {path}: Does not exist")
         return
     else:
-        print(f"Scanning {path}")
+        # print(f"Scanning {path}")
+        pass
     
     
     folders: list = api.lsDirs(path)['folders']
@@ -142,65 +143,78 @@ def scanMangaPath(dir, folderName):
     files.sort(key=lambda name: str.casefold(os.path.splitext(name)[0]))
     files.sort(key=lambda name: len(name))
 
-    if(len(files) == 0 and len(folders) == 0):
-        print(f"Skipping Empty Folder: {path}")
-        return
-    
     manga = updateOrSetManga(title=folderName, manga_path=path)
-    files_scanned = False
 
-    if(len(folders) == 0):
-        scanToChapter(manga, path, 1, files)
-        manga.chapters = 1
+    if(len(files) == 0 and len(folders) == 0):
+        print(f"Empty Folder: {path}")
+    
+    files_scanned = False
+    index = 1
+    
+    # The perfered way is to have no files in the base folder if there are chapters
+    if len(files) > 0:
+        scanToChapter(manga, path, index, files)
         manga.pages = len(files)
         files_scanned = True
-    else:
-        if len(files) > 0:
-            scanToChapter(manga, path, 0, files)
-            manga.pages = len(files)
-            files_scanned = True
+        index += 1
 
-        index = 1
-        for folder in folders:
-            chapter_path = os.path.join(path, folder)
-            chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
-            if(len(chapter_files) == 0):
-                print(f"Skipping empty Chapter: {chapter_path}")
-                continue
+    for folder in folders:
+        chapter_path = os.path.join(path, folder)
+        chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
+        
+        db.session.begin_nested()
+        
+        chapter = scanToChapter(manga, chapter_path, index, chapter_files)
+        if(len(chapter_files) == 0):
+            print(f"Empty Chapter: {chapter_path}")
+            if chapter.new:
+                db.session.rollback()
             else:
-                scanToChapter(manga, chapter_path, index, chapter_files)
+                db.session.commit()
                 index += 1
-        if index > 1:
-            manga.chapters = index - 1
-            files_scanned = True
+        else:
+            index += 1
+    
+    if index > 1:
+        manga.chapters = index - 1
+        files_scanned = True
 
-    if files_scanned:
-        db.session.commit()
-    else:
-        db.session.rollback()
+    if not files_scanned:
+        if manga.new:
+            db.session.rollback()
+        else:
+            print(f"Scanned an empty Manga: {path}")
+            manga.chapters = 0
+
+    db.session.commit()
 
 def updateOrSetManga(title, manga_path):
-    print(f"Getting: {title}")
+    # print(f"Getting: {title}")
     manga = Manga.query.filter_by(title=title, manga_path=manga_path).one_or_none()
     if manga is None:
         manga = Manga(title=title, manga_path=manga_path)
         db.session.add(manga)
         manga: Manga = Manga.query.filter_by(title=manga.title).one_or_404()
+        manga.new = True
         return manga
     else:
+        manga.new = False
         manga.manga_path = manga_path
         return manga
 
 def getOrUpdateChapter(manga: Manga, chapter_path: str, order: int):
-    print(f"Looking for Chapter {chapter_path} ({order})")
+    # print(f"Looking for Chapter {chapter_path} ({order})")
     chapter: Chapter | None = Chapter.query.filter_by(manga_id=manga.id, order=order).one_or_none()
     if chapter is None:
         chapter = Chapter(manga_id=manga.id, order=order, path=chapter_path)
         db.session.add(chapter)
         chapter = Chapter.query.filter_by(manga_id=chapter.manga_id, order=chapter.order).one_or_404()
+        chapter.new = True
         return chapter
     else:
         chapter.path = chapter_path
+        chapter.order = order
+        chapter.new = False
         return chapter
     
 def scanToChapter(manga: Manga, chapter_path: str, order: int, files: list):
@@ -212,7 +226,9 @@ def scanToChapter(manga: Manga, chapter_path: str, order: int, files: list):
 
     manga.pages = index - 1
     Page.query.filter_by(manga_id=manga.id).filter(order > Page.page_order).delete()
-    print(f"Scanned {manga.pages} pages to chapter {order}")
+
+    return chapter
+    # print(f"Scanned {manga.pages} pages to chapter {order}")
 
 def updateOrGetPage(manga: Manga, chapter: Chapter, file_name: str, page_order: int):
     page: Page = Page.query.filter_by(manga_id=manga.id, page_order=page_order).one_or_none()

@@ -103,7 +103,17 @@ body {
     border-style: solid; */
 
     height: min-content;
-    position: relative;
+    /* position: relative; */
+}
+
+.grads {
+    user-select: none;
+    pointer-events: none;
+    
+    height: 100%;
+    width: 100%;
+
+    position: absolute;
 }
 
 .fill {

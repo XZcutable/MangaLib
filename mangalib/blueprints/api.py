@@ -117,7 +117,11 @@ def lsFiles(dir: str | None, filters: tuple | None):
     
     dir = os.path.normpath(dir).replace('\\', '/')
     if os.path.isfile(dir):
-        return { 'dir': dir, 'files': [ dir ] }
+        if filters is None or os.path.splitext(dir)[1] in filters:
+            return { 'dir': dir, 'files': [ dir ] }
+        else:
+            return { 'dir': dir, 'files': [] }
+            
     elif os.path.isdir(dir):
         return { 'dir': dir, 'files': [ file for file in os.listdir(dir) if isValidFile(dir, file, filters) ] }
     

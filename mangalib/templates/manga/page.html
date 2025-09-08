@@ -41,6 +41,11 @@
         } else if(aspect >= 2.5) {
             zone.classList.remove("fill-height");
             content.classList.remove("fill-height");
+        } 
+        
+        if(page.naturalHeight < window.innerHeight) {
+            zone.classList.add("fill-height");
+            content.classList.add("fill-height");
         }
         
         page.classList.remove("w3-hide");
@@ -201,13 +206,16 @@
 
 {% block content %}
 <div class="manga-page">
-    <div id="page-content" class="page-content fill-height">
+    <div class="grads">
         <div id="left-grad" class=""></div>
         <div id="right-grad" class=""></div>
+    </div>
+    <div id="page-content" class="page-content fill-height">
+        
         <!-- Need DIV for mouse events -->
         <div id="page-zone" class="page-zone fill-height">
             <i id="load-icon" class="fa fa-spinner load-spin"></i>
-            <img id="page" class="no-hover fill-height w3-hide" src="{{ page_image }}" alt="Page">
+            <img id="page" class="no-hover fill-height w3-image w3-hide" src="{{ page_image }}" alt="Page">
         </div>
     </div>
 </div>

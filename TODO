@@ -23,3 +23,5 @@ Properly filter out folders with no files to view (ie. pdf)
 eventually add pdf support
 
 Porperly implement chapters
+
+Fix mobile in landscape mode
