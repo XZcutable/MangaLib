@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import click, json
 
-from sqlalchemy import Column, Integer, ForeignKey, ForeignKeyConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, MetaData, ForeignKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from mangalib.lib.enum import Access
 
@@ -15,17 +15,15 @@ from mangalib.lib.enum import Access
 class Base(DeclarativeBase, MappedAsDataclass):
     def __getitem__(self, key):
         return getattr(self, key)
+    pass
 
 db = SQLAlchemy(model_class=Base)
 
 def init_app(app: Flask):
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{app.config.get('DATABASE_PATH', '')}/database.db"
-    
 
     db.init_app(app)
-
-    # app.teardown_appcontext(close_all_db)
     app.cli.add_command(init_db)
 
 @click.command('init-db')
@@ -52,38 +50,48 @@ class Users(db.Model):
 # Manga, Chapters, Pages, metadata
 class Manga(db.Model):
     id = Column(Integer, primary_key=True)
+
     title: Mapped[str] = mapped_column()
-    manga_path: Mapped[str] = mapped_column()
-    pages: Mapped[int] = mapped_column(default=0)
-    chapters: Mapped[int] = mapped_column(default=1)
+    path: Mapped[str] = mapped_column()
+
+    chapters: Mapped[list["Chapter"]] = relationship()
+
     date_uploaded: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
 
-    def asDict(self):
-        return {
-            'title': self.title,
-            'manga_path': self.manga_path,
-            'pages': self.pages,
-            'chapters': self.chapters,
-            'id': self.id,
-            'date_uploaded': self.date_uploaded
-        }
-
     def __repr__(self):
-        return f'<Title {self.title}> (Pages: {len(json.loads(self.pages))}) ID {self.id} Uploaded: "{self.date_uploaded}"'
+        return f'[Title {self.title}> (ID {self.id}), Chapters=<{self.chapters}'
 
 class Chapter(db.Model):
-    manga_id: Mapped[ForeignKey] = mapped_column(ForeignKey("manga.id"), primary_key=True)
-    order: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[int] = mapped_column(primary_key=True)
+    manga_id: Mapped["Manga"] = mapped_column(ForeignKey("manga.id"), primary_key=True)
+    #TODO Add Manga?
+    chapter: Mapped["Manga"] = relationship(foreign_keys=[manga_id], back_populates="chapters")
+
     path: Mapped[str] = mapped_column()
+    pages: Mapped[list["Page"]] = relationship()
+
     title: Mapped[str] = mapped_column(default="")
 
+    def __repr__(self):
+        return f"<Chapter {self.number}> (Pages {len(self.pages)})"
+
 class Page(db.Model):
-    manga_id: Mapped[ForeignKey] = mapped_column(ForeignKey("manga.id"), primary_key=True)
-    # chapter: Mapped[ForeignKey] = mapped_column(ForeignKey("chapter.order"), primary_key=True)
-    page_order: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[int] = mapped_column(primary_key=True)
     file_name: Mapped[str] = mapped_column()
 
-class Metadata(db.Model):
-    manga_id: Mapped[ForeignKey] = mapped_column(ForeignKey("manga.id"), primary_key=True)
-    file_name: Mapped[str] = mapped_column(nullable=False)
-    page_order: Mapped[int] = mapped_column(primary_key=True)
+    chapter_path = Column(Integer, primary_key=True)
+    chapter_number = Column(Integer)
+
+    chapter: Mapped["Chapter"] = relationship(foreign_keys=[chapter_path, chapter_number], back_populates="pages")
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            [chapter_path, chapter_number], ["chapter.path", "chapter.number"]
+        ),
+    )
+
+    def __repr__(self):
+        return f"<Page {self.number}. name={self.file_name}"
+
+class Metadata():
+    pass
