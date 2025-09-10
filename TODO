@@ -1,27 +1,36 @@
-Implement data editing
-
+Next Easy Tasks:
 implment manga info page
-
-Implement view all
-
-Make latest page
-make all page
-
-Add way to edit sql as owner
-Add pending or verified status to uploading manga option
-
-better optmize remote connection
-
-Add a play options 1s,3s, 5s
-
 Add back and forth buttons by pages
 add a jump to page on pages
+chapter jump, page jump, show how many chapters are avaiable
 
+Next Hard Tasks:
 Right click scan and have targeted scanning
+Add pending or verified status to uploading manga option
 
-Properly filter out folders with no files to view (ie. pdf)
+Potential Features:
+Continue where you left off, eventually saved across devices. It's own button?
+
+Future Tasks:
+Implement data editing
+Add a play options 1s,3s, 5s
 eventually add pdf support
+Add way to edit sql as owner
 
-Porperly implement chapters
 
+Polish:
+better optmize remote connection
+make site look better
 Fix mobile in landscape mode
+
+
+
+
+
+
+
+
+
+
+
+
