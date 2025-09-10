@@ -65,7 +65,7 @@ class Chapter(db.Model):
     number: Mapped[int] = mapped_column(primary_key=True)
     manga_id: Mapped["Manga"] = mapped_column(ForeignKey("manga.id"), primary_key=True)
     #TODO Add Manga?
-    chapter: Mapped["Manga"] = relationship(foreign_keys=[manga_id], back_populates="chapters")
+    # manga: Mapped["Manga"] = relationship(foreign_keys=[manga_id], back_populates="chapters")
 
     path: Mapped[str] = mapped_column()
     pages: Mapped[list["Page"]] = relationship()

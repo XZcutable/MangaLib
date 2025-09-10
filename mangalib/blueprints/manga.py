@@ -20,7 +20,21 @@ testLatest = [{'title_id': 1, 'title': 'test', 'uploader': 1, 'upload_date': dat
 @bp.route('/')
 def home():
     # clear_manga()
-    return render_template('manga/home.html', titles=getLatest())
+    return render_template('manga/home.html', titles=getLatest(count=30))
+
+@bp.route('/latest')
+def viewLatestTitles():
+    return render_template('manga/directory.html', titles=getAllTitles(latest=True))
+
+@bp.route('/all')
+def viewAllTitles():
+    return render_template('manga/directory.html', titles=getAllTitles())
+
+@bp.route('/random')
+def random_manga():
+    mangas = Manga.query.all()
+    random_manga_id = random.randrange(1, len(mangas))
+    return redirect(f"{url_for('manga')}/{random_manga_id}/1")
 
 @bp.route('/manga/<int:manga_id>')
 @bp.route('/manga/<int:manga_id>/')
@@ -33,50 +47,63 @@ def read_manga(manga_id, page=None, chapter=1):
     elif page <= 0:
         return redirect(f"{url_for('manga')}/{manga_id}")
     
-    # manga = get_current_manga()
+    manga = getMangaById(manga_id)
+    current_chapter = getChapterByMangaAndNumber(manga_id=manga_id, chapter_number=chapter)
 
-    # if manga is None:
-    #     manga = set_current_manga(manga_id)
-    # elif manga['id'] != manga_id:
-    #     manga = set_current_manga(manga_id)
+    if manga is None or current_chapter is None:
+        return redirect(url_for('home'))
+    
+    current_manga = get_current_manga()
 
-    # if manga:
-    #     next_page = page + 1
-    #     prev_page = page - 1
+    if current_manga is None or current_manga != manga_id:
+        current_manga = set_current_manga(manga)
 
-    #     if prev_page <= 0:
-    #         prev_page = None
-    #     else:
-    #         prev_page = f"{url_for('manga')}/{manga_id}/{prev_page}"
+    next_page = page + 1
+    prev_page = page - 1
 
-    #     if next_page > manga['pages']:
-    #         next_page = f"{url_for('manga')}/{manga_id}"
-    #     else:
-    #         next_page = f"{url_for('manga')}/{manga_id}/{next_page}"
+    if prev_page <= 0:
+        if chapter > 1:
+            last_chapter = getChapterByMangaAndNumber(manga_id=manga_id, chapter_number=chapter - 1)
+            prev_page = f"{url_for('manga')}/{manga_id}/{last_chapter.number}/{len(last_chapter.pages)}"
+        else:
+            prev_page = None
+    else:
+        prev_page = f"{url_for('manga')}/{manga_id}/{chapter}/{prev_page}"
+
+    if next_page > len(current_chapter.pages):
+        next_chapter = getChapterByMangaAndNumber(manga_id=manga_id, chapter_number=chapter + 1)
+        if next_chapter:
+            next_page = f"{url_for('manga')}/{manga_id}/{chapter+1}/1"
+        else:
+            next_page = f"{url_for('manga')}/{manga_id}"
+    else:
+        next_page = f"{url_for('manga')}/{manga_id}/{chapter}/{next_page}"
 
     page_image = f"{url_for('manga-image')}/{manga_id}/{chapter}/{page}"
     
-    return render_template('manga/page.html', manga_title="TO FIX", current_page=page, next_page=page+1, prev_page=page-1, page_image=page_image, total_pages=0)
-    # return render_template('manga/page.html', manga_title=manga['title'], current_page=page, next_page=next_page, prev_page=prev_page, page_image=page_image, total_pages=manga['pages'])
-    # else:
-        # return redirect(url_for('home')) # TODO Change to not found
+    return render_template('manga/page.html', manga_title=manga.title, current_page=page, next_page=next_page, prev_page=prev_page, page_image=page_image, total_pages=len(current_chapter.pages))
     
 @bp.route('/manga-image/<int:manga_id>/<int:page_num>')
 @bp.route('/manga-image/<int:manga_id>/<int:chapter_num>/<int:page_num>')
 def get_manga_page(manga_id, page_num, chapter_num=1):
+    # print("Geting page")
     if manga_id < 1 or page_num < 1 or chapter_num < 1:
+        # print("Too Low")
         return None
     
-    manga: Manga | None = Manga.query.filter_by(id=manga_id).one_or_none()
+    manga: Manga | None = getMangaById(id=manga_id)
     if manga is None:
+        # print("Manga Not Real")
         return None
     
-    chapter: Chapter | None = Chapter.query.filter_by(manga_id=manga.id, number=chapter_num).one_or_none()
+    chapter: Chapter | None = getChapterByMangaAndNumber(manga_id=manga_id, chapter_number=chapter_num)
     if chapter is None:
+        # print("Chapter Not Real")
         return None
     
-    page: Page | None = Page.query.filter_by(number=page_num, chapter_path=chapter.path).one_or_none()
+    page: Page | None = getPageByChapterAndNumber(chapter=chapter, page_number=page_num)
     if page is None:
+        # print("Page Not Real")
         return None
     
     ext = os.path.splitext(page.file_name)[1]
@@ -85,55 +112,47 @@ def get_manga_page(manga_id, page_num, chapter_num=1):
         response.status_code = 200
     return response
 
-@bp.route('/latest')
-def latest():
-    pass
 
-@bp.route('/random')
-def random_manga():
-    mangas = Manga.query.all()
-    random_manga_id = random.randrange(1, len(mangas))
-    return redirect(f"{url_for('manga')}/{random_manga_id}/1")
 
 @bp.route('/upload', methods=('GET', 'POST'))
 def upload():
     pass
 
-# def set_current_manga(manga_id: int | None) -> dict[str, any]:
-#     if manga_id is None:
-#         clear_manga()
-#         return None
-#     else:
-#         manga: Manga | None = Manga.query.filter_by(id=manga_id).one_or_none()
+def set_current_manga(manga: Manga | None) -> Manga | None:
+    if manga is None:
+        clear_manga()
+        return None
+    else:
+        session['current_manga'] = manga.id
+        set_current_page(1)
+        return manga
 
-#         if manga is None:
-#             return None
-        
-#         session['current_manga'] = manga
-#         set_current_page(1)
-#         return session['current_manga']
+def get_current_manga() -> int:
+    return session.get('current_manga', None)
 
-# def get_current_manga() -> dict[str, any]:
-#     return session.get('current_manga', None)
-
-# def set_current_page(page: int):
-#     session['current_page'] = page
+def set_current_page(page: int):
+    session['current_page'] = page
 
 # def get_current_page() -> int | None:
 #     session.get('current_page', None)
 
-# def clear_manga():
-#     session['current_manga'] = None
-#     session['current_page'] = None
+def clear_manga():
+    session['current_manga'] = None
+    session['current_chapter'] = None
+    session['current_page'] = None
 
 def getLatest(count = 10):
-    latest = Manga.query.order_by(Manga.date_uploaded, desc(Manga.id)).filter(Manga.chapters).limit(10).values(Manga.id, Manga.title)
-    latest = [title for title in latest] # TODO get the first 10
+    latest = [title for title in Manga.query.filter(Manga.chapters).distinct(Manga.id).order_by(desc(Manga.date_uploaded), desc(Manga.id)).limit(count).values(Manga.id, Manga.title)]
     return latest
 
-def getAllTitles():
-    titles = [title for title in Manga.query.filter(Manga.chapters > 0).values(Manga.id, Manga.title)]
-    titles.sort(key=lambda manga: manga.id)
+def getAllTitles(latest=False):
+    query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
+    if latest:
+        query = query.order_by(desc(Manga.id), desc(Manga.date_uploaded))
+    else:
+        query = query.order_by(asc(Manga.id))
+
+    titles = [title for title in query.values(Manga.id, Manga.title)]
     return titles
 
 def scanMangaPath(dir, folderName):
@@ -168,11 +187,6 @@ def scanMangaPath(dir, folderName):
         # manga.pages = len(files)
         files_scanned = True
         index += 1
-    # else:
-        # print("Implement multile chapters")
-        # db.session.rollback()
-        # return
-
 
     for folder in folders:
         chapter_path = os.path.join(path, folder)
@@ -186,8 +200,8 @@ def scanMangaPath(dir, folderName):
             if chapter.new:
                 db.session.rollback()
             else:
+                db.session.delete(chapter)
                 db.session.commit()
-                index += 1
         else:
             index += 1
             db.session.commit()
@@ -254,8 +268,22 @@ def updateOrGetPage(manga: Manga, chapter: Chapter, file_name: str, number: int)
         # print(manga, chapter, file_name, number)
         page = Page(chapter=chapter, file_name=file_name, number=number)
         db.session.add(page)
+        # chapter.pages.append(page)
         # page =  Page.query.filter_by(manga_id=manga.id, number=number).one_or_404()
         return page
     else:
+        page.chapter = chapter
         page.file_name = file_name
         return page
+    
+def getMangaById(id: int | None) -> Manga | None:
+    if id is None:
+        return None
+    
+    return Manga.query.filter_by(id=id).one_or_none()
+
+def getChapterByMangaAndNumber(manga_id: int, chapter_number: int) -> Chapter | None:
+    return Chapter.query.filter_by(manga_id=manga_id, number=chapter_number).one_or_none()
+
+def getPageByChapterAndNumber(chapter: Chapter, page_number: int) -> Page | None:
+    return Page.query.filter_by(number=page_number, chapter_path=chapter.path).one_or_none()

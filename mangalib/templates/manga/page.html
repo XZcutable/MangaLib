@@ -38,10 +38,15 @@
             zone.classList.remove("fill-height");
             content.classList.remove("fill-height");
             content.classList.add("center-image")
-        } else if(aspect >= 2.5) {
+        }
+        
+        if (aspect >= 2.5) {
             zone.classList.remove("fill-height");
             content.classList.remove("fill-height");
-        } 
+        } else if(page.naturalHeight >= window.innerHeight) {
+            content.classList.remove("center-image")
+            zone.classList.add("fill-height")
+        }
         
         if(page.naturalHeight < window.innerHeight) {
             zone.classList.add("fill-height");

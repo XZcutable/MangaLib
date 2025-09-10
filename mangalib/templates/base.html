@@ -32,6 +32,7 @@
             <div class="w3-hide-small w3-hide-medium w3-xlarge">
                 <a href="{{ url_for('home') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-home"></i></a>
                 <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-rss">&nbsp;Latest</i></a>
+                <a href="{{ url_for('manga.all') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-folder">&nbsp;All</i></a>
                 <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-random">&nbsp;Random</i></a>
                 <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-upload">&nbsp;Upload</i></a>
             
@@ -68,8 +69,8 @@
                             <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-gear">&nbsp;Settings</i></a>
                         </div>
                         <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button"><i class="fa fa-rss">&nbsp;Latest</i></a>
+                        <a href="{{ url_for('manga.all') }}" class="w3-bar-item w3-button"><i class="fa fa-folder">&nbsp;All</i></a>
                         <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button"><i class="fa fa-random">&nbsp;Random</i></a>
-                        <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button"><i class="fa fa-upload">&nbsp;Upload</i></a>
                         <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
                     </div>
                 </div>

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+
+{% from 'manga/manga.html' import manga_card %}
+
+{% block content %}
+    <div class="w3-row">
+        <div class="w3-col w3-container l3 m0 s0"></div>
+        <div class="w3-col l6 m12 s12">
+            <div class="w3-container">
+                <span class="w3-text-white w3-xxlarge text-shadow no-hover"><strong>All Uploads</strong></span>
+            </div>
+            {% if titles|length == 0 %}
+            <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
+            {% else %}
+            <div class="w3-grid-padding manga-grid">
+            {% for id, title in titles %}
+                {{ manga_card(id, title) }}
+            {% endfor %}
+            </div>
+            {% endif %}
+        </div> 
+        <div class="w3-col w3-container l3 m0 s0"></div>
+    </div>
+{% endblock %}
