@@ -1,8 +1,7 @@
-import json, os
 from flask import (
     Blueprint, g, render_template, Flask, current_app
 )
-from mangalib.blueprints.db import db, Path
+from mangalib.blueprints.models import db, Path
 
 from mangalib.lib.enum import Access
 

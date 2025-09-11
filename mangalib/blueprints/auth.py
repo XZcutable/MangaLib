@@ -3,7 +3,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mangalib.blueprints.db import db, Users
+from mangalib.blueprints.models import db, Users
 from mangalib.lib.enum import Access
 
 bp = Blueprint('auth', __name__, url_prefix='')

@@ -14,8 +14,8 @@
             <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
             {% else %}
             <div class="w3-grid-padding manga-grid">
-            {% for id, title in titles %}
-                {{ manga_card(id, title) }}
+            {% for manga in titles %}
+                {{ manga_card(manga) }}
             {% endfor %}
             </div>
             {% endif %}

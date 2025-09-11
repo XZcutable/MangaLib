@@ -1,8 +1,8 @@
 import os
 
-from flask import Flask, g
+from flask import Flask
 
-from mangalib.blueprints import db, auth, manga, settings, api
+from mangalib.blueprints import auth, manga, models, settings, api
 
 import tomllib
 
@@ -15,7 +15,7 @@ def create_app():
     except OSError:
         pass
 
-    db.init_app(app)
+    models.init_app(app)
     auth.init_app(app)
     settings.init_app(app)
 
