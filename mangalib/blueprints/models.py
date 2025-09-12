@@ -14,8 +14,6 @@ from mangalib.lib.enum import Access
 
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
-    new = False
-
     def __getitem__(self, key):
         return getattr(self, key)
     pass
@@ -31,6 +29,7 @@ manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"), primary_key=T
 def init_app(app: Flask):
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{app.config.get('DATABASE_PATH', '')}/database.db"
+        app.config["SQLALCHEMY_ECHO"] = True
 
     db.init_app(app)
     app.cli.add_command(init_db)
@@ -42,6 +41,10 @@ def init_db():
 
 class Path(db.Model):
     path: Mapped[str_pk]
+
+    def sortList(page_list: list[str]):
+        page_list.sort(key=str.casefold)
+        page_list.sort(key=len)
 
 # Username, passwords, preferences
 class Users(Base):
@@ -63,9 +66,11 @@ class Manga(Base):
     title:Mapped[str]
     path: Mapped[str]
 
-    chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, cascade="all")
+    chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="manga")
 
     date_uploaded:Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+
+    new = False
 
     def getChapter(self, number: int) -> Optional["Chapter"]:
         return Chapter.fromManga(self, number)
@@ -83,10 +88,13 @@ class Manga(Base):
             return manga  
 
     def __repr__(self):
-  
         return f"<Manga(id={self.id}, title={self.title}, chapters={self.chapters})>"
+    
     def fromID(id: int) -> Optional["Manga"]:
-        return Manga.query.filter_by(id=id).one_or_none()
+        return Manga.query.get({"id": id})
+    
+    def fromPath(path: str):
+        return Manga.query.filter_by(path=path).one_or_none()
 
 class Chapter(Base):
     __tablename__ = "chapter"
@@ -95,9 +103,11 @@ class Chapter(Base):
     path: Mapped[str]
 
     title:Mapped[str] = mapped_column(default="")
-    manga:Mapped["Manga"] = relationship(back_populates="chapters", default=None)
+    manga:Mapped["Manga"] = relationship(default=None, viewonly=True)
 
-    pages:Mapped[List["Page"]] = relationship(default_factory=list, cascade="all", back_populates="chapter", lazy="immediate")
+    pages:Mapped[List["Page"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="chapter")
+
+    new = False
 
     def getPage(self, number: int) -> Optional["Page"]:
         return Page.fromChapter(self, number)
@@ -106,12 +116,15 @@ class Chapter(Base):
         return f"<Chapter(manga_id={self.manga_id}, title={self.title}, number={self.number}, {self.pages=})"
    
     def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
-         return getChapterByMangaAndNumber(manga, number)
+         return Chapter.query.get({"manga_id": manga.id, "number": number})
+    
+    def sortList(page_list: list["Chapter"]):
+        page_list.sort(key=lambda chapter: chapter.number)
     
     def getOrUpdate(manga: Manga, chapter_path: str, number: int) -> "Chapter":
         chapter = Chapter.fromManga(manga, number)
         if chapter is None:
-            chapter = Chapter(manga=manga, number=number, path=chapter_path)
+            chapter = Chapter(number=number, path=chapter_path)
             chapter.new = True
             return chapter
         else:
@@ -127,7 +140,13 @@ class Page(Base):
     file_name: Mapped[str]
 
     manga:Mapped["Manga"] = relationship("Manga", foreign_keys=[manga_id], default=None, viewonly=True)
-    chapter:Mapped["Chapter"] = relationship(foreign_keys=[manga_id, chapter_number], default=None, back_populates="pages")
+    chapter:Mapped["Chapter"] = relationship(foreign_keys=[manga_id, chapter_number], default=None, viewonly=True)
+
+    new = False
+
+    def sortList(page_list: list["Page"]):
+        page_list.sort(key=lambda page: str.casefold(page.file_name))
+        page_list.sort(key=lambda page: len(page.file_name))
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -139,26 +158,21 @@ class Page(Base):
     )
 
     def __repr__(self):
-        return f"<Page({self.number}, {self.manga_id=}, {self.chapter_number=})>"
+        return f"<Page({self.number=}, {self.file_name=}, {self.manga_id=}, {self.chapter_number=})>"
     
     def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
-        return getPageByChapterAndNumber(chapter, number)
+        return Page.query.get({"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})
     
     def getOrUpdate(chapter: Chapter, file_name: str, number: int):
         page = Page.fromChapter(chapter, number)
         if page is None:
-            page = Page(chapter=chapter, file_name=file_name, number=number)
+            page = Page(file_name=file_name, number=number)
+            page.new = True
             return page
         else:
-            page.chapter = chapter
+            page.new = False
             page.file_name = file_name
             return page
 
 class Metadata():
     pass
-
-def getChapterByMangaAndNumber(manga: Manga, chapter_number: int) -> Optional[Chapter]:
-    return Chapter.query.filter_by(manga_id=manga.id, number=chapter_number).one_or_none()
-
-def getPageByChapterAndNumber(chapter: Chapter, page_number: int) -> Optional[Page]:
-    return Page.query.filter_by(number=page_number, chapter=chapter).one_or_none()

@@ -11,6 +11,8 @@ public_access = ['auth.login', 'auth.register', 'auth.logout']
 
 import re, functools, click
 
+from sqlalchemy import select
+
 valid_password_regex = r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&\.,*-_()]).{6,20}$"
 valid_password_pattern = re.compile(valid_password_regex)
 
@@ -25,8 +27,8 @@ def load_logged_in_user():
 
     if user_id is None:
         g.user = None
-    else:
-        g.user = Users.query.filter_by(id=user_id).first()
+    elif g.get("user") is None:
+        g.user = Users.query.get({"id": user_id})
 
     g.requires_clearance = True
 

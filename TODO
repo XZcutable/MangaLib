@@ -28,16 +28,8 @@ better optmize remote connection
 make site look better
 Fix mobile in landscape mode
 
+Performance:
+Auth is querying slq every interaction
 
 
-
-Notes:
-Not sure if chenages made scanning take longer. May have to look into it later.
-Back propagating may be the issue
-
-
-
-
-
-
-
+Make paths relative, so data can be moved safely

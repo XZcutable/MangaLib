@@ -1,13 +1,11 @@
 from flask import (
-    Blueprint, redirect, render_template, request, session, url_for, send_from_directory, stream_template
+    Blueprint, redirect, render_template, session, url_for, send_from_directory, stream_template
 )
 
-from datetime import datetime
-
 from . import api
-from .models import db, Manga, Chapter, Page
+from .models import Manga, Chapter, Page, Path
 
-from sqlalchemy import asc, desc, text, func
+from sqlalchemy import asc, desc
 
 import os, random
 
@@ -122,18 +120,13 @@ def get_current_manga() -> int:
 def set_current_page(page: int):
     session['current_page'] = page
 
-# def get_current_page() -> int | None:
-#     session.get('current_page', None)
-
 def clear_manga():
     session['current_manga'] = None
     session['current_chapter'] = None
     session['current_page'] = None
 
 def getLatest(count = 10):
-    # latest = [title for title in Manga.query.filter(Manga.chapters).distinct(Manga.id).order_by(Manga.id, Manga.date_uploaded).limit(count).values(Manga.id, Manga.title)]
     latest = Manga.query.distinct(Manga.id).order_by(Manga.date_uploaded).limit(count).all()
-    # print(f"{latest=}")
     return latest
 
 def getAllTitles(latest=False):
@@ -146,7 +139,7 @@ def getAllTitles(latest=False):
     titles = [title for title in query.values(Manga.id, Manga.title)]
     return titles
 
-def scanMangaPath(dir, folderName):
+def createManga(dir, folderName):
     path = os.path.join(dir, folderName)
     if(not os.path.isdir(path)):
         print(f"Skipping {path}: Does not exist")
@@ -157,16 +150,13 @@ def scanMangaPath(dir, folderName):
     
     
     folders: list = api.lsDirs(path)['folders']
-    folders.sort(key=str.casefold)
-    folders.sort(key=lambda name: len(name))
+    Path.sortList(folders)
 
     files: list = api.lsFiles(path, filters=image_types)['files']
-    files.sort(key=lambda name: str.casefold(os.path.splitext(name)[0]))
-    files.sort(key=lambda name: len(name))
-
-    db.session.begin_nested()
+    Path.sortList(files)
 
     manga = Manga.getOrUpdate(title=folderName, manga_path=path)
+    chapters_to_add: list[Chapter] = []
 
     if(len(files) == 0 and len(folders) == 0):
         print(f"Empty Folder: {path}")
@@ -175,49 +165,56 @@ def scanMangaPath(dir, folderName):
     index = 1
 
     # The perfered way is to have no files in the base folder if there are chapters
-    if len(files) > 0:
-        scanToChapter(manga, path, index, files)
-        files_scanned = True
-        index += 1
-
+    # and all the files if there is only chapter. But it would work regardless
+    # Adds current folder to queue
+    folders.insert(0, "")
+       
     for folder in folders:
         chapter_path = os.path.join(path, folder)
         chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
         
-        chapter = scanToChapter(manga, chapter_path, index, chapter_files)
+        Path.sortList(chapter_files)
+
+        chapter = createChapter(chapter_path, index, chapter_files)
         if(len(chapter_files) == 0):
             print(f"Empty Chapter: {chapter_path}")
-            if chapter.new:
-                manga.chapters.remove(chapter)
-            else:
-                db.session.delete(chapter)
         else:
+            chapters_to_add.append(chapter)
             index += 1
 
     if index > 1:
         files_scanned = True
 
-    if files_scanned and manga.new:
-        db.session.add(manga)
+    if files_scanned:
+        manga.chapters = chapters_to_add
+        
+        # if manga.new:
+        #     db.session.add(manga)
+
     elif not files_scanned:
         if manga.new:
             pass
         else:
             print(f"Scanned an empty Manga: {path}")
-            db.session.delete(manga)
+            # db.session.delete(manga)
 
-    db.session.commit()
+    # db.session.commit()
+
+    return manga
+
 
     
-def scanToChapter(manga: Manga, chapter_path: str, number: int, files: list):
-    chapter = Chapter.getOrUpdate(manga, chapter_path, number)
+def createChapter(chapter_path: str, number: int, files: list):
+    chapter: Chapter = Chapter(number=number, path=chapter_path)
     index = 1
+
+    pages_to_add = []
+
     for file in files:
-        Page.getOrUpdate(chapter, file, index)
+        page = Page(file_name=file, number=index)
+        pages_to_add.append(page)
         index += 1
 
-    if index < len(chapter.pages):
-        for page in [chapter.pages[index+1:]]:
-            db.session.delete(page)
+    chapter.pages = pages_to_add
 
     return chapter
