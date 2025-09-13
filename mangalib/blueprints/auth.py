@@ -27,18 +27,24 @@ def load_logged_in_user():
 
     if user_id is None:
         g.user = None
-    elif g.get("user") is None:
-        g.user = Users.query.get({"id": user_id})
+    elif session.get('user') is None:
+        session["user"] = Users.query.get({"id": user_id})
+        g.user = session["user"]
+    else:
+        g.user = session["user"]
+
+    if g.user is not None and user_id != g.user['id']:
+        print("User error")
+        return redirect(url_for('auth.logout'))
 
     g.requires_clearance = True
-
     if request.path.startswith('/static'):
         g.requires_clearance = False
     elif request.path in [url_for(endpoint) for endpoint in public_access]:
         g.requires_clearance = False
 
     if g.requires_clearance and g.user is None:
-        if session.get('logged_out', None) is not None:
+        if session.get('logged_out') is not None:
             session.clear()
         else:
             flash("Account Needed", 'error')
