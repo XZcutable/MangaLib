@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, redirect, render_template, session, url_for, send_from_directory, stream_template
+    Blueprint, redirect, render_template, session, url_for, send_from_directory, send_file
 )
 
 from . import api
@@ -33,20 +33,27 @@ def random_manga():
 
 @bp.route('/manga/<int:manga_id>')
 @bp.route('/manga/<int:manga_id>/')
+def manga_info(manga_id):
+    manga: Manga | None = Manga.fromID(manga_id)
+    if manga is None:
+        return redirect(url_for('home'))
+    
+    return render_template('manga/info.html', manga=manga)
+
 @bp.route('/manga/<int:manga_id>/<int:page_number>')
 @bp.route('/manga/<int:manga_id>/<int:page_number>/')
 @bp.route('/manga/<int:manga_id>/<int:chapter_number>/<int:page_number>/')
-def read_manga(manga_id, page_number=None, chapter_number=1):
-    if page_number is None:
-        return redirect(url_for('home')) # TODO change to landing page
-    elif page_number <= 0:
+def read_manga(manga_id, page_number, chapter_number=1):
+    if page_number <= 0:
         return redirect(f"{url_for('manga')}/{manga_id}")
     
     current_manga: Manga | None = Manga.fromID(manga_id)
     current_chapter: Chapter | None = Chapter.fromManga(manga=current_manga, number=chapter_number)
 
-    if current_manga is None or current_chapter is None:
+    if current_manga is None:
         return redirect(url_for('home'))
+    elif current_chapter is None:
+        return redirect(f"{url_for('manga')}/{manga_id}")
     
     next_page = page_number + 1
     prev_page = page_number - 1
@@ -72,28 +79,33 @@ def read_manga(manga_id, page_number=None, chapter_number=1):
     page_image = f"{url_for('manga-image')}/{manga_id}/{chapter_number}/{page_number}"
     
     return render_template('manga/page.html', manga_title=current_manga.title, current_page=page_number, next_page=next_page, prev_page=prev_page, page_image=page_image, total_pages=len(current_chapter.pages))
-    
+
+
+IMAGE_404 = lambda: send_file("static/images/error/404.png", max_age=10*24*60*60)
 @bp.route('/manga-image/<int:manga_id>/<int:page_num>')
 @bp.route('/manga-image/<int:manga_id>/<int:chapter_num>/<int:page_num>')
 def get_manga_page(manga_id, page_num, chapter_num=1):
     # print("Geting page")
     if manga_id < 1 or page_num < 1 or chapter_num < 1:
         # print("Too Low")
-        return None
+        return IMAGE_404()
     
     manga: Manga | None = Manga.fromID(id=manga_id)
     if manga is None:
-        return None
+        return IMAGE_404()
     
     chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_num)
     if chapter is None:
         # print("Chapter Not Real")
-        return None
+        return IMAGE_404()
     
     page: Page | None = Page.fromChapter(chapter=chapter, number=page_num)
     if page is None:
         # print("Page Not Real")
-        return None
+        return IMAGE_404()
+    
+    if not os.path.exists(os.path.join(chapter.path, page.file_name)):
+        return IMAGE_404()
     
     ext = os.path.splitext(page.file_name)[1]
     response = send_from_directory(chapter.path, page.file_name, download_name=f"{page_num}.{ext}", max_age=10*24*60*60)
