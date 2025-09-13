@@ -84,7 +84,7 @@ def read_manga(manga_id, page_number, chapter_number=1):
 IMAGE_404 = lambda: send_file("static/images/error/404.png", max_age=10*24*60*60)
 @bp.route('/manga-image/<int:manga_id>/<int:page_num>')
 @bp.route('/manga-image/<int:manga_id>/<int:chapter_num>/<int:page_num>')
-def get_manga_page(manga_id, page_num, chapter_num=1):
+def get_manga_page(manga_id=None, page_num=None, chapter_num=1):
     # print("Geting page")
     if manga_id < 1 or page_num < 1 or chapter_num < 1:
         # print("Too Low")
@@ -199,18 +199,12 @@ def createManga(dir, folderName):
 
     if files_scanned:
         manga.chapters = chapters_to_add
-        
-        # if manga.new:
-        #     db.session.add(manga)
 
     elif not files_scanned:
         if manga.new:
             pass
         else:
             print(f"Scanned an empty Manga: {path}")
-            # db.session.delete(manga)
-
-    # db.session.commit()
 
     return manga
 

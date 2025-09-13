@@ -16,10 +16,10 @@ bp = Blueprint('api', __name__, url_prefix='/api')
 def scanPaths():
     paths = getPaths()['paths']
     print(f"Need to scan {len(paths)} paths")
+    found_manga: list = []
     for path in paths:
         folders = lsDirs(path)['folders']
         # print(f"Need to scan {len(folders)} folders")
-        found_manga: list = []
         for folder in folders:
             manga = m.createManga(path, folder)
             found_manga.append(manga)

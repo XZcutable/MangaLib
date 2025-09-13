@@ -1,12 +1,26 @@
 {% macro manga_card(manga) -%}
 <div>
-    <div class="manga-thumbnail w3-card w3-round-large">
-        <a href="{{ url_for('manga') }}/{{ manga.id }}/1">
-            <img src="{{ url_for('manga-image') }}/{{ manga.id }}/1" alt="Thumbnail" class="w3-round-large w3-image w3-hover-opacity">
+    <div class="manga-card w3-card w3-round-large">
+        <div class="manga-card-thumbnail">
+            <a class="w3-col" href="{{ url_for('manga') }}/{{ manga.id }}/1">
+                <img src="{{ url_for('manga-image') }}/{{ manga.id }}/1" alt="Thumbnail" class="w3-round-large w3-hover-opacity">
+            </a>
+        </div>
+        <a class="manga-card-title w3-tiny w3-block w3-left w3-text-white text-shadow w3-padding" href="{{ url_for('manga') }}/{{ manga.id }}">
+            {{ manga.title }}
         </a>
-        <a href="{{ url_for('manga') }}/{{ manga.id }}">
-            <span class="w3-small w3-text-white text-shadow w3-left">{{ manga.title }}</span>
-        </a>
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro manga_page(manga, chapter, page_number) -%}
+<div>
+    <div class="manga-card w3-card w3-round-large">
+        <div class="manga-card-thumbnail">
+            <a class="w3-col" href="{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page_number }}">
+                <img src="{{ url_for('manga-image') }}/{{ manga.id }}/{{ chapter.number }}/{{ page_number }}" alt="Thumbnail" class="w3-round-large w3-hover-opacity">
+            </a>
+        </div>
     </div>
 </div>
 {%- endmacro %}

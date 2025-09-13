@@ -1,20 +1,13 @@
-Current Project:
-Understand sqalchemy more, creating relationship and making page design easier
-
 Next Easy Tasks:
-Manga info page. clicking the thumbnail will go to chapter 1 page 1, but clicking the name will take you to a landing page.
-implment manga info page, also implement name editing (edits folder on system too)
 Add back and forth buttons by pages
 add a jump to page on pages
 chapter jump, page jump, show how many chapters are avaiable
-Annotations that will filter out requests where something doesn't exist (i.e. manga)
+button to continue the last know page and chapter in session on home page
 
 Next Hard Tasks:
+Info page editing
 Right click scan and have targeted scanning
 Add pending or verified status to uploading manga option
-
-Potential Features:
-Continue where you left off, eventually saved across devices. It's own button?
 
 Future Tasks:
 Implement data editing
@@ -33,3 +26,4 @@ Auth is querying slq every interaction
 
 
 Make paths relative, so data can be moved safely
+Add versioning to site

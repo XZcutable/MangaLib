@@ -29,7 +29,7 @@ manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"), primary_key=T
 def init_app(app: Flask):
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{app.config.get('DATABASE_PATH', '')}/database.db"
-        app.config["SQLALCHEMY_ECHO"] = True
+        app.config["SQLALCHEMY_ECHO"] = False
 
     db.init_app(app)
     app.cli.add_command(init_db)
@@ -103,7 +103,7 @@ class Chapter(Base):
     path: Mapped[str]
 
     title:Mapped[str] = mapped_column(default="")
-    manga:Mapped["Manga"] = relationship(default=None, viewonly=True)
+    manga:Mapped["Manga"] = relationship(default=None, back_populates="chapters")
 
     pages:Mapped[List["Page"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="chapter")
 

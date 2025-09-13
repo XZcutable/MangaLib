@@ -2,7 +2,59 @@
 {% block title %}{{manga.title}}{% endblock %}
 
 {% from 'manga/manga.html' import manga_card %}
+{% from 'manga/manga.html' import manga_page %}
 
 {% block content %}
-    
+    <div class="manga-info" style="padding-top: 25px;">
+        <div class="w3-row">
+            <div class="w3-col l3 w3-container"></div>
+            <div class="w3-col l6 s12 w3-row">
+                <div class="w3-col s6 l6">
+                    <img src="{{ url_for('manga-image') }}/{{ manga.id }}/1" alt="Thumbnail" class="w3-round-large w3-image">
+                </div>
+                <div class="w3-col l6 s6 w3-container w3-padding">
+                    <div class="w3-hide-small">
+                        <div class="w3-xlarge text-shadow w3-text-light-grey">{{manga.title}}</div>
+                        <div class="w3-large text-shadow w3-text-grey">Artist: </div>
+                        <div class="w3-large text-shadow w3-text-grey">Language: </div>
+                        <div class="w3-large text-shadow w3-text-grey">Categories: </div>
+                        {% if manga.chapters|length == 1 %}
+                            <div class="w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
+                        {% else %}
+                            <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
+                        {% endif %}
+                        <div class="w3-grid" style="gap:2px; column-gap:16px; grid-template-columns:repeat(auto-fit,minmax(30px,1fr))">
+                            <div class="w3-large text-shadow w3-text-grey">Tags</div>
+                        </div>
+                    </div>
+                    <div class="w3-hide-large w3-hide-medium">
+                        <div class="w3-small text-shadow w3-text-light-grey">{{manga.title}}</div>
+                        <div class="w3-small text-shadow w3-text-grey">Artist: </div>
+                        <div class="w3-small text-shadow w3-text-grey">Language: </div>
+                        <div class="w3-small text-shadow w3-text-grey">Categories: </div>
+                        {% if manga.chapters|length == 1 %}
+                            <div class="w3-small text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
+                        {% else %}
+                            <div class="w3-small text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
+                        {% endif %}
+                        <div class="w3-grid" style="gap:2px; column-gap:16px; grid-template-columns:repeat(auto-fit,minmax(30px,1fr))">
+                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="w3-row" style="padding-top: 25px;">
+            <div class="w3-col l3 w3-container"></div>
+            <div class="w3-col l6 w3-grid-padding manga-grid">
+                {% if manga.chapters|length == 1 %}
+                    {% for page in manga.chapters[0].pages %}
+                        {{ manga_page(manga, page.chapter, loop.index) }}
+                    {% endfor %}
+                {% else %}
+                    
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock %}
