@@ -1,26 +1,48 @@
 {% macro manga_card(manga) -%}
-<div>
     <div class="manga-card w3-card w3-round-large">
-        <div class="manga-card-thumbnail">
-            <a class="w3-col" href="{{ url_for('manga') }}/{{ manga.id }}/1">
-                <img src="{{ url_for('manga-image') }}/{{ manga.id }}/1" alt="Thumbnail" class="w3-round-large w3-hover-opacity">
-            </a>
-        </div>
-        <a class="manga-card-title w3-tiny w3-block w3-left w3-text-white text-shadow w3-padding" href="{{ url_for('manga') }}/{{ manga.id }}">
-            {{ manga.title }}
+        <a href="{{ url_for('manga') }}/{{ manga.id }}/1">
+            <div class="manga-card-thumbnail w3-hover-opacity">
+                <img src="{{ url_for('manga-image') }}/{{ manga.id }}/1" alt="Thumbnail" class="w3-round-large no-hover">
+            </div>
+        </a>
+        <a href="{{ url_for('manga') }}/{{ manga.id }}">
+            <div class="manga-card-title w3-tiny w3-text-white text-shadow">
+                {{ manga.title|truncate(90, false) }}
+            </div>
+        </a>
+    </div>
+{%- endmacro %}
+
+{% macro manga_page(page) -%}
+<div>
+    <div class="manga-card manga-card-page w3-card w3-round-large">
+        <a href="{{ url_for('manga') }}/{{ page.manga_id }}/{{ page.chapter.number }}/{{ page.number }}">
+            <div class="manga-card-thumbnail w3-hover-opacity">
+                <img src="{{ url_for('manga-image') }}/{{ page.manga_id }}/{{ page.chapter.number }}/{{ page.number }}" alt="Thumbnail" class="w3-round-large no-hover">
+            </div>
         </a>
     </div>
 </div>
 {%- endmacro %}
 
-{% macro manga_page(manga, chapter, page_number) -%}
-<div>
-    <div class="manga-card w3-card w3-round-large">
-        <div class="manga-card-thumbnail">
-            <a class="w3-col" href="{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page_number }}">
-                <img src="{{ url_for('manga-image') }}/{{ manga.id }}/{{ chapter.number }}/{{ page_number }}" alt="Thumbnail" class="w3-round-large w3-hover-opacity">
-            </a>
-        </div>
-    </div>
+{% macro manga_grid(mangas) -%}
+<div class="manga-grid">
+    {% for manga in mangas %}
+        {{ manga_card(manga) }}
+    {% endfor %}
+</div>
+<div id="loading-container" class="w3-hide w3-container w3-border">
+    <i class="w3-jumbo fa fa-spinner load-spin"></i>
+</div>
+{%- endmacro %}
+
+{% macro manga_page_grid(pages) -%}
+<div class="manga-grid ">
+    {% for page in pages %}
+        {{ manga_page(page) }}
+    {% endfor %}
+</div>
+<div id="loading-container" class="w3-hide w3-container w3-border">
+    <i class="w3-jumbo fa fa-spinner load-spin"></i>
 </div>
 {%- endmacro %}

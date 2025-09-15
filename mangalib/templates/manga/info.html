@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}{{manga.title}}{% endblock %}
 
-{% from 'manga/manga.html' import manga_card %}
-{% from 'manga/manga.html' import manga_page %}
+{% from 'manga/manga.html' import manga_grid %}
+{% from 'manga/manga.html' import manga_page_grid %}
 
 {% block content %}
     <div class="manga-info" style="padding-top: 25px;">
@@ -44,17 +44,12 @@
                 </div>
             </div>
         </div>
-        <div class="w3-row" style="padding-top: 25px;">
-            <div class="w3-col l3 w3-container"></div>
-            <div class="w3-col l6 w3-grid-padding manga-grid">
-                {% if manga.chapters|length == 1 %}
-                    {% for page in manga.chapters[0].pages %}
-                        {{ manga_page(manga, page.chapter, loop.index) }}
-                    {% endfor %}
-                {% else %}
-                    
-                {% endif %}
-            </div>
+        <div class="manga-grid-container" style="margin-top: 20px;">
+            {% if manga.chapters|length == 1 %}
+                {{ manga_page_grid(manga.chapters[0].pages) }}
+            {% else %}
+                
+            {% endif %}
         </div>
     </div>
 {% endblock %}

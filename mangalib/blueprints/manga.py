@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, redirect, render_template, session, url_for, send_from_directory, send_file
+    Flask, Blueprint, redirect, render_template, session, url_for, send_from_directory, send_file
 )
 
 from . import api
@@ -12,6 +12,9 @@ import os, random
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
 bp = Blueprint('manga', __name__, url_prefix='/')
+
+def init_app(app: Flask):
+    hide_content(app.config["HIDE_MANGA"])
 
 @bp.route('/')
 def home():
@@ -81,7 +84,8 @@ def read_manga(manga_id, page_number, chapter_number=1):
     return render_template('manga/page.html', manga_title=current_manga.title, current_page=page_number, next_page=next_page, prev_page=prev_page, page_image=page_image, total_pages=len(current_chapter.pages))
 
 
-IMAGE_404 = lambda: send_file("static/images/error/404.png", max_age=10*24*60*60)
+IMAGE_404 = lambda *_: send_file("static/images/error/404.png", max_age=10*24*60*60)
+
 @bp.route('/manga-image/<int:manga_id>/<int:page_num>')
 @bp.route('/manga-image/<int:manga_id>/<int:chapter_num>/<int:page_num>')
 def get_manga_page(manga_id=None, page_num=None, chapter_num=1):
@@ -101,17 +105,29 @@ def get_manga_page(manga_id=None, page_num=None, chapter_num=1):
     
     page: Page | None = Page.fromChapter(chapter=chapter, number=page_num)
     if page is None:
-        # print("Page Not Real")
         return IMAGE_404()
     
-    if not os.path.exists(os.path.join(chapter.path, page.file_name)):
+    return FETCH_PAGE(page)
+
+def fetch_page(page: Page):
+    if not os.path.exists(os.path.join(page.chapter.path, page.file_name)):
         return IMAGE_404()
     
     ext = os.path.splitext(page.file_name)[1]
-    response = send_from_directory(chapter.path, page.file_name, download_name=f"{page_num}.{ext}", max_age=10*24*60*60)
+    response = send_from_directory(page.chapter.path, page.file_name, download_name=f"{page.number}.{ext}", max_age=10*24*60*60)
     if response.status_code == 304:
         response.status_code = 200
     return response
+
+FETCH_PAGE = fetch_page
+
+def hide_content(hide: bool):
+    global FETCH_PAGE
+
+    if hide:
+        FETCH_PAGE = IMAGE_404
+    else:
+        FETCH_PAGE = fetch_page
 
 @bp.route('/upload', methods=('GET', 'POST'))
 def upload():

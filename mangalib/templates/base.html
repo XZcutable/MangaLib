@@ -28,7 +28,7 @@
     </script>
     <div class="nav-bar w3-padding w3-bar w3-asphalt">
         {% if g.user %}
-        <!-- Large Screens -->
+            <!-- Large Screens -->
             <div class="w3-hide-small w3-hide-medium w3-xlarge">
                 <a href="{{ url_for('home') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-home"></i></a>
                 <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-rss">&nbsp;Latest</i></a>
@@ -36,48 +36,46 @@
                 <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-random">&nbsp;Random</i></a>
                 <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-upload">&nbsp;Upload</i></a>
             
-            <div class="w3-right">
-                <div class="user-menu w3-dropdown-hover" style="background-color: transparent;">
-                    <button class="w3-text-white w3-button text-shadow w3-round-large"><i class="fa fa-user-o">&nbsp;&nbsp;{{ g.user['username'] }}</i></button>
-                    <div class="w3-dropdown-content w3-bar-block w3-round-large">
-                        <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button"><i class="fa fa-gear">&nbsp;Settings</i></a>
-                        <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
-                    </div>
-                </div>
-                <span class="manga-search">
-                    <input type="search" placeholder="Search..." id="search-input" class="w3-round-large w3-rest">
-                    <button id="search-button" class="w3-button w3-round-large"><i class="fa fa-search"></i></button>
-                </span>
-            </div>
-        </div>
-
-        <!-- Small Screens - Mobile -->
-        <div class="w3-block w3-hide-large w3-hide-medium">
-            <a href="{{ url_for('home') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-home"></i></a>
-            <span class="manga-search">
-                <input type="search" placeholder="Search..." id="search-input" class="w3-bar-item">
-                <button id="search-button" class="w3-bar-item w3-button w3-grey"><i class="fa fa-search"></i></button>
-            </span>
-
-            <div class="w3-dropdown-click w3-right">
-                <button class="w3-button w3-round-large" onclick="toggleMenu('mobile-menu')"><i class="w3-xlarge fa fa-bars"></i></button>
-                
-                <div id="mobile-menu" class="w3-dropdown-content w3-bar-block w3-asphalt w3-hide" style="right: 0;">
-                    <button class="w3-bar-item w3-block w3-button w3-left-align" onclick="toggleMenu('mobile-user-settings')"><i class="fa fa-user-o">&nbsp;&nbsp;{{ g.user['username'] }}</i></button>
-                    <div class="w3-bar-block">
-                        <div id="mobile-user-settings" class="w3-hide">
-                            <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-gear">&nbsp;Settings</i></a>
+                <div class="w3-right">
+                    <div class="user-menu w3-dropdown-hover" style="background-color: transparent;">
+                        <button class="w3-text-white w3-button text-shadow w3-round-large"><i class="fa fa-user-o">&nbsp;&nbsp;{{ g.user['username'] }}</i></button>
+                        <div class="w3-dropdown-content w3-bar-block w3-round-large">
+                            <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button"><i class="fa fa-gear">&nbsp;Settings</i></a>
+                            <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
                         </div>
-                        <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button"><i class="fa fa-rss">&nbsp;Latest</i></a>
-                        <a href="{{ url_for('manga.all') }}" class="w3-bar-item w3-button"><i class="fa fa-folder">&nbsp;All</i></a>
-                        <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button"><i class="fa fa-random">&nbsp;Random</i></a>
-                        <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
                     </div>
+                    <span class="manga-search">
+                        <input type="search" placeholder="Search..." id="search-input" class="w3-round-large w3-rest">
+                        <button id="search-button" class="w3-button w3-round-large"><i class="fa fa-search"></i></button>
+                    </span>
                 </div>
             </div>
-        </div> 
 
+            <!-- Small Screens - Mobile -->
+            <div class="w3-block w3-hide-large w3-hide-medium">
+                <a href="{{ url_for('home') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-home"></i></a>
+                <span class="manga-search">
+                    <input type="search" placeholder="Search..." id="search-input" class="w3-bar-item">
+                    <button id="search-button" class="w3-bar-item w3-button w3-grey"><i class="fa fa-search"></i></button>
+                </span>
 
+                <div class="w3-dropdown-click w3-right">
+                    <button class="w3-button w3-round-large" onclick="toggleMenu('mobile-menu')"><i class="w3-xlarge fa fa-bars"></i></button>
+                    
+                    <div id="mobile-menu" class="w3-dropdown-content w3-bar-block w3-asphalt w3-hide" style="right: 0;">
+                        <button class="w3-bar-item w3-block w3-button w3-left-align" onclick="toggleMenu('mobile-user-settings')"><i class="fa fa-user-o">&nbsp;&nbsp;{{ g.user['username'] }}</i></button>
+                        <div class="w3-bar-block">
+                            <div id="mobile-user-settings" class="w3-hide">
+                                <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-gear">&nbsp;Settings</i></a>
+                            </div>
+                            <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button"><i class="fa fa-rss">&nbsp;Latest</i></a>
+                            <a href="{{ url_for('manga.all') }}" class="w3-bar-item w3-button"><i class="fa fa-folder">&nbsp;All</i></a>
+                            <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button"><i class="fa fa-random">&nbsp;Random</i></a>
+                            <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
+                        </div>
+                    </div>
+                </div>
+            </div> 
         {% else %}
             {% if request.path == url_for('auth.register') %}
             <span class="w3-bar-item w3-dark-grey no-hover w3-right"><i class="fa fa-pencil-square-o">&nbsp;Register</i></span>
@@ -92,7 +90,7 @@
     {% for category, message in get_flashed_messages(with_categories=true) %}
     <div class="flash flash-{{category}} w3-center w3-button" onclick="this.remove()"><span class="no-hover">{{ message }}</span></div>
     {% endfor %}
-    <div class="w3-display-container main-content">
+    <div class="main-content">
         {% block content %}{% endblock %}
     </div>
     {% block content_footer %}{% endblock %}
