@@ -74,6 +74,7 @@ function processFetch(grid_html) {
 window.addEventListener('load', function() {
     var content = this.document.getElementById(scroll_id);
     content.addEventListener('scroll', detect_end_of_scroll)
+    detect_end_of_scroll();
 });
 
 function detect_end_of_scroll() {

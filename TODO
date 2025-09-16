@@ -19,11 +19,6 @@ Add way to edit sql as owner
 Polish:
 better optmize remote connection
 make site look better
-Fix mobile in landscape mode
-
-Performance:
-Auth is querying slq every interaction
-
 
 Make paths relative, so data can be moved safely
 Add versioning to site
