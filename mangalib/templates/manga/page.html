@@ -39,5 +39,16 @@
 {% endblock %}
 
 {% block content_footer %}
-<div class="w3-center text-shadow w3-text-white w3-xlarge">{{ page.number }} / {{ chapter.pages|length }}</div>
+<div class="w3-center text-shadow w3-text-white w3-xlarge w3-padding-small">
+    <div class="manga-page-dropdown w3-round-large">
+        <div id="page-dropdown" class="manga-page-dropdown-content w3-round-large w3-large">
+            {% for p in chapter.pages %}
+            <a class="manga-page-dropdown-item" href="{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ p.number }}">{{ p.number }}</a>
+            {% endfor %}
+        </div>
+        <span class="no-hover ">
+            {{ page.number }} / {{ chapter.pages|length }}
+        </span>
+    </div>
+</div>
 {% endblock %}
