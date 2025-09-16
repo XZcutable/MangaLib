@@ -15,11 +15,11 @@
         <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
     {% else %}
         <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>All Uploads</strong></span>
-        {{ manga_grid(titles) }}
+        {{ manga_grid(titles, HIDE_TITLES) }}
         <script>
             var batch_size = 15;
             var offset = 15; // page initially loads 15
-            
+
             query_request_url = () => "{{ url_for('api.generate_manga_cards') }}";
         </script>
         <div class="scroll-load-spin">

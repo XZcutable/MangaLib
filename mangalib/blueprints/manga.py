@@ -44,11 +44,11 @@ def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
 
 @bp.route('/latest')
 def viewLatestTitles():
-    return render_template('manga/directory.html', titles=fetchTitles('desc', 0, fetch_count), hide_titles=HIDE_TITLES)
+    return render_template('manga/directory.html', titles=fetchTitles('desc', 0, fetch_count), HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/all')
 def viewAllTitles():
-    return render_template('manga/directory.html', titles=fetchTitles('asc', 0, fetch_count), hide_titles=HIDE_TITLES)
+    return render_template('manga/directory.html', titles=fetchTitles('asc', 0, fetch_count), HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/random')
 def random_manga():

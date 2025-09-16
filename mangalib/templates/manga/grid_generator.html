@@ -2,6 +2,6 @@
 
 {% if titles|length > 0 %}
     {% for manga in titles %}
-        {{ manga_card(manga) }}
+        {{ manga_card(manga, HIDE_TITLES) }}
     {% endfor %}
 {% endif %}
