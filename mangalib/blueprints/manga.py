@@ -66,43 +66,25 @@ def manga_info(manga_id):
 
 @bp.route('/manga/<int:manga_id>/<int:page_number>')
 @bp.route('/manga/<int:manga_id>/<int:page_number>/')
+@bp.route('/manga/<int:manga_id>/<int:chapter_number>/<int:page_number>')
 @bp.route('/manga/<int:manga_id>/<int:chapter_number>/<int:page_number>/')
-def read_manga(manga_id, page_number, chapter_number=1):
+def read_manga(manga_id, page_number=0, chapter_number=1):
     if page_number <= 0:
-        return redirect(f"{url_for('manga')}/{manga_id}")
+        return manga_info(manga_id=manga_id)
     
-    current_manga: Manga | None = Manga.fromID(manga_id)
-    current_chapter: Chapter | None = Chapter.fromManga(manga=current_manga, number=chapter_number)
-
-    if current_manga is None:
+    manga: Manga | None = Manga.fromID(manga_id)
+    if manga is None:
         return redirect(url_for('home'))
-    elif current_chapter is None:
+    
+    chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_number)
+    if chapter is None:
         return redirect(f"{url_for('manga')}/{manga_id}")
     
-    next_page = page_number + 1
-    prev_page = page_number - 1
-
-    if prev_page <= 0:
-        if chapter_number > 1:
-            last_chapter: Chapter | None = Chapter.fromManga(manga=current_manga, number=chapter_number - 1)
-            prev_page = f"{url_for('manga')}/{manga_id}/{last_chapter.number}/{len(last_chapter.pages)}"
-        else:
-            prev_page = None
-    else:
-        prev_page = f"{url_for('manga')}/{manga_id}/{chapter_number}/{prev_page}"
-
-    if next_page > len(current_chapter.pages):
-        next_chapter: Chapter | None = Chapter.fromManga(manga=current_manga, number=chapter_number + 1)
-        if next_chapter:
-            next_page = f"{url_for('manga')}/{manga_id}/{chapter_number+1}/1"
-        else:
-            next_page = f"{url_for('manga')}/{manga_id}"
-    else:
-        next_page = f"{url_for('manga')}/{manga_id}/{chapter_number}/{next_page}"
-
-    page_image = f"{url_for('manga-image')}/{manga_id}/{chapter_number}/{page_number}"
+    page: Page | None = Page.fromChapter(chapter, page_number)
+    if page is None:
+        return redirect(f"{url_for('manga')}/{manga_id}")
     
-    return render_template('manga/page.html', manga_title=current_manga.title, current_page=page_number, next_page=next_page, prev_page=prev_page, page_image=page_image, total_pages=len(current_chapter.pages))
+    return render_template('manga/page.html', manga=manga, chapter=chapter, page=page)
 
 
 IMAGE_404 = lambda *_: send_file("static/images/error/404.png", max_age=10*24*60*60)

@@ -1,212 +1,25 @@
 {% extends 'base.html' %}
-{% block title %}{{manga_title}}{% endblock %}
+{% block title %}{{manga.title}}{% endblock %}
 
 {% block script %}
-<script>
-    addEventListener('load', onLoad);
-
-    document.addEventListener("keydown", function(event) {
-        if (event.key === "ArrowRight" || event.key === "d") {
-            nextPage();
-        } else if (event.key === "ArrowLeft" || event.key === "a") {
-            prevPage();
-        }
-    });
-
-    function playLeftGrad() {
-       let grad = document.getElementById("left-grad");
-       grad.classList.add("left-grad");
-    }
-
-    function playRightGrad() {
-       let grad = document.getElementById("right-grad");
-       grad.classList.add("right-grad");
-    }
-
-    function onLoad() {
-        document.getElementById("left-grad").onanimationend = (event) => event.currentTarget.classList.remove("left-grad")
-        document.getElementById("right-grad").onanimationend = (event) => event.currentTarget.classList.remove("right-grad")
-
-        let page = document.getElementById("page");
-        let zone = document.getElementById("page-zone");
-        let content = document.getElementById("page-content");
-        let load_icon = document.getElementById("load-icon");
-
-        let aspect = page.naturalHeight / page.naturalWidth;
-        
-        if (page.naturalWidth > page.naturalHeight) {
-            zone.classList.remove("fill-height");
-            content.classList.remove("fill-height");
-            content.classList.add("center-image")
-        }
-        
-        if (aspect >= 2.5) {
-            zone.classList.remove("fill-height");
-            content.classList.remove("fill-height");
-        } else if(page.naturalHeight >= window.innerHeight) {
-            content.classList.remove("center-image")
-            zone.classList.add("fill-height")
-        }
-        
-        if(page.naturalHeight < window.innerHeight) {
-            zone.classList.add("fill-height");
-            content.classList.add("fill-height");
-        }
-        
-        page.classList.remove("w3-hide");
-        load_icon.classList.add("w3-hide");
-
-        zone.addEventListener('touchstart', touchStart)
-        zone.addEventListener('touchmove', touchMove)
-        zone.addEventListener('touchend', touchEnd)
-        zone.addEventListener('touchcancel', touchCancel)
-
-        zone.addEventListener('mousedown', mouseDown)
-        zone.addEventListener('mouseup', mouseUp)
-    }
-
-    let sides = 0.3;
-
-    let clicking = false;
-    let mouseX = 0
-
-    function mouseDown(event) {
-        clicking = event.button == 0;
-        mouseX = event.offsetX;
-    }
-
-    function mouseUp(event) {
-        if(clicking && event.button == 0) {
-            clicking = false;
-
-            
-            let clickedOnLeft = mouseX <= (event.currentTarget.offsetWidth / 2 * sides);
-            let clickedOnRight = mouseX >= (event.currentTarget.offsetWidth / 2 * (2 - sides));
-
-            // console.log(mouseX, event.currentTarget.offsetWidth / 2  * sides)
-            mouseX = event.offsetX;
-
-            let clickedOnLeft2 = mouseX <= (event.currentTarget.offsetWidth / 2 * sides);
-            let clickedOnRight2 = mouseX >= (event.currentTarget.offsetWidth / 2 * (2 - sides));
-
-            if(clickedOnLeft === clickedOnLeft2) {
-                if(clickedOnLeft) {
-                    prevPage();
-                }
-            }
-
-            if(clickedOnRight === clickedOnRight2) {
-                if(clickedOnRight) {
-                    nextPage();
-                }
-            }
-        }
-    }
-
-
-    let startX = -1;
-    let dragging = false;
-    let dir = 0;
-    let dragDist = 40;
-    let minXBeforeDrag = 15;
-
-
-    let minYBeforeScroll = 10;
-    let startY = 0;
-    let scrolling = false;
-    let animPlayed = false;
-
-    function touchStart(event) {
-        if (event.touches.length == 1) {
-            startX = event.touches[0].clientX;
-            startY = event.touches[0].clientY;
-            dir = 0;
-        }
-    }
-
-    function touchMove(event) {
-        if (event.touches.length == 1) {
-
-            if(scrolling) {
-                return;
-            }
-
-            let yDelta = Math.abs(event.touches[0].clientY - startY);
-
-            if(!dragging && yDelta >= minYBeforeScroll) {
-                scrolling = true;
-                return;
-            } else {
-                event.preventDefault();
-            }
-
-            let deltaX = event.touches[0].clientX - startX;
-            let clampedX = Math.min(dragDist, Math.max(-dragDist, deltaX));
-
-            if(!dragging && Math.abs(deltaX) >= minXBeforeDrag) {
-                dragging = true;
-                startX = event.touches[0].clientX;
-                deltaX = event.touches[0].clientX - startX;
-                clampedX = Math.min(dragDist, Math.max(-dragDist, deltaX));
-            } 
-            
-            if(dragging) {
-                let curDir = Math.sign(deltaX);
-                if(curDir != dir) {
-                    dir = curDir;
-                    startX = event.touches[0].clientX;
-                    clampedX = Math.min(dragDist, Math.max(-dragDist, deltaX));
-                    animPlayed = false;
-                } else if(!animPlayed && Math.abs(deltaX) >= dragDist) {
-                    if(curDir > 0) {
-                        playLeftGrad();
-                        animPlayed = true;
-                    } else if(curDir < 0) {
-                        playRightGrad();
-                        animPlayed = true;
-                    }
-                }
-                event.currentTarget.style.transform = `translate(${clampedX}px, 0px)`;
-            }
-        }
-    }
-
-    function touchEnd(event) {
-        // event.preventDefault();
-
-        if(dragging) {
-            let endX = event.changedTouches[0].clientX;
-            if(Math.abs(endX - startX) > dragDist) {
-                if (endX < startX) {
-                    nextPage();
-                } else {
-                    prevPage();
-                }
-            }
-        }
-        dragging = false;
-        scrolling = false;
-        animPlayed = false;
-        event.currentTarget.style.transform = `translate(0px, 0px)`;
-    }
-
-    function touchCancel(event) {
-        // event.preventDefault();
-        dragging = false;
-        scrolling = false;
-        event.currentTarget.style.transform = `translate(0px, 0px)`;
-    }
-
-    function nextPage() {
-        window.location = "{{ next_page }}";
-    }
-
-    function prevPage() {
-        // {% if prev_page %}
-        window.location = "{{ prev_page }}";
+    <script src="{{ url_for('static', filename='assets/scripts/manga-page.js') }}"></script>
+    <script>
+        // {% if page.number + 1 <= chapter.pages|length %}
+        next_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number + 1 }}"
+        // {% elif manga.chapters|length > 1 %}
+        next_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number + 1 }}/1"
+        // {% else %}
+        next_page = "{{ url_for('manga') }}/{{ manga.id }}"
         // {% endif %}
-    }
-</script>
+
+        // {% if page.number - 1 > 0 %}
+        prev_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number - 1 }}"
+        // {% elif chapter.number - 1 > 0 %}
+        prev_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number - 1 }}/{{ manga.chapters[chapter.number-2].pages|length }}"
+        // {% else %}
+        prev_page = "{{ url_for('manga') }}/{{ manga.id }}"
+        // {% endif %}
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -216,16 +29,15 @@
         <div id="right-grad" class=""></div>
     </div>
     <div id="page-content" class="page-content fill-height">
-        
         <!-- Need DIV for mouse events -->
         <div id="page-zone" class="page-zone fill-height">
             <i id="load-icon" class="fa fa-spinner load-spin"></i>
-            <img id="page" class="no-hover fill-height w3-image w3-hide" src="{{ page_image }}" alt="Page">
+            <img id="page-image" class="no-hover fill-height w3-image w3-hide" src="{{ url_for('manga-image') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number }}" alt="Page">
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block content_footer %}
-<div class="w3-center text-shadow w3-text-white w3-xlarge">{{ current_page }} / {{ total_pages }}</div>
+<div class="w3-center text-shadow w3-text-white w3-xlarge">{{ page.number }} / {{ chapter.pages|length }}</div>
 {% endblock %}
