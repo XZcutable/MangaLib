@@ -113,6 +113,27 @@ body {
     height: 100%!important;
 }
 
+div.scroll-load-spin:not(.loading) {
+    width: 100%;
+    height: 10px;
+
+    text-align: center;
+}
+
+div.scroll-load-spin:is(.loading) {
+    width: 100%;
+    height: 100px;
+
+    text-align: center;
+}
+
+div.scroll-load-spin i {
+    animation:load-spin 0.75s infinite linear;
+    font-size:96px!important;
+    border-radius: 100%;
+    padding: 5px;
+}
+
 .load-spin {
     animation:load-spin 0.75s infinite linear;
     background-color: #1b1b1b2b;
@@ -192,7 +213,7 @@ body {
 .manga-grid-container {
     background-color: #444;
     position: absolute;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 @media screen and (min-width:1300px) {

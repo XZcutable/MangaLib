@@ -1,0 +1,7 @@
+{% from 'manga/manga.html' import manga_card %}
+
+{% if titles|length > 0 %}
+    {% for manga in titles %}
+        {{ manga_card(manga) }}
+    {% endfor %}
+{% endif %}

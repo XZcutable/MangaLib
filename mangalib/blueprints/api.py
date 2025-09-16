@@ -1,7 +1,7 @@
 import os
 
 from flask import (
-    Blueprint, flash, request
+    Blueprint, flash, request, render_template
 )
 
 from . import settings
@@ -163,3 +163,14 @@ def isValidFile(dir: str, file: str, filters: tuple | None):
                 return os.path.splitext(file)[1] in filters
     
     return False
+
+@bp.route('/generate-manga-cards')
+def generate_manga_cards():
+    sort = request.args.get('sort', 'asc')
+    offset = request.args.get('offset', 0)
+    count = request.args.get('count', 30)
+
+    titles = m.fetchTitles(sort=sort, offset=offset, count=count)
+
+    return render_template("manga/grid_generator.html", titles=titles)
+

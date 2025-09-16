@@ -1,5 +1,5 @@
 from flask import (
-    Flask, Blueprint, redirect, render_template, session, url_for, send_from_directory, send_file
+    Flask, Blueprint, redirect, render_template, session, request, url_for, send_from_directory, send_file
 )
 
 from . import api
@@ -7,27 +7,48 @@ from .models import Manga, Chapter, Page, Path
 
 from sqlalchemy import asc, desc
 
-import os, random
+import os, random, json
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
 bp = Blueprint('manga', __name__, url_prefix='/')
 
+latest_count = 30
+fetch_count = 15
+
 def init_app(app: Flask):
+    global latest_count, fetch_count
+
     hide_content(app.config["HIDE_MANGA"])
+    hide_titles(app.config["HIDE_TITLES"])
+
+    latest_count = app.config.get("LATEST_COUNT", latest_count)
+    fetch_count = app.config.get("FETCH_COUNT", fetch_count)
 
 @bp.route('/')
 def home():
     clear_manga()
-    return render_template('manga/home.html', titles=getLatest(count=30))
+    return render_template('manga/home.html', titles=getLatest(count=30), HIDE_TITLES=HIDE_TITLES)
+
+def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
+    query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
+    if sort == 'asc':
+        query = query.order_by(asc(Manga.id))
+    elif sort == 'desc':
+        query = query.order_by(desc(Manga.id))
+
+    query = query.offset(offset).limit(count)
+
+    titles = executeMangaQuery(query)
+    return titles
 
 @bp.route('/latest')
 def viewLatestTitles():
-    return render_template('manga/directory.html', titles=getAllTitles(latest=True))
+    return render_template('manga/directory.html', titles=fetchTitles('desc', 0, fetch_count), hide_titles=HIDE_TITLES)
 
 @bp.route('/all')
 def viewAllTitles():
-    return render_template('manga/directory.html', titles=getAllTitles())
+    return render_template('manga/directory.html', titles=fetchTitles('asc', 0, fetch_count), hide_titles=HIDE_TITLES)
 
 @bp.route('/random')
 def random_manga():
@@ -120,7 +141,6 @@ def fetch_page(page: Page):
     return response
 
 FETCH_PAGE = fetch_page
-
 def hide_content(hide: bool):
     global FETCH_PAGE
 
@@ -128,6 +148,13 @@ def hide_content(hide: bool):
         FETCH_PAGE = IMAGE_404
     else:
         FETCH_PAGE = fetch_page
+
+
+HIDE_TITLES = False
+def hide_titles(hide: bool):
+    global HIDE_TITLES
+
+    HIDE_TITLES = hide
 
 @bp.route('/upload', methods=('GET', 'POST'))
 def upload():
@@ -157,6 +184,9 @@ def getLatest(count = 10):
     latest = Manga.query.distinct(Manga.id).order_by(Manga.date_uploaded).limit(count).all()
     return latest
 
+def executeMangaQuery(query):
+    return [title for title in query.values(Manga.id, Manga.title)]
+
 def getAllTitles(latest=False):
     query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
     if latest:
@@ -164,7 +194,7 @@ def getAllTitles(latest=False):
     else:
         query = query.order_by(asc(Manga.id))
 
-    titles = [title for title in query.values(Manga.id, Manga.title)]
+    titles = executeMangaQuery(query)
     return titles
 
 def createManga(dir, folderName):

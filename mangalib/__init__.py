@@ -35,3 +35,4 @@ def create_app():
 
 def config_overrides(app: Flask):
     app.config["HIDE_MANGA"] = True
+    app.config["HIDE_TITLES"] = False

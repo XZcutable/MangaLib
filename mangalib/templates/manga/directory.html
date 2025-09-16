@@ -4,7 +4,7 @@
 {% from 'manga/manga.html' import manga_grid %}
 
 {% block script %}
-    <script src="{{ url_for('static', filename='infinite-scroll.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/scripts/infinite-scroll.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -16,6 +16,15 @@
     {% else %}
         <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>All Uploads</strong></span>
         {{ manga_grid(titles) }}
+        <script>
+            var batch_size = 15;
+            var offset = 15; // page initially loads 15
+            
+            query_request_url = () => "{{ url_for('api.generate_manga_cards') }}";
+        </script>
+        <div class="scroll-load-spin">
+            <i id="scroll-load-icon" class="fa fa-spinner w3-hide"></i>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
