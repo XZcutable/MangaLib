@@ -172,5 +172,6 @@ def generate_manga_cards():
 
     titles = m.fetchTitles(sort=sort, offset=offset, count=count)
 
-    return render_template("manga/grid_generator.html", titles=titles, HIDE_TITLES=m.HIDE_TITLES)
+    html = render_template("manga/grid_generator.html", titles=titles, HIDE_TITLES=m.HIDE_TITLES)
+    return html.lstrip()
 

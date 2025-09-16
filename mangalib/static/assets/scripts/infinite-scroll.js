@@ -23,9 +23,9 @@ var isLoading = false;
 const grid_id = "manga-grid";
 const scroll_id = "main-content";
 const loading_icon_id = "scroll-load-icon";
-const scroll_dector_height = 10;
+const scroll_detector_height = 10;
 const small_dealy = 1000;
-const big_dealy = 100000;
+const big_dealy = 10000;
 
 
 var delay = small_dealy;
@@ -33,58 +33,68 @@ var delay = small_dealy;
 async function fetchTitles(content, request) {
     isLoading = true;
 
-
     var load_icon = document.getElementById(loading_icon_id);
     load_icon.classList.remove('w3-hide');
-    load_icon.parentElement.classList.add("loading")
+    load_icon.parentElement.classList.add("loading");
     // content.scrollTop = content.scrollTopMax;
 
-    var args = `?count=${batch_size}&offset=${offset}`
-    console.log(request + args)
+    var args = `?count=${batch_size}&offset=${offset}`;
+    console.log(request + args);
     try {
         await fetch(request + args).then(response => response.text()).then(processFetch);
     } catch {
-        clean_up(big_dealy);
+        clean_up(big_dealy, false);
     }
 }
 
-function clean_up(delay) {
-    offset += batch_size
+function clean_up(delay, success) {
+    var load_icon = document.getElementById(loading_icon_id);
+    
+    if(success) {
+        offset += batch_size;
 
-    setTimeout(() => {
-        isLoading = false;
-        if (!detect_end_of_scroll()) {
-            var load_icon = document.getElementById(loading_icon_id);
-            load_icon.classList.add('w3-hide');
-            load_icon.parentElement.classList.remove("loading")
-        }
-    }, delay);
+        setTimeout(() => {
+            isLoading = false;
+
+            if (!detect_end_of_scroll()) {
+                load_icon.classList.add('w3-hide');
+                load_icon.parentElement.classList.remove("loading")
+            }
+        }, delay);
+
+    } else {
+        load_icon.classList.add('w3-hide');
+        load_icon.parentElement.classList.remove("loading");
+        setTimeout(() => {
+            isLoading = false;
+        }, delay);
+    }
 }
 
 function processFetch(grid_html) {
     if(grid_html === "") {
-        clean_up(big_dealy);
+        clean_up(big_dealy, false);
+        load_icon.classList.add('w3-hide');
+        load_icon.parentElement.classList.remove("loading");
     } else {
         var grid = document.getElementById(grid_id);
-        grid.innerHTML += grid_html
-        clean_up(small_dealy);
+        grid.innerHTML += grid_html;
+        clean_up(small_dealy, true);
     }
 }
 
 window.addEventListener('load', function() {
     var content = this.document.getElementById(scroll_id);
-    content.addEventListener('scroll', detect_end_of_scroll)
+    content.addEventListener('scroll', detect_end_of_scroll);
     detect_end_of_scroll();
 });
 
 function detect_end_of_scroll() {
     var content = document.getElementById(scroll_id);
-    if(content.scrollTop >= content.scrollTopMax - scroll_dector_height && !isLoading) {
+    if(content.scrollTop >= content.scrollTopMax - scroll_detector_height && !isLoading) {
         fetchTitles(content, query_request_url(batch_size, offset));
-        setTimeout(() => {}, 1000);
         return true;
     } else {
         return false;
     }
 }
-
