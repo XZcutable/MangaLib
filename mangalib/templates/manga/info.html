@@ -1,5 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}{{manga.title}}{% endblock %}
+{% block title %}
+    {% if HIDE_TITLES %}
+        Manga Title
+    {% else %}
+        {{manga.title}}
+    {% endif %}
+{% endblock %}
 
 {% from 'manga/manga.html' import manga_grid %}
 {% from 'manga/manga.html' import manga_chapter_grid %}
@@ -15,7 +21,11 @@
                 </div>
                 <div class="w3-col l6 s6 w3-container w3-padding">
                     <div class="w3-hide-small">
-                        <div class="w3-xlarge text-shadow w3-text-light-grey">{{manga.title}}</div>
+                        {% if HIDE_TITLES %}
+                            <div class="w3-xlarge text-shadow w3-text-light-grey">Manga Title</div>
+                        {% else %}
+                            <div class="w3-xlarge text-shadow w3-text-light-grey">{{manga.title}}</div>
+                        {% endif %}
                         <div class="w3-large text-shadow w3-text-grey">Artist: </div>
                         <div class="w3-large text-shadow w3-text-grey">Language: </div>
                         <div class="w3-large text-shadow w3-text-grey">Categories: </div>

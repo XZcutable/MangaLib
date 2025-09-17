@@ -62,7 +62,7 @@ def manga_info(manga_id):
     if manga is None:
         return redirect(url_for('home'))
     
-    return render_template('manga/info.html', manga=manga)
+    return render_template('manga/info.html', manga=manga, HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/manga/<int:manga_id>/<int:page_number>')
 @bp.route('/manga/<int:manga_id>/<int:page_number>/')
