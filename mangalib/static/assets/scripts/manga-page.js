@@ -129,8 +129,6 @@ function touchMove(event) {
 }
 
 function touchEnd(event) {
-    // event.preventDefault();
-
     if(dragging) {
         let endX = event.changedTouches[0].clientX;
         if(Math.abs(endX - startX) > dragDist) {
@@ -148,7 +146,6 @@ function touchEnd(event) {
 }
 
 function touchCancel(event) {
-    // event.preventDefault();
     dragging = false;
     scrolling = false;
     event.currentTarget.style.transform = `translate(0px, 0px)`;

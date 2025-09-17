@@ -1,4 +1,4 @@
-.manga-page-dropdown {
+.manga-dropdown {
     display: inline-block;
     position: relative;
     cursor: pointer;
@@ -6,16 +6,17 @@
     padding: 0px 8px;
 }
 
-.manga-page-dropdown:hover {
-    background-color:#a1a1a1
+.manga-dropdown:hover {
+    background-color:#a1a1a1;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
 }
 
-.manga-page-dropdown-content .manga-page-dropdown-item:hover {
-    background-color:#a1a1a1
+.manga-dropdown-content .manga-dropdown-item:hover {
+    background-color:#a1a1a1;
 }
 
-
-.manga-page-dropdown-content {
+.manga-dropdown-content {
     display: none;
     position: absolute;
     bottom: 100%; 
@@ -26,15 +27,21 @@
     left: 0;
 }
 
-.manga-page-dropdown-content:hover {
-   display: block;
-}
-
-.manga-page-dropdown:hover .manga-page-dropdown-content {
+.manga-dropdown-content:hover {
     display: block;
+
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
 }
 
-.manga-page-dropdown-content .manga-page-dropdown-item {
+.manga-dropdown:hover .manga-dropdown-content {
+    display: block;
+
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+}
+
+.manga-dropdown-content .manga-dropdown-item {
     display:block;
     width: 100%;
     text-align: center;

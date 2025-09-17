@@ -4,21 +4,24 @@
 {% block script %}
     <script src="{{ url_for('static', filename='assets/scripts/manga-page.js') }}"></script>
     <script>
-        // {% if page.number + 1 <= chapter.pages|length %}
+        {% if page.number + 1 <= chapter.pages|length %}
         next_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number + 1 }}"
-        // {% elif manga.chapters|length > 1 %}
+        {% elif manga.chapters|length > 1 %}
         next_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number + 1 }}/1"
-        // {% else %}
+        {% else %}
         next_page = "{{ url_for('manga') }}/{{ manga.id }}"
-        // {% endif %}
+        {% endif %}
 
-        // {% if page.number - 1 > 0 %}
+        {% if page.number - 1 > 0 %}
         prev_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number - 1 }}"
-        // {% elif chapter.number - 1 > 0 %}
+        {% elif chapter.number - 1 > 0 %}
         prev_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number - 1 }}/{{ manga.chapters[chapter.number-2].pages|length }}"
-        // {% else %}
+        {% else %}
         prev_page = "{{ url_for('manga') }}/{{ manga.id }}"
-        // {% endif %}
+        {% endif %}
+        function home() {
+            document.location = "{{ url_for('manga') }}/{{ manga.id }}";
+        }
     </script>
 {% endblock %}
 
@@ -39,16 +42,37 @@
 {% endblock %}
 
 {% block content_footer %}
-<div class="w3-center text-shadow w3-text-white w3-xlarge w3-padding-small">
-    <div class="manga-page-dropdown w3-round-large">
-        <div id="page-dropdown" class="manga-page-dropdown-content w3-round-large w3-large">
-            {% for p in chapter.pages %}
-            <a class="manga-page-dropdown-item" href="{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ p.number }}">{{ p.number }}</a>
-            {% endfor %}
+<div class="w3-center text-shadow w3-text-white w3-xlarge w3-padding-small" style="height: 2em;">
+    <div style="height: 100%; width: max-content; position: relative; left:calc(50%);">
+        <div class="w3-" style="right: 50%; position: relative;">
+            <i class="w3-button w3-round-large w3-circle fa fa-info" style="position: absolute; right: 100%;" onclick="home()"></i>
+            <i class="w3-button w3-round-large fa fa-toggle-left" onclick="prevPage()"></i>
+            <div class="manga-dropdown w3-round-large">
+                <div id="page-dropdown" class="manga-dropdown-content w3-round-large w3-large">
+                    {% for p in chapter.pages %}
+                    <a class="manga-dropdown-item" href="{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ p.number }}">{{ p.number }}</a>
+                    {% endfor %}
+                </div>
+                <span class="no-hover">
+                    {{ page.number }} / {{ chapter.pages|length }}
+                </span>
+            </div>
+            <i class="w3-button w3-round-large fa fa-toggle-right" onclick="nextPage()"></i>
+
+
+            {% if manga.chapters|length > 1 %}
+            <div class="manga-dropdown w3-round-large" style="position: absolute; left: 100%; width: max-content">
+                <div id="chapter-dropdown" class="manga-dropdown-content w3-round-large w3-large">
+                    {% for c in manga.chapters %}
+                    <a class="manga-dropdown-item" href="{{ url_for('manga') }}/{{ manga.id }}/{{ c.number }}/1">{{ c.number }}</a>
+                    {% endfor %}
+                </div>
+                <span class="no-hover">
+                    Chapter {{ chapter.number }}
+                </span>
+            </div>
         </div>
-        <span class="no-hover ">
-            {{ page.number }} / {{ chapter.pages|length }}
-        </span>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
