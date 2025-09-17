@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for, Flask, current_app, abort, make_response
+    Blueprint, flash, g, redirect, render_template, request, session, url_for, Flask, current_app, Response, make_response
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -20,6 +20,10 @@ def init_app(app: Flask):
     app.cli.add_command(register_user)
     app.cli.add_command(change_user_role)
     app.cli.add_command(change_user_password)
+
+@bp.after_app_request
+def after_request(response: Response):
+    return response
 
 @bp.before_app_request
 def load_logged_in_user():

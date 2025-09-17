@@ -1,0 +1,15 @@
+.settings-panel {
+    background-color: rgb(111, 120, 128);
+}
+.settings-panel * {
+    margin-top: 10px;
+}
+
+.settings-panel input[type=text] {
+    display: block;
+    width: 100%;
+}
+
+.settings-panel button {
+    background-color: grey;
+}

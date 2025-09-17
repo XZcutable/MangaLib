@@ -1,13 +1,13 @@
 import os
 
 from flask import (
-    Blueprint, flash, request, render_template
+    Blueprint, flash, request, render_template, redirect, url_for
 )
 
 from . import settings
 from .auth import owner_access
 from . import manga as m
-from .models import db
+from .models import db, Manga
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -175,3 +175,12 @@ def generate_manga_cards():
     html = render_template("manga/grid_generator.html", titles=titles, HIDE_TITLES=m.HIDE_TITLES)
     return html.lstrip()
 
+@bp.route('/edit/manga/<int:manga_id>')
+@bp.route('/edit/manga/<int:manga_id>/')
+@owner_access
+def edit_manga(manga_id: int):
+    manga = Manga.fromID(manga_id)
+    if manga is None:
+        return redirect(url_for("home"))
+    
+    return render_template("manga/manga_editor.html", manga=manga)

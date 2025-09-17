@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}
+    Edit - {{manga.title}}
+{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="/static/assets/css/styles/manga-editor.css">
+{% endblock %}
+
+{% block content %}
+<script>
+function reset_form(id, value) {
+    let element = document.getElementById(id);
+    element.value = value;
+}
+
+function updateMangaTitle(id, old_title, new_title) {
+    if(old_title === new_title) {
+        return;
+    }
+
+    let message = `You will be updating the title of manga id ${id} to '${new_title}'. Atr you sure you wish to proceed?`
+    if(confirm(message)) {
+        location.reload();
+    }
+}
+</script>
+
+<div class="settings-panel manga-grid-container w3-padding w3-xlarge text-shadow">
+    <label class="no-hover" for="manga_title">Title:</label>
+    <input type="text" id="manga_title" value="{{ manga.title }}">
+    <button class="w3-button w3-round-large" onclick="reset_form('manga_title', '{{ manga.title }}')">Reset</button>
+    <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle('{{ manga.id }}', '{{ manga.title }}', document.getElementById('manga_title').value)">Save</button>
+</div>
+{% endblock %}
