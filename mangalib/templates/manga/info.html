@@ -2,6 +2,7 @@
 {% block title %}{{manga.title}}{% endblock %}
 
 {% from 'manga/manga.html' import manga_grid %}
+{% from 'manga/manga.html' import manga_chapter_grid %}
 {% from 'manga/manga.html' import manga_page_grid %}
 
 {% block content %}
@@ -48,7 +49,7 @@
             {% if manga.chapters|length == 1 %}
                 {{ manga_page_grid(manga.chapters[0].pages) }}
             {% else %}
-                
+                {{ manga_chapter_grid(manga) }}
             {% endif %}
         </div>
     </div>
