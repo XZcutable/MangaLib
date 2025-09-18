@@ -5,7 +5,7 @@ from flask import (
 )
 
 from . import settings
-from .auth import owner_access
+from .auth import owner_access, admin_access
 from . import manga as m
 from .models import db, Manga
 
@@ -199,3 +199,14 @@ def edit_config():
             "hide-manga": m.HIDE_MANGA,
             "hide-titles": m.HIDE_TITLES
         }
+    
+@bp.route("/edit/manga/title/<int:manga_id>", methods=["POST"])
+@admin_access
+def edit_manga_title(manga_id: int):
+    manga: Manga = Manga.fromID(manga_id)
+    if manga is not None:
+        if request.form.get('title') is not None:
+            manga.title = request.form['title']
+            db.session.commit()
+            return Response(status=200)
+    return Response(status=403)
