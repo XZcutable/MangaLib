@@ -168,6 +168,15 @@ def logout():
     flash("Successfully Logged Out", 'info')
     return redirect(url_for('home'))
 
+def get_role_context():
+    user_role = Access.fromString(g.user['role'])
+    context = {
+        "isOwner": user_role == Access.OWNER,
+        "isAdmin": user_role >= Access.ADMIN,
+        "isMod": user_role >= Access.MODERATOR
+    }
+    return context
+
 def owner_access(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):

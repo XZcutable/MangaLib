@@ -10,6 +10,69 @@
     .settings-content {
         display: none;
     }
+
+/* The switch - the box around the slider */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+} 
 </style>
 {% endblock %}
 
@@ -29,14 +92,16 @@
 
     function onLoad() {
         showContent("{{ request.args['current_settings'] or  'acount-settings' }}");
-        // {% if isOwner %}
+        {% if isOwner %}
         getPaths().then(response => {
             response.paths.forEach(addPathToTable);
         });
-        // {% endif %}
+
+        updateUISettings();
+        {% endif %}
     }
 
-    // {% if isOwner %}
+    {% if isOwner %}
     function addPathToTable(path) {
         const row_template = `
             <tr>
@@ -121,7 +186,7 @@
         try {
             const response = await fetch(url, {method: "POST"});
             if (!response.ok) {
-            throw new Error(`Response status: ${response.status}`);
+                throw new Error(`Response status: ${response.status}`);
             }
 
             const result = await response.json();
@@ -133,7 +198,33 @@
             location.reload();
         }
     }
-    // {% endif %}
+
+    async function updateUISettings() {
+        const url = "{{ url_for('api.edit_config') }}";
+        try {
+            const response = await fetch(url).then(response => response.json()).then(json => {
+                document.getElementById('hide-manga').checked = json['hide-manga'];
+                document.getElementById('hide-titles').checked = json['hide-titles'];
+            });
+        } catch(error) {
+            console.error(error.message);
+        }
+    }
+
+    async function updateConfigSetting(id, value) {
+        const url = "{{ url_for('api.edit_config') }}";
+        let formData = new FormData();
+        formData.append(id, value);
+        try {
+            const response = await fetch(url, {method: "POST", body: formData});
+            if(!response.ok) {
+                throw new Error(`Response status: ${response.status}`);
+            }
+        } catch(error) {
+            console.error(error.message);
+        }
+    }
+    {% endif %}
 
     addEventListener("load", onLoad)
 </script>
@@ -224,12 +315,29 @@
                             Scan Paths
                         </button>
                     </div>
-
+                </div>
+                <div class="" style="margin-top: 10px; position: relative;">
+                    <form style="display: inline;"> 
+                        <span class="no-hover">Hide Manga</span>
+                        <label class="switch" for="hide-manga">
+                            <input id="hide-manga" type="checkbox" onchange="updateConfigSetting(this.id, this.checked)">
+                            <span class="slider round"></span>
+                        </label>
+                    </form>
+                    <form style="display: inline;"> 
+                        <span class="no-hover">Hide Titles</span>
+                        <label class="switch" for="hide-titles">
+                            <input id="hide-titles" type="checkbox" onchange="updateConfigSetting(this.id, this.checked)">
+                            <span class="slider round"></span>
+                        </label>
+                    </form>
+                </div>
                 <div id="folder-picker" class="w3-display-middle w3-col l5">
                     {% from 'api/picker.html' import folder_picker %}
                     {{ folder_picker('/', []) }}
                 </div>
             </div>
+        </div>
         {% endif %}
     </div>
 </div>

@@ -21,11 +21,17 @@
                 </div>
                 <div class="w3-col l6 s6 w3-container w3-padding">
                     <div class="w3-hide-small">
+                        <div class="w3-xlarge text-shadow w3-text-light-grey">
                         {% if HIDE_TITLES %}
-                            <div class="w3-xlarge text-shadow w3-text-light-grey">Manga Title</div>
+                            Manga Title
                         {% else %}
-                            <div class="w3-xlarge text-shadow w3-text-light-grey">{{manga.title}}</div>
+                            {{manga.title}}
                         {% endif %}
+                        {% if isOwner %}
+                            <a href="{{ url_for('api.edit_manga', manga_id=manga.id) }}" class="w3-tiny w3-dark-grey w3-round-large w3-bar-item w3-button"><i class="w3-xlarge fa fa-gear"></i></a>
+                        {% endif %}
+                        </div>
+
                         <div class="w3-large text-shadow w3-text-grey">Artist: </div>
                         <div class="w3-large text-shadow w3-text-grey">Language: </div>
                         <div class="w3-large text-shadow w3-text-grey">Categories: </div>
@@ -38,6 +44,7 @@
                             <div class="w3-large text-shadow w3-text-grey">Tags</div>
                         </div>
                     </div>
+                    
                     <div class="w3-hide-large w3-hide-medium">
                         <div class="w3-small text-shadow w3-text-light-grey">{{manga.title}}</div>
                         <div class="w3-small text-shadow w3-text-grey">Artist: </div>

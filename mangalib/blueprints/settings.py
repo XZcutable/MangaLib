@@ -1,9 +1,11 @@
 from flask import (
-    Blueprint, g, render_template, Flask, current_app
+    Blueprint, g, render_template, Flask
 )
 from mangalib.blueprints.models import db, Path
 
 from mangalib.lib.enum import Access
+
+from .auth import get_role_context
 
 bp = Blueprint('settings', __name__, url_prefix='/settings')
 
@@ -12,12 +14,7 @@ def init_app(app: Flask):
 
 @bp.route("")
 def index():
-    user_role = Access.fromString(g.user['role'])
-    isOwner = user_role == Access.OWNER
-    isAdmin = isOwner or user_role >= Access.ADMIN
-    isMod = isAdmin or user_role >= Access.MODERATOR
-
-    return render_template('settings/index.html', isOwner = isOwner, isAdmin = isAdmin, isMod = isMod)
+    return render_template('settings/index.html', **get_role_context())
 
 def getPaths() -> list[str]: 
     return [path[0] for path in Path.query.values(Path.path)]

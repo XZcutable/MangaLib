@@ -4,10 +4,11 @@ from flask import (
 
 from . import api
 from .models import Manga, Chapter, Page, Path
+from .auth import get_role_context
 
 from sqlalchemy import asc, desc
 
-import os, random, json
+import os, random
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
@@ -62,7 +63,7 @@ def manga_info(manga_id):
     if manga is None:
         return redirect(url_for('home'))
     
-    return render_template('manga/info.html', manga=manga, HIDE_TITLES=HIDE_TITLES)
+    return render_template('manga/info.html', manga=manga, HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
 @bp.route('/manga/<int:manga_id>/<int:page_number>')
 @bp.route('/manga/<int:manga_id>/<int:page_number>/')
@@ -123,13 +124,14 @@ def fetch_page(page: Page):
     return response
 
 FETCH_PAGE = fetch_page
+HIDE_MANGA = False
 def hide_content(hide: bool):
-    global FETCH_PAGE
-
+    global FETCH_PAGE, HIDE_MANGA
     if hide:
         FETCH_PAGE = IMAGE_404
     else:
         FETCH_PAGE = fetch_page
+    HIDE_MANGA = hide
 
 
 HIDE_TITLES = False

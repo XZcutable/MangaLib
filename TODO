@@ -2,6 +2,8 @@ Next Task:
 Ability to mark manga as read in info, automatically marked after reading last page of manga
 ability to unmark as read on info page
 random unread
+implement search
+settings to hide and unhide manga
 
 Next Hard Tasks:
 Manga title editor title changes title, should it change the folder too, perhaps another setting like migrate laterh
@@ -21,3 +23,5 @@ make site look better
 
 Make paths relative, so data can be moved safely
 Add versioning to site
+
+Sizing in private mode seems slighly off

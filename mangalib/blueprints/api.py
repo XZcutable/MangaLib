@@ -1,7 +1,7 @@
 import os
 
 from flask import (
-    Blueprint, flash, request, render_template, redirect, url_for
+    Blueprint, flash, request, render_template, redirect, url_for, Response
 )
 
 from . import settings
@@ -176,7 +176,6 @@ def generate_manga_cards():
     return html.lstrip()
 
 @bp.route('/edit/manga/<int:manga_id>')
-@bp.route('/edit/manga/<int:manga_id>/')
 @owner_access
 def edit_manga(manga_id: int):
     manga = Manga.fromID(manga_id)
@@ -184,3 +183,19 @@ def edit_manga(manga_id: int):
         return redirect(url_for("home"))
     
     return render_template("manga/manga_editor.html", manga=manga)
+
+@bp.route('/settings/config', methods=['GET','POST'])
+@owner_access
+def edit_config():
+    if request.method == 'POST':
+        if request.form.get("hide-manga"):
+            m.hide_content(request.form["hide-manga"].lower() != 'false')
+        
+        if request.form.get("hide-titles"):
+            m.hide_titles(request.form["hide-titles"].lower() != 'false')
+        return Response(status=200)
+    else:
+        return {
+            "hide-manga": m.HIDE_MANGA,
+            "hide-titles": m.HIDE_TITLES
+        }
