@@ -6,7 +6,6 @@ implement search
 settings to hide and unhide manga
 
 Next Hard Tasks:
-Manga title editor title changes title, should it change the folder too, perhaps another setting like migrate laterh
 Right click scan and have targeted scanning
 Add pending or verified status to uploading manga option
 
@@ -15,6 +14,7 @@ Implement data editing
 Add a play options 1s,3s, 5s
 eventually add pdf support
 Add way to edit sql as owner
+Imeplement way to sync the folder names with the title names
 
 
 Polish:

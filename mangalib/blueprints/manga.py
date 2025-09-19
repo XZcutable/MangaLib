@@ -45,11 +45,11 @@ def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
 
 @bp.route('/latest')
 def viewLatestTitles():
-    return render_template('manga/directory.html', titles=fetchTitles('desc', 0, fetch_count), HIDE_TITLES=HIDE_TITLES)
+    return render_template('manga/directory.html', sort='desc', HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/all')
 def viewAllTitles():
-    return render_template('manga/directory.html', titles=fetchTitles('asc', 0, fetch_count), HIDE_TITLES=HIDE_TITLES)
+    return render_template('manga/directory.html', sort='asc', HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/random')
 def random_manga():
@@ -171,15 +171,15 @@ def getLatest(count = 10):
 def executeMangaQuery(query):
     return [title for title in query.values(Manga.id, Manga.title)]
 
-def getAllTitles(latest=False):
-    query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
-    if latest:
-        query = query.order_by(desc(Manga.id), desc(Manga.date_uploaded))
-    else:
-        query = query.order_by(asc(Manga.id))
+# def getAllTitles(latest=False):
+#     query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
+#     if latest:
+#         query = query.order_by(desc(Manga.id))
+#     else:
+#         query = query.order_by(asc(Manga.date_uploaded))
 
-    titles = executeMangaQuery(query)
-    return titles
+#     titles = executeMangaQuery(query)
+#     return titles
 
 def createManga(dir, folderName):
     path = os.path.join(dir, folderName)

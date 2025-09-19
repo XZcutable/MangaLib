@@ -60,11 +60,25 @@ class Users(Base):
     def __repr__(self):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
 
+class MangaTag(Base):
+    __tablename__ = "manga_tag"
+    manga_id:Mapped[int_pk] = mapped_column(ForeignKey("manga_metadata.manga_id"), init=False)
+    tag:Mapped[str_pk] = mapped_column(unique=True)
+
+class MangaMetadata(Base):
+    __tablename__ = "manga_metadata"
+    manga_id:Mapped[manga_id_fk] = mapped_column(init=False)
+
+    tags:Mapped[List["MangaTag"]] = relationship(default_factory=list, cascade="all, delete-orphan")
+    language:Mapped[Optional[str]] = mapped_column(default="")
+
 class Manga(Base):
     __tablename__ = "manga"
     id:Mapped[int_pk] = mapped_column(init=False, unique=True)
     title:Mapped[str]
     path: Mapped[str]
+
+    manga_metadata:Mapped["MangaMetadata"] = relationship("MangaMetadata")
 
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="manga")
 
@@ -76,15 +90,20 @@ class Manga(Base):
         return Chapter.fromManga(self, number)
 
     def getOrUpdate(title, manga_path) -> "Manga":
-        manga = Manga.query.filter_by(path=manga_path).one_or_none()
+        manga: Manga = Manga.query.filter_by(path=manga_path).one_or_none()
         if manga is None:
             manga = Manga(title=title, path=manga_path)
+            manga.manga_metadata = MangaMetadata()
             manga.new = True
             return manga
         else:
             manga.new = False
             manga.title = title
             manga.path = manga_path
+
+            if manga.manga_metadata is None:
+                manga.manga_metadata = MangaMetadata()
+
             return manga  
 
     def __repr__(self):
@@ -102,7 +121,7 @@ class Chapter(Base):
     number:Mapped[int_pk]
     path: Mapped[str]
 
-    title:Mapped[str] = mapped_column(default="")
+    title:Mapped[Optional[str]] = mapped_column(default="")
     manga:Mapped["Manga"] = relationship(default=None, back_populates="chapters")
 
     pages:Mapped[List["Page"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="chapter")

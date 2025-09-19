@@ -54,6 +54,11 @@
 </div>
 {%- endmacro %}
 
+{% macro manga_grid_empty() -%}
+<div id="manga-grid" class="manga-grid">
+</div>
+{%- endmacro %}
+
 {% macro manga_page_grid(pages) -%}
 <div id="manga-grid" class="manga-grid ">
     {% for page in pages %}

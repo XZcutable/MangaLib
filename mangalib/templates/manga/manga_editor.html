@@ -19,7 +19,7 @@ async function updateMangaTitle(id, old_title, new_title) {
         return;
     }
 
-    let message = `You will be updating the title of manga id ${id} to '${new_title}'. Atr you sure you wish to proceed?`
+    let message = `You will be updating the title of manga id ${id} to '${new_title}'. Are you sure you wish to proceed?`
     if(confirm(message)) {
         const url = "{{ url_for('api.edit_manga_title', manga_id=manga.id) }}";
         let formData = new FormData();

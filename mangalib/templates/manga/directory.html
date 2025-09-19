@@ -1,30 +1,38 @@
 {% extends 'base.html' %}
 {% block title %}Home{% endblock %}
 
-{% from 'manga/manga.html' import manga_grid %}
+{% from 'manga/manga.html' import manga_grid_empty %}
 
 {% block script %}
+    <script>
+        var batch_size = 20;
+        var offset = 0; // page initially loads 15
+
+        var query_request = () => ({"url": "{{ url_for('api.generate_manga_cards') }}", "sort": "{{ sort }}"});
+    </script>
     <script src="{{ url_for('static', filename='assets/scripts/infinite-scroll.js') }}"></script>
 {% endblock %}
 
 {% block content %}
 
-<div class="manga-grid-container">
-    {% if titles|length <= 0 %}
-        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>All Uploads</strong></span>
-        <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
+{% set title %}
+    {% if sort == 'asc' %}
+        Oldest
     {% else %}
-        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>All Uploads</strong></span>
-        {{ manga_grid(titles, HIDE_TITLES) }}
-        <script>
-            var batch_size = 15;
-            var offset = 15; // page initially loads 15
+        Newest
+    {% endif %}
+{% endset %}
 
-            query_request_url = () => "{{ url_for('api.generate_manga_cards') }}";
-        </script>
+<div class="manga-grid-container">
+    {# {% if titles|length <= 0 %}
+        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>{{ title }}</strong></span>
+        <div class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding">Nothing yet :(</div>
+    {% else %} #}
+        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>{{ title }}</strong></span>
+        {{ manga_grid_empty() }}
         <div class="scroll-load-spin">
             <i id="scroll-load-icon" class="fa fa-spinner w3-hide"></i>
         </div>
-    {% endif %}
+    {# {% endif %} #}
 </div>
 {% endblock %}

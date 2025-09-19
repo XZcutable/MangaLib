@@ -1,10 +1,10 @@
 /*
-Pages that would like inifinte scroll should have a function defined somewhere called query_request_url
+Pages that would like inifinte scroll should have a function defined somewhere called query_request
 
 This will allow manga cards html to be generated
 
 Example:
-query_request_url = () => "{{ url_for('api.generate_manga_cards') }}";
+query_request = () => "{{ url_for('api.generate_manga_cards') }}";
 
 Additonally, a spinning load indicator was implemented and expected to be something like:
 
@@ -38,10 +38,16 @@ async function fetchTitles(content, request) {
     load_icon.parentElement.classList.add("loading");
     // content.scrollTop = content.scrollTopMax;
 
-    var args = `?count=${batch_size}&offset=${offset}`;
-    console.log(request + args);
+    var args = `?count=${batch_size}&offset=${offset}&sort=${request.sort || 'desc'}`;
+    console.log(request.url + args);
     try {
-        await fetch(request + args).then(response => response.text()).then(processFetch);
+        await fetch(request.url + args).then(response => {
+            if (response.status == 200) {
+                response.text().then(processFetch);
+            } else {
+                clean_up(big_dealy, false);
+            }
+        });
     } catch {
         clean_up(big_dealy, false);
     }
@@ -92,7 +98,7 @@ window.addEventListener('load', function() {
 function detect_end_of_scroll() {
     var content = document.getElementById(scroll_id);
     if(content.scrollTop >= content.scrollTopMax - scroll_detector_height && !isLoading) {
-        fetchTitles(content, query_request_url(batch_size, offset));
+        fetchTitles(content, query_request(batch_size, offset));
         return true;
     } else {
         return false;
