@@ -26,35 +26,73 @@ function playRightGrad() {
 
 
 //#region ui_events
-let sides = 0.3;
-
+let sides = 0.2;
+let inZone = false;
 let clicking = false;
 let mouseX = 0
 
+const mouse_data = {"inZone": false, "side": "", "debounce": true};
+
+function update_mouse_data(zone, mouseX) {
+    if(mouseX <= zone.offsetWidth * sides) {
+        mouse_data.inZone = true;
+        mouse_data.debounce = mouse_data.debounce || mouse_data.side !== "left";
+        mouse_data.side = "left"; 
+    } else if(mouseX >= zone.offsetWidth - (zone.offsetWidth * sides)) {
+        mouse_data.inZone = true;
+        mouse_data.side = "right"; 
+        mouse_data.debounce = mouse_data.debounce || mouse_data.side !== "right";
+    } else {
+        mouse_data.inZone = false;
+        mouse_data.side = ""; 
+        mouse_data.debounce = true;
+    }
+}
+
+function mouseEnter(event) {
+    
+}
+
+function mouseLeave() {
+    mouse_data.inZone = false;
+    mouse_data.side = ""; 
+    mouse_data.debounce = true;
+}
+
+function mouseMove(event) {
+    const zone = event.currentTarget;
+    const mouseX = event.offsetX;
+
+    update_mouse_data(zone, mouseX);
+
+    if (mouse_data.inZone) {
+        zone.style.cursor = "pointer";
+        if(mouse_data.debounce) {
+            if(mouse_data.side === "left") {
+                mouse_data.debounce = false;
+                playLeftGrad();
+            } else if(mouse_data.side === "right") {
+                mouse_data.debounce = false;
+                playRightGrad();
+            }
+        }
+    } else {
+        zone.style.cursor = "initial";
+        mouse_data.debounce = true;
+    }
+}
+
 function mouseDown(event) {
-    clicking = event.button == 0;
-    mouseX = event.offsetX;
+    clicking = event.button == 0 && mouse_data.inZone
 }
 
 function mouseUp(event) {
     if(clicking && event.button == 0) {
         clicking = false;
-        let clickedOnLeft = mouseX <= (event.currentTarget.offsetWidth / 2 * sides);
-        let clickedOnRight = mouseX >= (event.currentTarget.offsetWidth / 2 * (2 - sides));
-
-        mouseX = event.offsetX;
-
-        let clickedOnLeft2 = mouseX <= (event.currentTarget.offsetWidth / 2 * sides);
-        let clickedOnRight2 = mouseX >= (event.currentTarget.offsetWidth / 2 * (2 - sides));
-
-        if(clickedOnLeft === clickedOnLeft2) {
-            if(clickedOnLeft) {
+        if(mouse_data.inZone) {
+            if(mouse_data.side === "left") {
                 prevPage();
-            }
-        }
-
-        if(clickedOnRight === clickedOnRight2) {
-            if(clickedOnRight) {
+            } else if(mouse_data.side === "right") {
                 nextPage();
             }
         }
@@ -154,15 +192,15 @@ function touchCancel(event) {
 //#endregion
 
 function nextPage() {
-    if(next_page !== "") {
-        window.location = next_page;
-    }
+    // if(next_page !== "") {
+    //     window.location = next_page;
+    // }
 }
 
 function prevPage() {
-    if(prev_page !== "") {
-        window.location = prev_page;
-    }
+    // if(prev_page !== "") {
+    //     window.location = prev_page;
+    // }
 }
 
 function hideImage(hide=true) {
@@ -204,6 +242,8 @@ function adjustPageToFit() {
 }
 
 function onLoad() {
+    history.back = () => home();
+
     document.getElementById(left_grad_id).onanimationend = (event) => event.currentTarget.classList.remove("left-grad")
     document.getElementById(right_grad_id).onanimationend = (event) => event.currentTarget.classList.remove("right-grad")
 
@@ -213,6 +253,10 @@ function onLoad() {
     zone.addEventListener('touchend', touchEnd)
     zone.addEventListener('touchcancel', touchCancel)
 
+
+    zone.addEventListener('mouseenter', mouseEnter)
+    zone.addEventListener('mouseleave', mouseLeave)
+    zone.addEventListener('mousemove', mouseMove)
     zone.addEventListener('mousedown', mouseDown)
     zone.addEventListener('mouseup', mouseUp)
 
@@ -248,3 +292,5 @@ document.addEventListener("keydown", function(event) {
             break;
     }
 });
+
+window.addEventListener("popstate", () => {console.log("pop")})

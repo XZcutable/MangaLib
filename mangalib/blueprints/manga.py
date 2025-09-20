@@ -87,6 +87,23 @@ def read_manga(manga_id, page_number=0, chapter_number=1):
     
     return render_template('manga/page.html', manga=manga, chapter=chapter, page=page)
 
+@bp.route('/manga/read/<int:manga_id>/<int:page_number>')
+@bp.route('/manga/read/<int:manga_id>/<int:chapter_number>/<int:page_number>')
+def read(manga_id, page_number=0, chapter_number=1):
+    manga: Manga | None = Manga.fromID(manga_id)
+    if manga is None:
+        return redirect(url_for('home'))
+    
+    chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_number)
+    if chapter is None:
+        return redirect(f"{url_for('manga')}/{manga_id}")
+    
+    page: Page | None = Page.fromChapter(chapter, page_number)
+    if page is None:
+        return redirect(f"{url_for('manga')}/{manga_id}")
+    
+    return render_template('manga/page.html', manga=manga, chapter=chapter, page=page)
+
 
 IMAGE_404 = lambda *_: send_file("static/images/error/404.png", max_age=10*24*60*60)
 

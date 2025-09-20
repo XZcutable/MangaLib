@@ -61,6 +61,8 @@
 
 .page-content:not(.center-image) {
     height: 100%;
+
+    position: relative;
 }
 
 .page-zone {
@@ -80,7 +82,7 @@
 .left-grad {
     background-image: linear-gradient(to left, transparent, white);
     height: 100%;
-    width: 50%;
+    width: 20%;
     left: 0;
     position: absolute;
     
@@ -93,7 +95,7 @@
 .right-grad {
     background-image: linear-gradient(to right, transparent, white);
     height: 100%;
-    width: 50%;
+    width: 20%;
     right: 0;
     position: absolute;
     
@@ -102,7 +104,6 @@
 
     z-index: 1;
 }
-
 
 .manga-card {
     height: 350px;

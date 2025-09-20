@@ -7,7 +7,7 @@ from flask import (
 from . import settings
 from .auth import owner_access, admin_access
 from . import manga as m
-from .models import db, Manga
+from .models import db, Manga, Chapter, Page
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -210,3 +210,31 @@ def edit_manga_title(manga_id: int):
             db.session.commit()
             return Response(status=200)
     return Response(status=403)
+
+@bp.route("/manga/info/<int:manga_id>")
+def get_manga_info(manga_id: int):
+    manga: Manga = Manga.fromID(manga_id)
+    if manga is None:
+        return {}
+    else:
+        return {
+            "title": manga.title if not m.HIDE_TITLES else "Title Here",
+            "manga_id": manga.id,
+            "chapters": len(manga.chapters),
+        }
+    
+@bp.route("/chapter/info/<int:manga_id>/<int:chapter_number>")
+def get_chapter_info(manga_id: int, chapter_number):
+    manga: Manga = Manga.fromID(manga_id)
+    if manga is None:
+        return {}
+    else:
+        chapter: Chapter = Chapter.fromManga(manga, chapter_number)
+        if chapter is None:
+            return {}
+        else:
+            return {
+                "title": chapter.title if not m.HIDE_TITLES else "Title Here",
+                "manga_id": manga.id,
+                "pages": len(chapter.pages),
+            }
