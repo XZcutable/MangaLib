@@ -38,10 +38,26 @@ async function updateMangaTitle(id, old_title, new_title) {
 }
 </script>
 
+<script>
+    function addTagRow(tag) {
+        const tag_item_template = `<div class="tag-grid-item w3-button" onclick="removeTag(this, this.textContent)">${ tag }</div>`;
+        document.getElementById("tag-grid").innerHTML += tag_item_template;
+    }
+</script>
+
 <div class="settings-panel manga-grid-container w3-padding w3-xlarge text-shadow">
     <label class="no-hover" for="manga_title">Title:</label>
     <input type="text" id="manga_title" value="{{ manga.title }}">
     <button class="w3-button w3-round-large" onclick="reset_form('manga_title', '{{ manga.title }}')">Reset</button>
     <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle('{{ manga.id }}', '{{ manga.title }}', document.getElementById('manga_title').value)">Save</button>
+
+    <form name="manga-tags-form">
+        <div class="no-hover w3-xxlarge"><u>Admin Settings</u></div>
+        <div class="w3-container w3-padding">
+            <div class="w3-xlarge no-hover"><b>Tags</b></div>
+            <div id="tag-grid" class="tag-grid w3-grid">
+            </div>
+        </div>
+    </form>
 </div>
 {% endblock %}

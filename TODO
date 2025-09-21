@@ -1,11 +1,11 @@
 Current Project:
-Change manga pages to a single page application so that back button will take you to previous page
+Implement tags
 
 Next Task:
+implement search
 Ability to mark manga as read in info, automatically marked after reading last page of manga
 ability to unmark as read on info page
 random unread
-implement search
 settings to hide and unhide manga
 
 Next Hard Tasks:

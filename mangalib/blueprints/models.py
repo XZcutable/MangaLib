@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from mangalib.lib.enum import Access
 
+import json
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     def __getitem__(self, key):
@@ -60,16 +61,22 @@ class Users(Base):
     def __repr__(self):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
 
-class MangaTag(Base):
-    __tablename__ = "manga_tag"
-    manga_id:Mapped[int_pk] = mapped_column(ForeignKey("manga_metadata.manga_id"), init=False)
+class ContentTag(Base):
+    __tablename__ = "content_tag"
     tag:Mapped[str_pk] = mapped_column(unique=True)
+    # mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", viewonly=True)
+
+
+class MangaContentTag(Base):
+    __tablename__ = "manga_content_tag"
+    manga_id:Mapped[int_pk] = mapped_column(ForeignKey("manga_metadata.manga_id"))
+    tag:Mapped[str_pk] = mapped_column(ForeignKey("content_tag.tag"))
 
 class MangaMetadata(Base):
     __tablename__ = "manga_metadata"
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False)
 
-    tags:Mapped[List["MangaTag"]] = relationship(default_factory=list, cascade="all, delete-orphan")
+    tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", viewonly=True)
     language:Mapped[Optional[str]] = mapped_column(default="")
 
 class Manga(Base):
@@ -78,7 +85,7 @@ class Manga(Base):
     title:Mapped[str]
     path: Mapped[str]
 
-    manga_metadata:Mapped["MangaMetadata"] = relationship("MangaMetadata")
+    manga_metadata:Mapped["MangaMetadata"] = relationship()
 
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="manga")
 
@@ -107,8 +114,16 @@ class Manga(Base):
             return manga  
 
     def __repr__(self):
-        return f"<Manga(id={self.id}, title={self.title}, chapters={self.chapters})>"
+        return json.dumps(self.toJson())
+        # f"<Manga(id={self.id}, title={self.title}, chapters={self.chapters})>"
     
+    def toJson(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "chapters": [chapter.toJson() for chapter in self.chapters]
+        }
+
     def fromID(id: int) -> Optional["Manga"]:
         return Manga.query.get({"id": id})
     
@@ -132,7 +147,16 @@ class Chapter(Base):
         return Page.fromChapter(self, number)
 
     def __repr__(self):
-        return f"<Chapter(manga_id={self.manga_id}, title={self.title}, number={self.number}, {self.pages=})"
+        return json.dumps(self.toJson())
+        # return f"<Chapter(manga_id={self.manga_id}, title={self.title}, number={self.number}, {self.pages=})"
+    
+    def toJson(self):
+        return {
+            'manga_id': self.manga_id,
+            'title': self.title,
+            'number': self.number,
+            "pages": [page.toJson() for page in self.pages],
+        }
    
     def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
          return Chapter.query.get({"manga_id": manga.id, "number": number})
@@ -177,7 +201,16 @@ class Page(Base):
     )
 
     def __repr__(self):
-        return f"<Page({self.number=}, {self.file_name=}, {self.manga_id=}, {self.chapter_number=})>"
+        return json.dumps(self.toJson())
+        # return f"<Page({self.number=}, {self.file_name=}, {self.manga_id=}, {self.chapter_number=})>"
+    
+    def toJson(self):
+        return {
+            "number": self.number,
+            "file_name": self.file_name,
+            "manga_id": self.manga_id,
+            "chapter_number": self.chapter_number,
+        }
     
     def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
         return Page.query.get({"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})

@@ -2,7 +2,10 @@
 {% block title %}Settings{% endblock %}
 
 {% block style %}
+<link rel="stylesheet" href="/static/assets/css/styles/settings.css">
+
 <style>
+
     .selected {
         background-color: lightgray;
     }
@@ -122,7 +125,7 @@ input:checked + .slider:before {
     }
 
     function removePathFromTable(path, node) {
-        if(confirm(`Remove '${path}'' from Path?`)) {
+        if(confirm(`Remove '${path}' from Path?`)) {
             removePath(path).then(result => {
                 if(result.success) {
                     node.remove();
@@ -226,76 +229,115 @@ input:checked + .slider:before {
     }
     {% endif %}
 
+    {% if isAdmin %}
+
+    addEventListener("load", async () => {
+        const tag_url = "{{ url_for('api.get_content_tags') }}";
+        await fetch(tag_url).then(response => response.ok ? response.json().then(json => load_tags(json.tags.map(o => o.tag))) : false)
+    })
+
+    function load_tags(tags) {
+        const table = document.getElementById("content-tags");
+        for(index in tags) {
+            tag = tags[index];
+            addTagRow(tag);
+        }
+    }
+    {% endif %}
+
     addEventListener("load", onLoad)
 </script>
 {% endblock %}
 
 {% block content %}
-<div class="w3-row">
-    <div id="settings-sidebar"
-        class="w3-col l2 w3-xlarge w3-sidebar w3-bar-block w3-dark-grey w3-collapse w3-card text-shadow">
-        <h3 class="w3-bar-item no-hover w3-xxlarge"><u>Settings</u></h3>
-        <a href="/settings">
-            <button id="acount-settings" class="w3-bar-item w3-round-large w3-button">
+<div class="main-content" style="display: inline-flex; width: 100%;">
+    <div class="settings-sidebar w3-padding">
+        <div class="sidebar-item w3-xlarge no-hover"><u>Settings</u></div>
+        <a class="sidebar-item w3-large w3-round-large w3-button" href="/settings">
                 Account Settings
-            </button>
         </a>
         {% if isAdmin %}
-        <a href="?current_settings=admin-settings">
-            <button id="admin-settings" class="w3-bar-item w3-round-large w3-button">
-                Adminstration
-            </button>
+        <a class="sidebar-item w3-large w3-round-large w3-button" href="?current_settings=admin-settings">
+            Adminstration
         </a>
         {% endif %}
         {% if isOwner %}
-        <a href="?current_settings=owner-settings">
-            <button id="owner-settings" class="w3-bar-item w3-round-large w3-button">
-                Config
-            </button>
+        <a class="sidebar-item w3-large w3-round-large w3-button" href="?current_settings=owner-settings">
+            Config
         </a>
         {% endif %}
     </div>
-    <div class="w3-flex w3-display-container" style="margin-left: calc(2/12*100%); height: calc(100vh - 52px);">
-        <div class="w3-main w3-col l4 w3-padding w3-grey" >
+    <div class="settings-menu w3-padding w3-grey">
             <div id="acount-settings" class="settings-content">
                 <div class="no-hover w3-xxlarge"><u>Account Settings</u></div>
                 <form method="post" name="change-password">
-                    <div class="w3-xlarge no-hover">Change Password:</div>
-                    <div class="w3-row w3-flex" style="padding: 4px 0px;">
-                        <label class="w3-col l3" style="padding:2px 0;" for="old-password">Old Password:</label>
-                        <input class="w3-col w3-rest" type="password" id="old-password" name="old-password">
+                    <div class="w3-xlarge no-hover"><b>Change Password:</b></div>
+                    <div class="w3-flex w3-padding w3-large" style="display: flex; gap: 20px; align-items: center; text-align: right;">
+                        <label class="no-hover" style="text-wrap-mode: nowrap; min-width: 9em;" for="old-password-input">Old Password:</label>
+                        <input style="width: 100%; position: relative;" type="password" id="old-password-input" name="old-password">
                     </div>
-                    <div class="w3-row w3-flex" style="padding: 4px 0px;">
-                        <label class="w3-col l3" style="padding:2px 0;" for="new-password">New Password:</label>
-                        <input class="w3-col w3-rest" type="password" id="new-password" name="new-password">
+                    <div class="w3-flex w3-padding w3-large" style="display: flex; gap: 20px; align-items: center; text-align: right;">
+                        <label class="no-hover" style="text-wrap-mode: nowrap; min-width: 9em;" for="new-password-input">New Password:</label>
+                        <input style="width: 100%; position: relative;" type="password" id="new-password-input" name="new-password">
                     </div>
-                    <div class="w3-row w3-flex" style="padding: 4px 0px;">
-                        <label class="w3-col l3" style="padding:2px 0;" for="repeat-password">Repeat Password:</label>
-                        <input class="w3-col w3-rest" type="password" id="repeat-password" name="repeat-password">
+                    <div class="w3-flex w3-padding w3-large" style="display: flex; gap: 20px; align-items: center; text-align: right;">
+                        <label class="no-hover" style="text-wrap-mode: nowrap; min-width: 9em;" for="repeat-password-input">Repeat Password:</label>
+                        <input style="width: 100%; position: relative;" type="password" id="repeat-password-input" name="repeat-password">
                     </div>
-                    <div class="w3-row" style="padding: 4px 0px;">
+                    <div style="min-width: 10em;">
                         <input class="w3-button w3-light-grey w3-round-large" type="submit" value="Change Password"
-                            formaction="{{ url_for('auth.changePassword', redirect='settings') }}">
+                            formaction="{{ url_for('auth.changePassword', redirect='settings') }}" style="width: 13em;">
                     </div>
                 </form>
-                <div class="w3-xlarge no-hover">Change Username:</div>
-                <div class="w3-row w3-flex" style="padding: 4px 0px;">
-                    <label class="w3-col l3" style="padding:2px 0;" for="new-username">New Username:</label>
-                    <input class="w3-col w3-rest" type="text" id="new-username" name="new-username">
-                </div>
-                <div class="w3-row" style="padding: 4px 0px;">
-                    <button id="change-username-btn">Change Username</button>
-                </div>
+                <form method="post" name="change-username">
+                    <div class="w3-xlarge no-hover"><b>Change Username:</b></div>
+                    <div class="w3-flex w3-padding w3-large" style="display: flex; gap: 20px; align-items: center; text-align: right;">
+                        <label class="no-hover" style="text-wrap-mode: nowrap; min-width: 9em;" for="new-username-input">New Username:</label>
+                        <input style="width: 100%; position: relative;" type="text" id="new-username-input" name="new-username">
+                    </div>
+                    <div style="min-width: 10em;">
+                        <input class="w3-button w3-light-grey w3-round-large" type="submit" value="Change Username"
+                            formaction="{{ url_for('auth.changeUsername', redirect='settings') }}" style="width: 13em;">
+                    </div>
+                </form>
             </div>
             {% if isAdmin %}
+            <script>
+                function addTagRow(tag) {
+                    const tag_item_template = `<div class="tag-grid-item w3-button" onclick="removeTag(this, this.textContent)">${ tag }</div>`;
+                    document.getElementById("tag-grid").innerHTML += tag_item_template;
+                }
+
+                async function removeTag(self, tag) {
+                    if(confirm(`Remove the '${tag}' tag?`)) {
+                        let formData = new FormData();
+                        formData.append("content-tag", tag);
+                        await fetch("{{ url_for('api.remove_content_tag') }}", {method: "POST", body: formData}).then(response => {
+                            if(response.ok) {
+                                document.location = response.url
+                            }
+                        })
+                    }
+                }
+            </script>
             <div id="admin-settings" class="settings-content">
                 <div class="no-hover w3-xxlarge"><u>Admin Settings</u></div>
+                <div class="w3-container w3-padding">
+                    <div class="w3-xlarge no-hover"><b>Tags</b></div>
+                    <div id="tag-grid" class="tag-grid w3-grid">
+                    </div>
+                </div>
+                <form method="post" class="w3-padding">
+                    <label for="content-tag-input">Add Tag:</label>
+                    <input id="content-tag-input" name="content-tag" type="text" placeholder="Content Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+(\W+[a-z]*)*[a-z]$"  required>
+                    <input class="w3-padding-small" type="submit" value="Add Tag" formaction="{{ url_for('api.add_content_tag') }}">
+                </form>
             </div>
             {% endif %}
             {% if isOwner %}
             <div id="owner-settings" class="settings-content">
                 <div class="no-hover w3-xxlarge"><u>Config Settings</u></div>
-                <button class="w3-button w3-xlarge w3-block w3-dark-grey">Local Paths</button>
+                <div class="w3-padding w3-xlarge w3-block w3-dark-grey no-hover">Local Paths</div>
                 <div id="local-paths" class="w3-container w3-padding"
                     style="border-style: solid; border-width: thick; border-color: black;">
                     <table id="path-table" class="w3-table w3-left-align w3-striped w3-card">

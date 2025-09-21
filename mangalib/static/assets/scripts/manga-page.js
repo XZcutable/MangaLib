@@ -192,15 +192,15 @@ function touchCancel(event) {
 //#endregion
 
 function nextPage() {
-    // if(next_page !== "") {
-    //     window.location = next_page;
-    // }
+    if(next_page !== "") {
+        window.location = next_page;
+    }
 }
 
 function prevPage() {
-    // if(prev_page !== "") {
-    //     window.location = prev_page;
-    // }
+    if(prev_page !== "") {
+        window.location = prev_page;
+    }
 }
 
 function hideImage(hide=true) {

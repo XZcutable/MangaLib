@@ -11,7 +11,7 @@ public_access = ['auth.login', 'auth.register', 'auth.logout']
 
 import re, functools, click
 
-from sqlalchemy import select
+from sqlalchemy import func
 
 valid_password_regex = r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&\.,*-_()]).{6,20}$"
 valid_password_pattern = re.compile(valid_password_regex)
@@ -79,6 +79,22 @@ def changePassword():
         flash(error, 'error')
 
     return redirect(url_for(request.args['redirect'] or 'home'))
+
+@bp.route('/auth/change-username', methods=["POST"])
+def changeUsername():
+    new_username = request.form["new-username"]
+
+    existing_user = Users.query.where(func.lower(Users.username) == new_username.lower()).one_or_none()
+
+    if existing_user is None:
+        user: Users = Users.query.get({"id": g.user['id']})
+        user.username = new_username
+        db.session.commit()
+        flash("Changed Username", "success")
+    else:
+        flash("Username Already Exists", "error")
+
+    return redirect(request.referrer)
 
 @bp.route('/register', methods=('GET', 'POST'))
 def register():

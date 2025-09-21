@@ -1,0 +1,27 @@
+.settings-menu {
+  text-align: left;
+  position: relative;
+  width: 100%;
+}
+
+.settings-sidebar {
+  background-color: rgb(97, 97, 97);
+  width: 20vw;
+  max-width: 300px;
+}
+
+.sidebar-item {
+  width: 100%;
+  text-align: left;
+}
+
+.tag-grid {
+    grid-auto-flow: column;
+    grid-auto-columns: min-content;
+    gap: 5px;
+}
+
+.tag-grid-item {
+    background-color: #616161;
+    border-radius: 8px 8px;
+}

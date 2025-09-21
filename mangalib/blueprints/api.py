@@ -7,7 +7,11 @@ from flask import (
 from . import settings
 from .auth import owner_access, admin_access
 from . import manga as m
-from .models import db, Manga, Chapter, Page
+from .models import db, Manga, Chapter, Page, ContentTag
+
+from . import models
+
+import re
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -217,11 +221,7 @@ def get_manga_info(manga_id: int):
     if manga is None:
         return {}
     else:
-        return {
-            "title": manga.title if not m.HIDE_TITLES else "Title Here",
-            "manga_id": manga.id,
-            "chapters": len(manga.chapters),
-        }
+        return manga.toJson()
     
 @bp.route("/chapter/info/<int:manga_id>/<int:chapter_number>")
 def get_chapter_info(manga_id: int, chapter_number):
@@ -233,8 +233,58 @@ def get_chapter_info(manga_id: int, chapter_number):
         if chapter is None:
             return {}
         else:
-            return {
-                "title": chapter.title if not m.HIDE_TITLES else "Title Here",
-                "manga_id": manga.id,
-                "pages": len(chapter.pages),
-            }
+            return chapter.toJson()
+        
+@bp.route("/chapter/info/<int:manga_id>/<int:chapter_number>/<int:page_number>")
+def get_page_info(manga_id: int, chapter_number: int, page_number: int):
+    manga: Manga = Manga.fromID(manga_id)
+    if manga is None:
+        return {}
+    else:
+        chapter: Chapter = Chapter.fromManga(manga, chapter_number)
+        if chapter is None:
+            return {}
+        else:
+            page: Page = Page.fromChapter(chapter, page_number)
+            if page is None:
+                return {}
+            else:
+                return page.toJson()
+
+valid_tag_regex = "^[a-z]+(\W+[a-z]*)*[a-z]$"
+valid_tag_pattern = re.compile(valid_tag_regex)
+
+@bp.route('/content-tag/add', methods=['POST'])
+def add_content_tag():
+    new_tag = request.form['content-tag'].lower()
+    if valid_tag_pattern.fullmatch(new_tag):
+        if ContentTag.query.where(ContentTag.tag == new_tag).one_or_none() is None:
+            tag = ContentTag(tag=new_tag)
+            db.session.add(tag)
+            db.session.commit()
+            flash("Added Tag", "success")
+            return redirect(location=request.referrer)
+        else:
+            flash(f"Tag '{new_tag}' already exists", "error")
+            return redirect(location=request.referrer)
+    else:
+        flash("Invalid Tag", "error")
+        return redirect(location=request.referrer)
+    
+@bp.route('/content-tag/remove', methods=['POST'])
+def remove_content_tag():
+    remove_tag = request.form['content-tag'].lower()
+    if valid_tag_pattern.fullmatch(remove_tag):
+        tag = ContentTag.query.where(ContentTag.tag == remove_tag).one_or_none()
+        if tag is not None:
+            db.session.delete(tag)
+            db.session.commit()
+        flash("Removed Tag", "success")
+        return redirect(location=request.referrer)
+    else:
+        flash("Invalid Tag", "error")
+        return redirect(location=request.referrer)
+    
+@bp.route('/content-tag')
+def get_content_tags():
+    return { "tags": ContentTag.query.all() }

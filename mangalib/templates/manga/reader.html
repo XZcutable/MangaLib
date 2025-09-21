@@ -3,9 +3,16 @@
 
 {% block script %}
     <script src="{{ url_for('static', filename='assets/scripts/manga-page.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/scripts/manga-reader.js') }}"></script>
     <script>
         function home() {
             document.location = "{{ url_for('manga') }}/{{ manga.id }}";
+        }
+
+        init(JSON.parse('{{ manga|safe }}'), JSON.parse('{{ chapter|safe }}'), JSON.parse('{{ page|safe }}'))
+
+        function getImageURL(manga, chapter, page) {
+            return `{{ url_for('manga-image') }}/${ manga.id }/${ chapter.number }/${ page.number }`;
         }
     </script>
 {% endblock %}
@@ -20,7 +27,7 @@
         <!-- Need DIV for mouse events -->
         <div id="page-zone" class="page-zone fill-height">
             <i id="load-icon" class="fa fa-spinner load-spin"></i>
-            <img id="page-image" class="no-hover fill-height w3-image w3-hide" src="{{ url_for('manga-image') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number }}" alt="Page">
+            <img id="page-image" class="no-hover fill-height w3-image w3-hide" src="" alt="Page">
         </div>
     </div>
 </div>
@@ -31,7 +38,7 @@
     <div style="height: 100%; width: max-content; position: relative; left:calc(50%);">
         <div class="w3-" style="right: 50%; position: relative;">
             <i class="w3-button w3-round-large w3-circle fa fa-info" style="position: absolute; right: 100%;" onclick="home()"></i>
-            <i class="w3-button w3-round-large fa fa-toggle-left" onclick="prevPage()"></i>
+            <i class="w3-button w3-round-large fa fa-toggle-left" onclick="load_prev_page()"></i>
             <div class="manga-dropdown w3-round-large">
                 <div id="page-dropdown" class="manga-dropdown-content w3-round-large w3-large">
                     {% for p in chapter.pages %}
@@ -39,10 +46,10 @@
                     {% endfor %}
                 </div>
                 <span id="page-nav" class="no-hover">
-                    {{ page.number }} / {{ chapter.pages|length }}
+                    
                 </span>
             </div>
-            <i class="w3-button w3-round-large fa fa-toggle-right" onclick="nextPage()"></i>
+            <i class="w3-button w3-round-large fa fa-toggle-right" onclick="load_next_page()"></i>
 
 
             {% if manga.chapters|length > 1 %}
