@@ -233,7 +233,7 @@ input:checked + .slider:before {
 
     addEventListener("load", async () => {
         const tag_url = "{{ url_for('api.get_content_tags') }}";
-        await fetch(tag_url).then(response => response.ok ? response.json().then(json => load_tags(json.tags.map(o => o.tag))) : false)
+        await fetch(tag_url).then(response => response.ok ? response.json().then(json => load_tags(json.tags)) : false)
     })
 
     function load_tags(tags) {
