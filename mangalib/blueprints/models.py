@@ -49,6 +49,7 @@ class Path(db.Model):
 
 # Username, passwords, preferences
 class Users(Base):
+    __tablename__ = "users"
     id:Mapped[int_pk] = mapped_column(unique=True)
     username: Mapped[unique_str]
     password: Mapped[str]
@@ -62,7 +63,7 @@ class Users(Base):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
     
 class UserMangaData(Base):
-    user_ui:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))
+    user_id:Mapped[int_pk] = mapped_column(ForeignKey("users.id"))
     manga_id:Mapped[manga_id_fk] = mapped_column(primary_key=True)
 
     current_chapter:Mapped[int] = mapped_column(default=1)
@@ -71,6 +72,33 @@ class UserMangaData(Base):
     is_favorite:Mapped[bool] = mapped_column(default=False)
 
     manga:Mapped["Manga"] = relationship(default=None, viewonly=True)
+
+    new:bool = False
+
+    def toJson(self):
+        return {
+            "user_id": self.user_id,
+            "manga_id": self.manga_id,
+            "current_chapter": self.current_chapter,
+            "current_page": self.current_page,
+            "is_read": self.is_read,
+            "is_favorite": self.is_favorite,
+        }
+
+    def getOrCreate(userID: int, manga: "Manga"):
+        user_data = UserMangaData.fromUserAndManga(userID, manga)
+        if user_data is None:
+            user_data = UserMangaData(user_id=userID, manga_id=manga.id)
+            user_data.new = True
+
+        return user_data
+    
+    def fromUserAndManga(userID: int, manga: "Manga"):
+        return UserMangaData.query.get({"user_id": userID, "manga_id": manga.id })
+    
+    def __repr__(self):
+        return f"<UserMangaData({self.user_id=}, {self.manga_id=}, {self.current_chapter=}, {self.current_page=}, {self.is_read=}, {self.is_favorite=})>"
+
 
 class ContentTag(Base):
     __tablename__ = "content_tag"

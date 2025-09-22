@@ -13,8 +13,9 @@
 
     const HIDE_TITLES = {{ HIDE_TITLES|default(false, true)|tojson }};
 
-    const IMAGE_URL_BASE = "{{ url_for('manga-image') }}";
-    const PAGE_URL_BASE = "{{ url_for('manga') }}";
+    const IMAGE_URL_BASE = "{{ url_for('manga.image') }}";
+    const PAGE_URL_BASE = "{{ url_for('manga.read') }}";
+    const SAVE_PROGRESS_URL = "{{ url_for('api.save_user_progress') }}"
 </script>
 {% endblock %}
 

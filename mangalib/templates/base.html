@@ -35,7 +35,7 @@
         {% if g.user %}
             <!-- Large Screens -->
             <div class="w3-hide-small w3-hide-medium w3-xlarge">
-                <a href="{{ url_for('home') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-home"></i></a>
+                <a href="{{ url_for('manga.home') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-home"></i></a>
                 <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-rss">&nbsp;Latest</i></a>
                 <a href="{{ url_for('manga.all') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-folder">&nbsp;All</i></a>
                 <a href="{{ url_for('manga.random') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-random">&nbsp;Random</i></a>
@@ -58,7 +58,7 @@
 
             <!-- Small Screens - Mobile -->
             <div class="w3-block w3-hide-large w3-hide-medium">
-                <a href="{{ url_for('home') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-home"></i></a>
+                <a href="{{ url_for('manga.home') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-home"></i></a>
                 <span class="manga-search">
                     <input type="search" placeholder="Search..." id="search-input" class="w3-bar-item">
                     <button id="search-button" class="w3-bar-item w3-button w3-grey"><i class="fa fa-search"></i></button>

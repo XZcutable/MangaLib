@@ -1,9 +1,9 @@
 from flask import (
-    Flask, Blueprint, redirect, render_template, session, request, url_for, send_from_directory, send_file
+    Flask, Blueprint, redirect, render_template, session, request, url_for, send_from_directory, send_file, g
 )
 
 from . import api
-from .models import Manga, Chapter, Page, Path
+from .models import Manga, Chapter, Page, Path, UserMangaData
 from .auth import get_role_context
 
 from sqlalchemy import asc, desc
@@ -12,7 +12,7 @@ import os, random
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
-bp = Blueprint('manga', __name__, url_prefix='/')
+bp = Blueprint('manga', __name__, url_prefix='/manga')
 
 latest_count = 30
 fetch_count = 15
@@ -26,7 +26,7 @@ def init_app(app: Flask):
     latest_count = app.config.get("LATEST_COUNT", latest_count)
     fetch_count = app.config.get("FETCH_COUNT", fetch_count)
 
-@bp.route('/')
+@bp.route('/home')
 def home():
     clear_manga()
     return render_template('manga/home.html', titles=getLatest(count=30), HIDE_TITLES=HIDE_TITLES)
@@ -44,32 +44,50 @@ def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
     return titles
 
 @bp.route('/latest')
-def viewLatestTitles():
+def latest():
     return render_template('manga/directory.html', sort='desc', HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/all')
-def viewAllTitles():
+def all():
     return render_template('manga/directory.html', sort='asc', HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/random')
-def random_manga():
+def random():
     total = Manga.query.count()
     return redirect(f"{url_for('manga')}/{random.randrange(1,total)}/1")
 
-@bp.route('/manga/<int:manga_id>')
-@bp.route('/manga/<int:manga_id>/')
-def manga_info(manga_id):
+@bp.route('')
+@bp.route('/<int:manga_id>')
+def info(manga_id: int):
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
         return redirect(url_for('home'))
 
     return render_template('manga/info.html', manga=manga.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
-@bp.route('/manga/<int:manga_id>/<int:page_number>')
-@bp.route('/manga/<int:manga_id>/<int:chapter_number>/<int:page_number>')
-def read_manga(manga_id, page_number=0, chapter_number=1):
+@bp.route("/resume")
+@bp.route("/resume/<int:manga_id>")
+@bp.route("/resume/<int:manga_id>/<int:chapter_number>")
+def resume(manga_id: int, chapter_number: int=0):
+    manga: Manga | None = Manga.fromID(manga_id)
+    if manga is None:
+        return redirect(url_for('home'))
+    progress: UserMangaData = UserMangaData.getOrCreate(g.user["id"], manga)
+
+    progress_data = { "manga_id": manga.id, "page_number": progress.current_page, "chapter_number": progress.current_chapter }
+    if chapter_number <= 0 and progress.new:
+        progress_data = { "manga_id": manga.id, "page_number": 1, "chapter_number": 1 }
+    elif chapter_number > 0 and (progress.new or chapter_number != progress.current_chapter):
+        progress_data = { "manga_id": manga.id, "page_number": 1, "chapter_number": chapter_number }
+
+    return redirect(url_for("manga.read", **progress_data))
+
+@bp.route('')
+@bp.route('/<int:manga_id>/<int:page_number>')
+@bp.route('/<int:manga_id>/<int:chapter_number>/<int:page_number>')
+def read(manga_id: int, page_number=0, chapter_number=1):
     if page_number <= 0:
-        return manga_info(manga_id=manga_id)
+        return info(manga_id=manga_id)
     
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
@@ -88,9 +106,10 @@ def read_manga(manga_id, page_number=0, chapter_number=1):
 
 IMAGE_404 = lambda *_: send_file("static/assets/images/error/404.png", max_age=10*24*60*60)
 
+@bp.route('/manga-image')
 @bp.route('/manga-image/<int:manga_id>/<int:page_num>')
 @bp.route('/manga-image/<int:manga_id>/<int:chapter_num>/<int:page_num>')
-def get_manga_page(manga_id=None, page_num=None, chapter_num=1):
+def image(manga_id=None, page_num=None, chapter_num=1):
     # print("Geting page")
     if manga_id < 1 or page_num < 1 or chapter_num < 1:
         # print("Too Low")
@@ -121,6 +140,10 @@ def fetch_page(page: Page):
         response.status_code = 200
     return response
 
+@bp.route('/upload', methods=('GET', 'POST'))
+def upload():
+    pass
+
 FETCH_PAGE = fetch_page
 HIDE_MANGA = False
 def hide_content(hide: bool):
@@ -137,10 +160,6 @@ def hide_titles(hide: bool):
     global HIDE_TITLES
 
     HIDE_TITLES = hide
-
-@bp.route('/upload', methods=('GET', 'POST'))
-def upload():
-    pass
 
 def set_current_manga(manga: Manga | None) -> Manga | None:
     if manga is None:

@@ -1,13 +1,13 @@
 import os
 
 from flask import (
-    Blueprint, flash, request, render_template, redirect, url_for, Response
+    Blueprint, flash, request, render_template, redirect, url_for, Response, g
 )
 
 from . import settings
 from .auth import owner_access, admin_access
 from . import manga as m
-from .models import db, Manga, Chapter, Page, ContentTag
+from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData
 
 from . import models
 
@@ -298,9 +298,6 @@ def get_manga_tags(manga_id: int):
 
 @bp.route('/content-tag/set', methods=["POST"])
 def set_content_tags():
-    print(request.args)
-    print(request.form)
-
     manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
         metadata = manga.manga_metadata
@@ -313,3 +310,36 @@ def set_content_tags():
         db.session.commit()
 
     return redirect(location=request.referrer)
+
+@bp.route('/user/manga/progress', methods=["GET","POST"])
+def save_user_progress():
+    if request.method == "POST":
+        print(request.form)
+        manga: Manga = Manga.fromID(request.form.get("manga_id", 0))
+        if manga is not None:
+            chapter: Chapter = Chapter.fromManga(manga, request.form.get("chapter_number", 0))
+            if chapter is not None:
+                page: Page = Page.fromChapter(chapter, request.form.get("page_number", 0))
+                if page is not None:
+                    db.session.begin_nested()
+                    user_data: UserMangaData = UserMangaData.getOrCreate(g.user["id"], manga)
+                    if user_data.new:
+                        db.session.add(user_data)
+
+                    user_data.current_chapter = chapter.number
+                    user_data.current_page = page.number
+
+                    if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
+                        user_data.is_read = True
+                        user_data.current_page = 1
+
+                    db.session.commit()
+                    print(user_data)
+                    return Response(status=200)
+        return Response(status=405)
+    else:
+        manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+        if manga is not None:
+            user_data: UserMangaData = UserMangaData.getOrCreate(g.user["id"], manga)
+            return user_data.toJson()
+        return Response(status=405)

@@ -8,6 +8,8 @@ const right_grad_id = "right-grad";
 
 var ignore_keys = false;
 var imageHidden = false;
+var navigating = false;
+var progress_saved = false;
 
 // Should be defined in the document
 var next_page = "";
@@ -192,10 +194,12 @@ function touchCancel(event) {
 //#endregion
 
 function home() {
+    navigating = true;
     document.location = `${PAGE_URL_BASE}/${manga.id}`;
 }
 
 function nextPage() {
+    navigating = true;
     if(page.number + 1 <= chapter.pages.length) {
         window.location = `${PAGE_URL_BASE}/${manga.id}/${chapter.number}/${page.number + 1}`
     } else if(chapter.number + 1 <= manga.chapters.length) {
@@ -206,6 +210,7 @@ function nextPage() {
 }
 
 function prevPage() {
+    navigating = true;
     if(page.number - 1 >= 1) {
         window.location = `${PAGE_URL_BASE}/${manga.id}/${chapter.number}/${page.number - 1}`
     } else if(chapter.number - 1 >= 1) {
@@ -254,9 +259,7 @@ function adjustPageToFit() {
     }
 }
 
-function onLoad() {
-    history.back = () => home();
-
+function loadUIEvents() {
     document.getElementById(left_grad_id).onanimationend = (event) => event.currentTarget.classList.remove("left-grad")
     document.getElementById(right_grad_id).onanimationend = (event) => event.currentTarget.classList.remove("right-grad")
 
@@ -284,10 +287,38 @@ function onLoad() {
     hideImage(false);
 }
 
-function save_progress(manga_id, chapter_number, page_number) {
+async function save_progress() {
+    if(!progress_saved){
+        progress_saved = true;
+
+        let formData = new FormData();
+        formData.append("manga_id", manga.id);
+        formData.append("chapter_number", chapter.number);
+        formData.append("page_number", page.number);
+
+        try {
+            await fetch(SAVE_PROGRESS_URL, {method: "POST", body: formData});
+        } catch {
+
+        }
+    }
 }
 
-addEventListener('load', onLoad);
+addEventListener("load", () => {
+    const content = document.getElementById("main-content");
+    const listener = () => {
+        content.removeEventListener("mouseleave", listener);
+        save_progress();
+        console.log("Save");
+    }
+    content.addEventListener("mouseleave", listener)
+});
+
+addEventListener('load', () => {
+    setTimeout(save_progress, 3000);
+})
+
+addEventListener('load', loadUIEvents);
 
 document.addEventListener("keydown", function(event) {
     if(ignore_keys) {
