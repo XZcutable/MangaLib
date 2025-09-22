@@ -195,6 +195,9 @@ function touchCancel(event) {
 
 function home() {
     navigating = true;
+    if(!progress_saved) {
+        save_progress(true);
+    }
     document.location = `${PAGE_URL_BASE}/${manga.id}`;
 }
 
@@ -287,8 +290,8 @@ function loadUIEvents() {
     hideImage(false);
 }
 
-async function save_progress() {
-    if(!progress_saved){
+async function save_progress(force_save=false) {
+    if(force_save || (!progress_saved && !navigating)){
         progress_saved = true;
 
         let formData = new FormData();
@@ -315,7 +318,7 @@ addEventListener("load", () => {
 });
 
 addEventListener('load', () => {
-    setTimeout(save_progress, 3000);
+    setTimeout(save_progress, 1000);
 })
 
 addEventListener('load', loadUIEvents);
