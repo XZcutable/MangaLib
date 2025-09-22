@@ -15,13 +15,3 @@
   text-align: left;
 }
 
-.tag-grid {
-    grid-auto-flow: column;
-    grid-auto-columns: min-content;
-    gap: 5px;
-}
-
-.tag-grid-item {
-    background-color: #616161;
-    border-radius: 8px 8px;
-}

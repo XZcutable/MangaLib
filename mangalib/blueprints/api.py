@@ -180,7 +180,7 @@ def generate_manga_cards():
     return html.lstrip()
 
 @bp.route('/edit/manga/<int:manga_id>')
-@owner_access
+@admin_access
 def edit_manga(manga_id: int):
     manga = Manga.fromID(manga_id)
     if manga is None:
@@ -288,3 +288,10 @@ def remove_content_tag():
 @bp.route('/content-tag')
 def get_content_tags():
     return { "tags": ContentTag.query.all() }
+
+@bp.route('/content-tag/set', methods=["POST"])
+def set_content_tags():
+    print(request.args)
+    print(request.form)
+
+    return redirect(location=request.referrer)
