@@ -1,12 +1,10 @@
 Current Project:
-Implement continue reading function
+Show status of manga in manga info (read or not)
+Ability to mark manga as read in manga info
+random unread
 
 Next Task:
 implement search
-Ability to mark manga as read in info, automatically marked after reading last page of manga
-ability to unmark as read on info page
-random unread
-settings to hide and unhide manga
 
 Next Hard Tasks:
 Right click scan and have targeted scanning
