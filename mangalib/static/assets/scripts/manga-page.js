@@ -191,15 +191,28 @@ function touchCancel(event) {
 
 //#endregion
 
+function home() {
+    document.location = `${PAGE_URL_BASE}/${manga.id}`;
+}
+
 function nextPage() {
-    if(next_page !== "") {
-        window.location = next_page;
+    if(page.number + 1 <= chapter.pages.length) {
+        window.location = `${PAGE_URL_BASE}/${manga.id}/${chapter.number}/${page.number + 1}`
+    } else if(chapter.number + 1 <= manga.chapters.length) {
+        window.location = `${PAGE_URL_BASE}/${manga.id}/${chapter.number + 1}/${1}`
+    } else {
+        home();
     }
 }
 
 function prevPage() {
-    if(prev_page !== "") {
-        window.location = prev_page;
+    if(page.number - 1 >= 1) {
+        window.location = `${PAGE_URL_BASE}/${manga.id}/${chapter.number}/${page.number - 1}`
+    } else if(chapter.number - 1 >= 1) {
+        let new_chapter = chapter.number - 1;
+        window.location = `${PAGE_URL_BASE}/${manga.id}/${new_chapter}/${manga.chapters[new_chapter - 1].pages.length}`
+    } else {
+        home();
     }
 }
 
@@ -269,6 +282,9 @@ function onLoad() {
     load_icon.classList.add("w3-hide");
 
     hideImage(false);
+}
+
+function save_progress(manga_id, chapter_number, page_number) {
 }
 
 addEventListener('load', onLoad);

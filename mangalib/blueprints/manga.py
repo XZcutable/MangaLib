@@ -62,8 +62,8 @@ def manga_info(manga_id):
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
         return redirect(url_for('home'))
-    
-    return render_template('manga/info.html', manga=manga, HIDE_TITLES=HIDE_TITLES, **get_role_context())
+
+    return render_template('manga/info.html', manga=manga.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
 @bp.route('/manga/<int:manga_id>/<int:page_number>')
 @bp.route('/manga/<int:manga_id>/<int:chapter_number>/<int:page_number>')
@@ -83,24 +83,7 @@ def read_manga(manga_id, page_number=0, chapter_number=1):
     if page is None:
         return redirect(f"{url_for('manga')}/{manga_id}")
     
-    return render_template('manga/page.html', manga=manga, chapter=chapter, page=page)
-
-@bp.route('/manga/read/<int:manga_id>/<int:page_number>')
-@bp.route('/manga/read/<int:manga_id>/<int:chapter_number>/<int:page_number>')
-def read(manga_id, page_number=0, chapter_number=1):
-    manga: Manga | None = Manga.fromID(manga_id)
-    if manga is None:
-        return redirect(url_for('home'))
-    
-    chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_number)
-    if chapter is None:
-        return redirect(f"{url_for('manga')}/{manga_id}")
-    
-    page: Page | None = Page.fromChapter(chapter, page_number)
-    if page is None:
-        return redirect(f"{url_for('manga')}/{manga_id}")
-    
-    return render_template('manga/reader.html', manga=manga, chapter=chapter, page=page)
+    return render_template('manga/page.html', manga=manga.toJson(), chapter=chapter.toJson(), page=page.toJson())
 
 
 IMAGE_404 = lambda *_: send_file("static/assets/images/error/404.png", max_age=10*24*60*60)
@@ -185,16 +168,6 @@ def getLatest(count = 10):
 
 def executeMangaQuery(query):
     return [title for title in query.values(Manga.id, Manga.title)]
-
-# def getAllTitles(latest=False):
-#     query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
-#     if latest:
-#         query = query.order_by(desc(Manga.id))
-#     else:
-#         query = query.order_by(asc(Manga.date_uploaded))
-
-#     titles = executeMangaQuery(query)
-#     return titles
 
 def createManga(dir, folderName):
     path = os.path.join(dir, folderName)

@@ -1,9 +1,9 @@
-{% extends 'base.html' %}
+{% extends 'manga/manga_base.html' %}
 {% block title %}Home{% endblock %}
 
-{% from 'manga/manga.html' import manga_grid_empty %}
-
 {% block script %}
+    {{ super() }}
+
     <script>
         var batch_size = 20;
         var offset = 0; // page initially loads 15

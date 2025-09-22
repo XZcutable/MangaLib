@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'manga/manga_base.html' %}
 {% block title %}
     Edit - {{manga.title}}
 {% endblock %}
@@ -39,18 +39,12 @@ async function updateMangaTitle(id, old_title, new_title) {
 </script>
 
 <script>
-    let manga_tags = ["{{ manga.manga_metadata.tags|map(attribute='tag')|join('\", \"')|safe }}"];
-
     function load_tags(tags) {
         const table = document.getElementById("content-tags");
         for(index in tags) {
             tag = tags[index];
-            addTagRow(tag, manga_tags.includes(tag));
+            addTagRow(tag, manga.manga_metadata.tags.includes(tag));
         }
-    }
-
-    function toggleTag(element, tag) {
-        // console.log(`${tag}: ${element.checked}`)
     }
 
     function addTagRow(tag, checked=false) {

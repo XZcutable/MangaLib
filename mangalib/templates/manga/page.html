@@ -1,28 +1,9 @@
-{% extends 'base.html' %}
+{% extends 'manga/manga_base.html' %}
 {% block title %}{{manga.title}}{% endblock %}
 
 {% block script %}
+    {{ super() }}
     <script src="{{ url_for('static', filename='assets/scripts/manga-page.js') }}"></script>
-    <script>
-        {% if page.number + 1 <= chapter.pages|length %}
-        next_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number + 1 }}"
-        {% elif manga.chapters|length > 1 %}
-        next_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number + 1 }}/1"
-        {% else %}
-        next_page = "{{ url_for('manga') }}/{{ manga.id }}"
-        {% endif %}
-
-        {% if page.number - 1 > 0 %}
-        prev_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number - 1 }}"
-        {% elif chapter.number - 1 > 0 %}
-        prev_page = "{{ url_for('manga') }}/{{ manga.id }}/{{ chapter.number - 1 }}/{{ manga.chapters[chapter.number-2].pages|length }}"
-        {% else %}
-        prev_page = "{{ url_for('manga') }}/{{ manga.id }}"
-        {% endif %}
-        function home() {
-            document.location = "{{ url_for('manga') }}/{{ manga.id }}";
-        }
-    </script>
 {% endblock %}
 
 {% block content %}

@@ -25,7 +25,7 @@ Base = db.Model
 int_pk = Annotated[int, mapped_column(primary_key=True)]
 str_pk = Annotated[str, mapped_column(primary_key=True)]
 unique_str = Annotated[str, mapped_column(unique=True)]
-manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"), primary_key=True)]
+manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"))]
 
 def init_app(app: Flask):
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
@@ -60,11 +60,25 @@ class Users(Base):
 
     def __repr__(self):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
+    
+class UserMangaData(Base):
+    user_ui:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))
+    manga_id:Mapped[manga_id_fk] = mapped_column(primary_key=True)
+
+    current_chapter:Mapped[int] = mapped_column(default=1)
+    current_page:Mapped[int] = mapped_column(default=1)
+    is_read:Mapped[bool] = mapped_column(default=False)
+    is_favorite:Mapped[bool] = mapped_column(default=False)
+
+    manga:Mapped["Manga"] = relationship(default=None, viewonly=True)
 
 class ContentTag(Base):
     __tablename__ = "content_tag"
     tag:Mapped[str_pk] = mapped_column(unique=True)
-    mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="tags")
+    mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="tags", single_parent=True)
+
+    def __repr__(self):
+        return f"<Tag({self.tag=})>"
 
 
 class MangaContentTag(Base):
@@ -74,11 +88,21 @@ class MangaContentTag(Base):
 
 class MangaMetadata(Base):
     __tablename__ = "manga_metadata"
-    manga_id:Mapped[manga_id_fk] = mapped_column(init=False)
+    manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
 
     # tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag")
-    tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="mangas")
+    tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="mangas", single_parent=True)
     language:Mapped[Optional[str]] = mapped_column(default="")
+
+    def toJson(self):
+        return {
+            "manga_id": self.manga_id,
+            "language": self.language,
+            "tags": [tags.tag for tags in self.tags],
+        }
+
+    def __repr__(self):
+        return f"<Metadata({self.manga_id=}, {self.language=}, {self.tags=})>"
 
 class Manga(Base):
     __tablename__ = "manga"
@@ -86,7 +110,7 @@ class Manga(Base):
     title:Mapped[str]
     path: Mapped[str]
 
-    manga_metadata:Mapped["MangaMetadata"] = relationship()
+    manga_metadata:Mapped["MangaMetadata"] = relationship(cascade="all, delete-orphan")
 
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga")
 
@@ -115,15 +139,24 @@ class Manga(Base):
             return manga  
 
     def __repr__(self):
-        return json.dumps(self.toJson())
-        # f"<Manga(id={self.id}, title={self.title}, chapters={self.chapters})>"
+        # return json.dumps(self.toJson())
+        return f"<Manga({self.id=}, {self.title=}, {self.chapters=}, {self.manga_metadata=})>"
     
-    def toJson(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "chapters": [chapter.toJson() for chapter in self.chapters]
-        }
+    def toJson(self, shallow_copy=False):
+        if shallow_copy:
+            return {
+                "id": self.id,
+                "title": self.title,
+                "chapters": [chapter.toJson(True) for chapter in self.chapters],
+                "manga_metadata": self.manga_metadata.toJson(),
+            }
+        else:
+            return {
+                "id": self.id,
+                "title": self.title,
+                "chapters": [chapter.toJson() for chapter in self.chapters],
+                "manga_metadata": self.manga_metadata.toJson(),
+            }
 
     def fromID(id: int) -> Optional["Manga"]:
         return Manga.query.get({"id": id})
@@ -133,7 +166,7 @@ class Manga(Base):
 
 class Chapter(Base):
     __tablename__ = "chapter"
-    manga_id:Mapped[manga_id_fk] = mapped_column(init=False)
+    manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
     number:Mapped[int_pk]
     path: Mapped[str]
 
@@ -148,16 +181,26 @@ class Chapter(Base):
         return Page.fromChapter(self, number)
 
     def __repr__(self):
-        return json.dumps(self.toJson())
-        # return f"<Chapter(manga_id={self.manga_id}, title={self.title}, number={self.number}, {self.pages=})"
+        # return json.dumps(self.toJson())
+        return f"<Chapter({self.manga_id=}, {self.title=}, {self.number=}, {self.pages=})"
     
-    def toJson(self):
-        return {
-            'manga_id': self.manga_id,
-            'title': self.title,
-            'number': self.number,
-            "pages": [page.toJson() for page in self.pages],
-        }
+    def toJson(self, shallow_copy=False):
+        if shallow_copy:
+            return {
+                'manga_id': self.manga_id,
+                'title': self.title,
+                'number': self.number,
+                "pages": [page.toJson(True) for page in self.pages],
+            }
+        else:
+            return {
+                'manga_id': self.manga_id,
+                'title': self.title,
+                'number': self.number,
+                "pages": [page.toJson() for page in self.pages],
+
+                "manga": self.manga.toJson(True),
+            }
    
     def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
          return Chapter.query.get({"manga_id": manga.id, "number": number})
@@ -202,16 +245,27 @@ class Page(Base):
     )
 
     def __repr__(self):
-        return json.dumps(self.toJson())
-        # return f"<Page({self.number=}, {self.file_name=}, {self.manga_id=}, {self.chapter_number=})>"
+        # return json.dumps(self.toJson())
+        return f"<Page({self.number=}, {self.file_name=}, {self.manga_id=}, {self.chapter_number=})>"
     
-    def toJson(self):
-        return {
-            "number": self.number,
-            "file_name": self.file_name,
-            "manga_id": self.manga_id,
-            "chapter_number": self.chapter_number,
-        }
+    def toJson(self, shallow_copy=False):
+        if shallow_copy:
+                return {
+                "number": self.number,
+                "file_name": self.file_name,
+                "manga_id": self.manga_id,
+                "chapter_number": self.chapter_number,
+            }
+        else:
+            return {
+                "number": self.number,
+                "file_name": self.file_name,
+                "manga_id": self.manga_id,
+                "chapter_number": self.chapter_number,
+
+                "manga": self.manga.toJson(True),
+                "chapter": self.chapter.toJson(True),
+            }
     
     def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
         return Page.query.get({"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% from 'manga/manga.html' import manga_grid %}
+{% from 'manga/manga.html' import manga_grid_empty %}
+{% from 'manga/manga.html' import manga_chapter_grid %}
+{% from 'manga/manga.html' import manga_page_grid %}
+
+{% block script %}
+<script>
+    const manga = {{ manga|default(false, true)|tojson }};
+    const chapter = {{ chapter|default(false, true)|tojson }};
+    const page = {{ page|default(false, true)|tojson }};
+
+    const HIDE_TITLES = {{ HIDE_TITLES|default(false, true)|tojson }};
+
+    const IMAGE_URL_BASE = "{{ url_for('manga-image') }}";
+    const PAGE_URL_BASE = "{{ url_for('manga') }}";
+</script>
+{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="/static/assets/css/styles/manga-editor.css">
+{% endblock %}

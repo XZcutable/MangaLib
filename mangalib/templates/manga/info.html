@@ -1,26 +1,10 @@
-{% extends 'base.html' %}
+{% extends 'manga/manga_base.html' %}
 {% block title %}
     {% if HIDE_TITLES %}
         Manga Title
     {% else %}
         {{manga.title}}
     {% endif %}
-{% endblock %}
-
-{% from 'manga/manga.html' import manga_grid %}
-{% from 'manga/manga.html' import manga_chapter_grid %}
-{% from 'manga/manga.html' import manga_page_grid %}
-
-{% block style %}
-<link rel="stylesheet" href="/static/assets/css/styles/manga-editor.css">
-{% endblock %}
-
-{% block script %}
-<script>
-    function searchFor(tag) {
-        
-    }
-</script>
 {% endblock %}
 
 {% block content %}
@@ -39,7 +23,7 @@
                         {% else %}
                             {{manga.title}}
                         {% endif %}
-                        {% if isOwner %}
+                        {% if isAdmin %}
                             <a href="{{ url_for('api.edit_manga', manga_id=manga.id) }}" class="w3-tiny w3-dark-grey w3-round-large w3-bar-item w3-button"><i class="w3-xlarge fa fa-gear"></i></a>
                         {% endif %}
                         </div>
@@ -55,7 +39,7 @@
                         <div class="w3-large text-shadow w3-text-grey">Tags</div>
                         <div class="w3-padding">
                             <div id="tag-grid" class="tag-grid">
-                                {% for tag in manga.manga_metadata.tags|map(attribute='tag') %}
+                                {% for tag in manga.manga_metadata.tags %}
                                     <div class="tag-grid-item w3-button" onclick="searchFor('{{ tag }}')">{{ tag }}</div>
                                 {% endfor %}
                             </div>

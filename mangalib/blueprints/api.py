@@ -186,7 +186,7 @@ def edit_manga(manga_id: int):
     if manga is None:
         return redirect(url_for("home"))
     
-    return render_template("manga/manga_editor.html", manga=manga)
+    return render_template("manga/manga_editor.html", manga=manga.toJson())
 
 @bp.route('/settings/config', methods=['GET','POST'])
 @owner_access
