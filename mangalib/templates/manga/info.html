@@ -11,6 +11,18 @@
 {% from 'manga/manga.html' import manga_chapter_grid %}
 {% from 'manga/manga.html' import manga_page_grid %}
 
+{% block style %}
+<link rel="stylesheet" href="/static/assets/css/styles/manga-editor.css">
+{% endblock %}
+
+{% block script %}
+<script>
+    function searchFor(tag) {
+        
+    }
+</script>
+{% endblock %}
+
 {% block content %}
     <div class="manga-info" style="padding-top: 25px;">
         <div class="w3-row">
@@ -40,8 +52,13 @@
                         {% else %}
                             <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
                         {% endif %}
-                        <div class="w3-grid" style="gap:2px; column-gap:16px; grid-template-columns:repeat(auto-fit,minmax(30px,1fr))">
-                            <div class="w3-large text-shadow w3-text-grey">Tags</div>
+                        <div class="w3-large text-shadow w3-text-grey">Tags</div>
+                        <div class="w3-padding">
+                            <div id="tag-grid" class="tag-grid">
+                                {% for tag in manga.manga_metadata.tags|map(attribute='tag') %}
+                                    <div class="tag-grid-item w3-button" onclick="searchFor('{{ tag }}')">{{ tag }}</div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                     
@@ -56,6 +73,10 @@
                             <div class="w3-small text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
                         {% endif %}
                         <div class="w3-grid" style="gap:2px; column-gap:16px; grid-template-columns:repeat(auto-fit,minmax(30px,1fr))">
+                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
+                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
+                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
+                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
                             <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
                         </div>
                     </div>

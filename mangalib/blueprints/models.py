@@ -64,7 +64,7 @@ class Users(Base):
 class ContentTag(Base):
     __tablename__ = "content_tag"
     tag:Mapped[str_pk] = mapped_column(unique=True)
-    # mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", viewonly=True)
+    mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="tags")
 
 
 class MangaContentTag(Base):
@@ -76,7 +76,8 @@ class MangaMetadata(Base):
     __tablename__ = "manga_metadata"
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False)
 
-    tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", viewonly=True)
+    # tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag")
+    tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="mangas")
     language:Mapped[Optional[str]] = mapped_column(default="")
 
 class Manga(Base):
@@ -87,7 +88,7 @@ class Manga(Base):
 
     manga_metadata:Mapped["MangaMetadata"] = relationship()
 
-    chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="manga")
+    chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga")
 
     date_uploaded:Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
 

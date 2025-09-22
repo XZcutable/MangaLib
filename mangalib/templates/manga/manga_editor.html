@@ -39,22 +39,24 @@ async function updateMangaTitle(id, old_title, new_title) {
 </script>
 
 <script>
+    let manga_tags = ["{{ manga.manga_metadata.tags|map(attribute='tag')|join('\", \"')|safe }}"];
+
     function load_tags(tags) {
         const table = document.getElementById("content-tags");
         for(index in tags) {
             tag = tags[index];
-            addTagRow(tag);
+            addTagRow(tag, manga_tags.includes(tag));
         }
     }
 
     function toggleTag(element, tag) {
-        console.log(`${tag}: ${element.checked}`)
+        // console.log(`${tag}: ${element.checked}`)
     }
 
-    function addTagRow(tag) {
+    function addTagRow(tag, checked=false) {
         const tag_item_template = `
         <label class="tag-checkbox tag-grid-item" for="tag-${tag}-toggle">
-            <input name="${tag}" onchange="toggleTag(this, '${tag}')" id="tag-${tag}-toggle" type="checkbox">
+            <input name="${tag}" onchange="toggleTag(this, '${tag}')" id="tag-${tag}-toggle" type="checkbox"${checked ? " checked" : ""}>
             <span class="w3-button">${ tag }</span>
         </label>
         `;
@@ -62,29 +64,28 @@ async function updateMangaTitle(id, old_title, new_title) {
     }
 
     addEventListener("load", async () => {
+        {# const manga_tag_url = "{{ url_for('api.get_manga_tags', manga_id= manga.id) }}";
+        await fetch(manga_tag_url).then(response => response.ok ? response.json().then(json => manga_tags = json.tags) : false); #}
+
         const tag_url = "{{ url_for('api.get_content_tags') }}";
-        await fetch(tag_url).then(response => response.ok ? response.json().then(json => load_tags(json.tags.map(o => o.tag))) : false)
+        await fetch(tag_url).then(response => response.ok ? response.json().then(json => load_tags(json.tags)) : false);
     })
 
 </script>
 
 <div class="settings-panel manga-grid-container w3-padding w3-xlarge text-shadow">
-    <label class="no-hover" for="manga_title"><b>Title</b>:</label>
+    <div class="no-hover" for="manga_title"><b>Title</b></div>
     <input type="text" id="manga_title" value="{{ manga.title }}">
     <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.title }}')">Reset</button>
     <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle('{{ manga.id }}', '{{ manga.title }}', document.getElementById('manga_title').value)">Save</button>
-
-    <form name="manga-content-tags-input" method="post">
-        <div class="w3-container w3-padding">
-            <div class="no-hover"><b>Tags</b></div>
-            <div class="w3-border w3-padding">
-                <div id="tag-grid" class="tag-grid">
-                </div>
-            </div>
-            <label for="tag-save-submit">
-                <input type="submit" class="w3-button w3-grey w3-round-large" value="Save Tags" formaction="{{ url_for('api.set_content_tags', manga_id=manga.id) }}">
-            </label>
+    <div class="no-hover"><b>Tags</b></div>
+    <form name="manga-content-tags-input" method="post" style="display: inline; margin: 0;">
+        <div>
+            <div id="tag-grid" class="tag-grid"></div>
         </div>
+        <label for="tag-save-submit">
+            <input type="submit" class="w3-button w3-grey w3-round-large" value="Save Tags" formaction="{{ url_for('api.set_content_tags', manga_id=manga.id) }}">
+        </label>
     </form> 
 </div>
 {% endblock %}

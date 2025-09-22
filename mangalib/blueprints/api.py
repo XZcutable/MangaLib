@@ -287,11 +287,29 @@ def remove_content_tag():
     
 @bp.route('/content-tag')
 def get_content_tags():
-    return { "tags": ContentTag.query.all() }
+    return { "tags": [ row.tag for row in ContentTag.query.values(ContentTag.tag) ] }
+
+@bp.route('/content-tag/<int:manga_id>')
+def get_manga_tags(manga_id: int):
+    manga: Manga = Manga.fromID(manga_id)
+    if manga is None:
+        return Response(status=403)
+    return { "tags": [ row.tag for row in manga.manga_metadata.tags ] }
 
 @bp.route('/content-tag/set', methods=["POST"])
 def set_content_tags():
     print(request.args)
     print(request.form)
+
+    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    if manga is not None:
+        metadata = manga.manga_metadata
+        db.session.begin_nested()
+        metadata.tags.clear()
+        for tag in request.form.keys():
+            content_tag: ContentTag = ContentTag.query.get({"tag": tag})
+            if content_tag is not None:
+                metadata.tags.append(content_tag)
+        db.session.commit()
 
     return redirect(location=request.referrer)
