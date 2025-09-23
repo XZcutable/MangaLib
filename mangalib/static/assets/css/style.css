@@ -160,6 +160,8 @@ div.scroll-load-spin i {
 
     position: relative;
     display: inline-block;
+
+    background-color: #444;
 }
 
 
@@ -168,6 +170,7 @@ div.scroll-load-spin i {
 
     position: relative;
     display: inline;
+
 }
 
 .toggle-checkbox input {

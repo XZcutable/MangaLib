@@ -7,6 +7,47 @@
     {% endif %}
 {% endblock %}
 
+{% block script %}
+{{ super() }}
+
+<script>
+addEventListener("load", () => {
+    let read_button = document.getElementById("manga-is-read-checkbox");
+    read_button.checked = user_manga_data.is_read;
+});
+</script>
+
+{% endblock %}
+
+{% block style %}
+{{ super() }}
+
+<style>
+.toggle-checkbox {
+    background-color: #f44336;
+}
+
+.toggle-checkbox:has(input:checked) {
+    background-color: #4CAF50;
+}
+
+
+.toggle-checkbox span {
+    display: none;
+}
+
+.toggle-checkbox:has(input:checked) span.is-read {
+    display: unset;
+}
+
+.toggle-checkbox:has(input:not(:checked)) span.not-read {
+    display: unset;
+}
+
+</style>
+
+{% endblock %}
+
 {% block content %}
     <div class="manga-info" style="padding-top: 25px;">
         <div class="w3-row">
@@ -45,7 +86,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="toggle-checkbox" for="manga-is-read-checkbox">
+                            <label class="toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
                                 <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
                                 <span class="is-read">Read</span>
                                 <span class="not-read">Not Read</span>

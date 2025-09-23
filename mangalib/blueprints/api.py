@@ -350,7 +350,8 @@ def update_read_status():
     manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
         user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
-        is_read = request.form.get("is_read", False)
+        is_read = request.form.get("is_read", 'False').lower() == "true"
+        print(is_read)
         if is_read != user_data.is_read:
             db.session.begin_nested()
             if user_data.new:
