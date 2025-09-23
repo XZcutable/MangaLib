@@ -135,7 +135,9 @@ class Manga(Base):
     __tablename__ = "manga"
     id:Mapped[int_pk] = mapped_column(init=False, unique=True)
     title:Mapped[str]
+    original_title:Mapped[str]
     path: Mapped[str]
+
 
     manga_metadata:Mapped["MangaMetadata"] = relationship()
 
@@ -148,14 +150,16 @@ class Manga(Base):
     def getChapter(self, number: int) -> Optional["Chapter"]:
         return Chapter.fromManga(self, number)
 
-    def getOrCreate(title, manga_path) -> "Manga":
+    def getOrCreate(title:str, manga_path: str) -> "Manga":
         manga: Manga = Manga.query.filter_by(path=manga_path).one_or_none()
         if manga is None:
             manga = Manga(title=title, path=manga_path)
             manga.manga_metadata = MangaMetadata()
+            manga.original_title = title
             manga.new = True
             return manga
         else:
+            manga.original_title = title
             if manga.manga_metadata is None:
                 manga.manga_metadata = MangaMetadata()
             return manga  
@@ -171,11 +175,14 @@ class Manga(Base):
                 "title": self.title,
                 "chapters": [chapter.toJson(True) for chapter in self.chapters],
                 "manga_metadata": self.manga_metadata.toJson(),
+                # TODO Add this to the model so i don't have to do this
+                "original_title": self.original_title,
             }
         else:
             return {
                 "id": self.id,
                 "title": self.title,
+                "original_title": self.original_title,
                 "chapters": [chapter.toJson() for chapter in self.chapters],
                 "manga_metadata": self.manga_metadata.toJson(),
             }
