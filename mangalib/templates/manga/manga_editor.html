@@ -71,10 +71,14 @@ async function updateMangaTitle(id, old_title, new_title) {
     <button class="w3-button w3-large w3-grey w3-round-large" onclick="document.location=&quot;{{ url_for('manga.info') }}/{{ manga.id }}&quot;">Back</button>
     <div class="no-hover" for="manga_title"><b>Title</b></div>
     <input type="text" id="manga_title" value="{{ manga.title }}">
-    <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.title }}')">Reset</button>
-    <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.original_title }}')">True Reset</button>
-    <span class="w3-large no-hover" style="overflow: hidden; text-wrap-mode: nowrap; text-overflow: ellipsis;">{{ manga.original_title }}</span>
-    <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle('{{ manga.id }}', '{{ manga.title }}', document.getElementById('manga_title').value)">Save</button>
+    <div class="" style="display: inline; width: 100%; text-wrap-mode: nowrap; text-align: center;">
+        <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.title }}')">Reset</button>
+        <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.original_title }}')">True Reset</button>
+         <div class="" style="display: inline-block; width: 35vw; overflow: hidden; text-wrap-mode: nowrap; text-overflow: ellipsis;">
+            <span class="w3-large no-hover" style="">{{ manga.original_title }}</span>
+        </div>
+        <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle('{{ manga.id }}', '{{ manga.title }}', document.getElementById('manga_title').value)">Save</button>
+    </div>
     <div class="no-hover"><b>Tags</b></div>
     <form name="manga-content-tags-input" method="post">
         <div>

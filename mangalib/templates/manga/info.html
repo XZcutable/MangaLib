@@ -86,6 +86,7 @@ addEventListener("load", () => {
                             </div>
                         </div>
                         <div>
+                            <a href="{{ url_for('manga.resume') }}/{{ manga.id }}" class="w3-button w3-round-large" style="background-color: #4CAF50;">Resume</a>
                             <label class="toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
                                 <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
                                 <span class="is-read">Read</span>

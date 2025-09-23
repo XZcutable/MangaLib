@@ -1,14 +1,23 @@
 Current Project:
+Add in progress
+add continue button on info page
 
 Next Task:
-implement search
 read manga history page
 
 Next Hard Tasks:
-Right click scan and have targeted scanning
 Add pending or verified status to uploading manga option
 
+Features needs for MVP:
+- users and passowrd and registration
+- way to add manga to the library
+- way to view manga
+- Track what is read and tags, and editable
+- Random and Random unread
+Mobile experience parity
+
 Future Tasks:
+Right click scan and have targeted scanning
 Implement data editing
 Add a play options 1s,3s, 5s
 eventually add pdf support

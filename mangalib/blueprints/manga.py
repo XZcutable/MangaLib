@@ -54,7 +54,7 @@ def all():
 @bp.route('/random')
 def random_manga():
     manga = Manga.query.order_by(func.random()).first() 
-    return redirect(f"{url_for('manga.read')}/{manga.id}/1")
+    return redirect(f"{url_for('manga.resume')}/{manga.id}")
 
 @bp.route('/random-unread')
 def random_unread():
@@ -62,7 +62,7 @@ def random_unread():
     manga: Manga = Manga.query.filter(Manga.id.not_in(user_read)).order_by(func.random()).first()
     if manga is None:
         return random_manga()
-    return redirect(f"{url_for('manga.read')}/{manga.id}/1")
+    return redirect(f"{url_for('manga.resume')}/{manga.id}")
 
 @bp.route('')
 @bp.route('/<int:manga_id>')
