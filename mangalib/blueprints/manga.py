@@ -160,6 +160,8 @@ NTAG_PATTERN = re.compile(r"!tag:(\w+)")
 DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
 QUOTE_PATTERN = re.compile(r"'(.*?)'")
 
+READ = "read"
+
 @bp.route("/search")
 def search():
     q = request.args.get('q')
@@ -171,11 +173,32 @@ def search():
     tags = TAG_PATTERN.findall(q)
     ntags = NTAG_PATTERN.findall(q)
 
-    # print(f"{terms=}, {tags=}, {ntags=}")
     query = (
         select(Manga.id, Manga.title)
         .join(MangaMetadata, MangaMetadata.manga_id == Manga.id)
     )
+
+    filter_unread = READ in tags
+    filter_read = READ in ntags
+
+    # Doing it this way will only show titles the user has interacted with before and not others
+    # I like this interaction and it is now intended behavior
+    if filter_unread != filter_read:
+        user_id = api.getUserID()
+        query = query.join_from(Manga, UserMangaData, Manga.id == UserMangaData.manga_id and UserMangaData.user_id == user_id)
+
+        if filter_unread:
+            tags.pop(tags.index(READ))
+            query = query.where(UserMangaData.is_read)
+        elif filter_read:
+            ntags.pop(ntags.index(READ))
+            query = query.where(~UserMangaData.is_read)
+
+    elif filter_unread:
+        tags.pop(tags.index(READ))
+    elif filter_read:
+        ntags.pop(ntags.index(READ))
+
 
     for term in terms:
         query = query.where(Manga.title.contains(term))
@@ -188,7 +211,7 @@ def search():
 
     results = [{"id": result[0], "title": result[1]} for result in db.session.execute(query)]
 
-    print("Results:", results)
+    # print("Results:", results)
 
     return render_template("manga/search.html", results=results, HIDE_TITLES=HIDE_TITLES)
 

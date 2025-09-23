@@ -7,7 +7,7 @@ Results
 
 {% block grid_header %}
 <form method="get" class="w3-padding" action="{{ url_for('manga.search') }}">
-    <input id="search-bar" name="q" class="w3-padding" style="width: 100%;" type="search" placeholder="search" value="{{ request.args.q }}">
+    <input id="search-bar" name="q" class="w3-padding" style="width: 100%;" type="search" placeholder="search" value="{{ request.args.q }}" minlength="1" required>
 </form>
 {% endblock %}
 

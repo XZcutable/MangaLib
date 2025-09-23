@@ -21,7 +21,7 @@
     const PAGE_URL = "{{ url_for('manga.read') }}";
     const SAVE_PROGRESS_URL = "{{ url_for('api.save_user_progress') }}";
     const UPDATE_READ_STATUS_URL = "{{ url_for('api.update_read_status') }}";
-    const QUERY_REQUEST_URL = "{{ url_for('api.generate_manga_cards') }}";
+    const QUERY_REQUEST_URL = "{{ url_for('api.fetch_titles') }}";
 
     function search(search) {
         document.location = `{{ url_for('manga.search') }}?q=${search}`

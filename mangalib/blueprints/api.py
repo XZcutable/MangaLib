@@ -169,16 +169,14 @@ def isValidFile(dir: str, file: str, filters: tuple | None):
     
     return False
 
-@bp.route('/generate-manga-cards')
-def generate_manga_cards():
+@bp.route('/fetch-titles')
+def fetch_titles():
     sort = request.args.get('sort', 'asc')
     offset = request.args.get('offset', 0)
     count = request.args.get('count', 30)
 
     titles = m.fetchTitles(sort=sort, offset=offset, count=count)
     return titles
-    # html = render_template("manga/grid_generator.html", titles=titles, HIDE_TITLES=m.HIDE_TITLES)
-    # return html.lstrip()
 
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
