@@ -44,6 +44,13 @@
                                 {% endfor %}
                             </div>
                         </div>
+                        <div>
+                            <label class="toggle-checkbox" for="manga-is-read-checkbox">
+                                <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
+                                <span class="is-read">Read</span>
+                                <span class="not-read">Not Read</span>
+                            </label>
+                        </div>
                     </div>
                     
                     <div class="w3-hide-large w3-hide-medium">

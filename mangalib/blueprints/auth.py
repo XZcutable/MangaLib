@@ -3,7 +3,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mangalib.blueprints.models import db, Users
+from mangalib.blueprints.models import db, User
 from mangalib.lib.enum import Access
 
 bp = Blueprint('auth', __name__, url_prefix='')
@@ -32,7 +32,7 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     elif session.get('user') is None:
-        session["user"] = Users.query.get({"id": user_id})
+        session["user"] = User.query.get({"id": user_id})
         g.user = session["user"]
     else:
         g.user = session["user"]
@@ -70,7 +70,7 @@ def changePassword():
         error = "Invalid Password: Password should be 6-20 characters long, have at least 1 number, uppercase, lowercase, and symbol (#?!@$%.,^&*-_])"
 
     if error is None:
-        user: Users = Users.query.filter_by(id = g.user['id']).first()
+        user: User = User.query.filter_by(id = g.user['id']).first()
         if user:
             user.password = generate_password_hash(new_password)
             db.session.commit()
@@ -84,10 +84,10 @@ def changePassword():
 def changeUsername():
     new_username = request.form["new-username"]
 
-    existing_user = Users.query.where(func.lower(Users.username) == new_username.lower()).one_or_none()
+    existing_user = User.query.where(func.lower(User.username) == new_username.lower()).one_or_none()
 
     if existing_user is None:
-        user: Users = Users.query.get({"id": g.user['id']})
+        user: User = User.query.get({"id": g.user['id']})
         user.username = new_username
         db.session.commit()
         flash("Changed Username", "success")
@@ -114,13 +114,13 @@ def register():
             error = 'Password is required'
         else:
             print("Creating user")
-            user = Users(username=username, password=generate_password_hash(password))
-            exisiting_user = Users.query.filter_by(username=username).first()
+            user = User(username=username, password=generate_password_hash(password))
+            exisiting_user = User.query.filter_by(username=username).first()
             if exisiting_user:
                 error = f"User {username} is already registered"
             else:
                 db.session.add(user)
-                user = Users.query.filter_by(username=username).first()
+                user = User.query.filter_by(username=username).first()
 
                 if user.id == 1:
                     user.role = Access.OWNER.toString()
@@ -144,7 +144,7 @@ def register():
             flash(error, 'error')
             return render_template('auth/register.html', last_username=username, last_password=password)
     else:
-        owner = Users.query.filter_by(id=1).first()
+        owner = User.query.filter_by(id=1).first()
         registrationOpen = owner is None or current_app.config['ALLOW_NEW_USERS']
         return render_template('auth/register.html', registrationOpen=registrationOpen)
 
@@ -160,7 +160,7 @@ def login():
         password = request.form['password']
         error = None
 
-        user: Users = Users.query.filter_by(username=username).first()
+        user: User = User.query.filter_by(username=username).first()
         if user is None:
             error = 'Invalid username'
         elif not check_password_hash(user.password, password):
@@ -240,10 +240,10 @@ def moderator_access(view):
 @click.option("-p", "--password")
 @click.option("-r", "--role", default="user")
 def register_user(username, password, role):
-    if Users.query.filter_by(username=username).first() is None:
-        user: Users = Users(username=username, password=generate_password_hash(password))
+    if User.query.filter_by(username=username).first() is None:
+        user: User = User(username=username, password=generate_password_hash(password))
         db.session.add(user)
-        user = Users.query.filter_by(username=username).first()
+        user = User.query.filter_by(username=username).first()
         if Access.OWNER == role:
             if user.id == 1:
                 user.role = Access.OWNER.toString()
@@ -264,7 +264,7 @@ def register_user(username, password, role):
 @click.option("-u", "--username")
 @click.option("-r", "--role", default="user")
 def change_user_role(username, role):
-    user: Users | None = Users.query.filter_by(username=username).first()
+    user: User | None = User.query.filter_by(username=username).first()
     if user is not None:
         old_role = Access.fromString(user.role)
         if Access.OWNER == role:
@@ -285,7 +285,7 @@ def change_user_role(username, role):
 @click.option("-u", "--username")
 @click.option("-p", "--password")
 def change_user_password(username, password):
-    user: Users | None = Users.query.filter_by(username=username).first()
+    user: User | None = User.query.filter_by(username=username).first()
     if user is not None:
         user.password = generate_password_hash(password)
         db.session.commit()

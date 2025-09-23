@@ -48,8 +48,8 @@ class Path(db.Model):
         page_list.sort(key=len)
 
 # Username, passwords, preferences
-class Users(Base):
-    __tablename__ = "users"
+class User(Base):
+    __tablename__ = "user"
     id:Mapped[int_pk] = mapped_column(unique=True)
     username: Mapped[unique_str]
     password: Mapped[str]
@@ -63,7 +63,7 @@ class Users(Base):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
     
 class UserMangaData(Base):
-    user_id:Mapped[int_pk] = mapped_column(ForeignKey("users.id"))
+    user_id:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))
     manga_id:Mapped[manga_id_fk] = mapped_column(primary_key=True)
 
     current_chapter:Mapped[int] = mapped_column(default=1)
@@ -103,7 +103,8 @@ class UserMangaData(Base):
 class ContentTag(Base):
     __tablename__ = "content_tag"
     tag:Mapped[str_pk] = mapped_column(unique=True)
-    mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="tags", single_parent=True)
+    # mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="tags", single_parent=True)
+    mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="tags")
 
     def __repr__(self):
         return f"<Tag({self.tag=})>"
@@ -118,8 +119,8 @@ class MangaMetadata(Base):
     __tablename__ = "manga_metadata"
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
 
-    # tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag")
-    tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="mangas", single_parent=True)
+    tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="mangas")
+    # tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="mangas", single_parent=True)
     language:Mapped[Optional[str]] = mapped_column(default="")
 
     def toJson(self):
@@ -138,7 +139,7 @@ class Manga(Base):
     title:Mapped[str]
     path: Mapped[str]
 
-    manga_metadata:Mapped["MangaMetadata"] = relationship(cascade="all, delete-orphan")
+    manga_metadata:Mapped["MangaMetadata"] = relationship()
 
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga")
 
@@ -149,7 +150,7 @@ class Manga(Base):
     def getChapter(self, number: int) -> Optional["Chapter"]:
         return Chapter.fromManga(self, number)
 
-    def getOrUpdate(title, manga_path) -> "Manga":
+    def getOrCreate(title, manga_path) -> "Manga":
         manga: Manga = Manga.query.filter_by(path=manga_path).one_or_none()
         if manga is None:
             manga = Manga(title=title, path=manga_path)
@@ -157,13 +158,8 @@ class Manga(Base):
             manga.new = True
             return manga
         else:
-            manga.new = False
-            manga.title = title
-            manga.path = manga_path
-
             if manga.manga_metadata is None:
                 manga.manga_metadata = MangaMetadata()
-
             return manga  
 
     def __repr__(self):
@@ -236,14 +232,14 @@ class Chapter(Base):
     def sortList(page_list: list["Chapter"]):
         page_list.sort(key=lambda chapter: chapter.number)
     
-    def getOrUpdate(manga: Manga, chapter_path: str, number: int) -> "Chapter":
-        chapter = Chapter.fromManga(manga, number)
+    def getOrCreate(manga: Manga, chapter_path: str, number: int) -> "Chapter":
+        # chapter = Chapter.fromManga(manga, number)
+        chapter = Chapter.query.filter_by(manga_id=manga.id, path=chapter_path).one_or_none()
         if chapter is None:
             chapter = Chapter(number=number, path=chapter_path)
             chapter.new = True
             return chapter
         else:
-            chapter.path = chapter_path
             chapter.new = False
             return chapter
     
@@ -298,15 +294,13 @@ class Page(Base):
     def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
         return Page.query.get({"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})
     
-    def getOrUpdate(chapter: Chapter, file_name: str, number: int):
-        page = Page.fromChapter(chapter, number)
+    def getOrCreate(chapter: Chapter, file_name: str, next_number: int):
+        page = Page.query.filter_by(manga_id=chapter.manga_id, chapter_number=chapter.number, file_name=file_name).one_or_none()
         if page is None:
-            page = Page(file_name=file_name, number=number)
+            page = Page(number=next_number, file_name=file_name)
             page.new = True
             return page
         else:
-            page.new = False
-            page.file_name = file_name
             return page
 
 class Metadata():

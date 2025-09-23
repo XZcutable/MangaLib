@@ -7,7 +7,7 @@ from flask import (
 from . import settings
 from .auth import owner_access, admin_access
 from . import manga as m
-from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData
+from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User
 
 from . import models
 
@@ -20,17 +20,18 @@ bp = Blueprint('api', __name__, url_prefix='/api')
 def scanPaths():
     paths = getPaths()['paths']
     print(f"Need to scan {len(paths)} paths")
-    found_manga: list = []
+    new_manga: list = []
     for path in paths:
         folders = lsDirs(path)['folders']
         # print(f"Need to scan {len(folders)} folders")
         for folder in folders:
-            manga = m.createManga(path, folder)
-            found_manga.append(manga)
+            manga = m.addOrUpdateManga(path, folder)
+            if manga.new:
+                new_manga.append(manga)
         #     break
         # break
 
-    db.session.add_all(found_manga)
+    db.session.add_all(new_manga)
     db.session.commit()
     flash("Scanning", 'info')
     return {'result': 'success'}
@@ -182,10 +183,9 @@ def generate_manga_cards():
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
 def edit_manga(manga_id: int):
-    manga = Manga.fromID(manga_id)
+    manga: Manga = Manga.fromID(manga_id)
     if manga is None:
         return redirect(url_for("home"))
-    
     return render_template("manga/manga_editor.html", manga=manga.toJson())
 
 @bp.route('/settings/config', methods=['GET','POST'])
@@ -287,14 +287,17 @@ def remove_content_tag():
     
 @bp.route('/content-tag')
 def get_content_tags():
-    return { "tags": [ row.tag for row in ContentTag.query.values(ContentTag.tag) ] }
+    return { "tags": [ row.tag for row in ContentTag.query.order_by(ContentTag.tag).values(ContentTag.tag) ] }
 
 @bp.route('/content-tag/<int:manga_id>')
 def get_manga_tags(manga_id: int):
     manga: Manga = Manga.fromID(manga_id)
     if manga is None:
         return Response(status=403)
-    return { "tags": [ row.tag for row in manga.manga_metadata.tags ] }
+    
+    tags = [ row.tag for row in manga.manga_metadata.tags ]
+    tags.sort()
+    return { "tags": tags }
 
 @bp.route('/content-tag/set', methods=["POST"])
 def set_content_tags():
@@ -311,35 +314,55 @@ def set_content_tags():
 
     return redirect(location=request.referrer)
 
-@bp.route('/user/manga/progress', methods=["GET","POST"])
+@bp.route('/user/manga/data')
+def get_user_manga_data():
+    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    if manga is not None:
+        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        return user_data.toJson()
+    return Response(status=405)
+
+@bp.route('/user/manga/progress', methods=["POST"])
 def save_user_progress():
-    if request.method == "POST":
-        print(request.form)
-        manga: Manga = Manga.fromID(request.form.get("manga_id", 0))
-        if manga is not None:
-            chapter: Chapter = Chapter.fromManga(manga, request.form.get("chapter_number", 0))
-            if chapter is not None:
-                page: Page = Page.fromChapter(chapter, request.form.get("page_number", 0))
-                if page is not None:
-                    db.session.begin_nested()
-                    user_data: UserMangaData = UserMangaData.getOrCreate(g.user["id"], manga)
-                    if user_data.new:
-                        db.session.add(user_data)
+    manga: Manga = Manga.fromID(request.form.get("manga_id", 0))
+    if manga is not None:
+        chapter: Chapter = Chapter.fromManga(manga, request.form.get("chapter_number", 0))
+        if chapter is not None:
+            page: Page = Page.fromChapter(chapter, request.form.get("page_number", 0))
+            if page is not None:
+                user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+                if user_data.new:
+                    db.session.add(user_data)
 
-                    user_data.current_chapter = chapter.number
-                    user_data.current_page = page.number
+                user_data.current_chapter = chapter.number
+                user_data.current_page = page.number
 
-                    if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
-                        user_data.is_read = True
-                        user_data.current_page = 1
+                if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
+                    user_data.is_read = True
+                    user_data.current_page = 1
 
-                    db.session.commit()
-                    print(user_data)
-                    return Response(status=200)
-        return Response(status=405)
-    else:
-        manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
-        if manga is not None:
-            user_data: UserMangaData = UserMangaData.getOrCreate(g.user["id"], manga)
-            return user_data.toJson()
-        return Response(status=405)
+                db.session.commit()
+                return Response(status=200)
+    return Response(status=405)
+    
+@bp.route('/user/manga/read', methods=["POST"])
+def update_read_status():
+    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    if manga is not None:
+        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        is_read = request.form.get("is_read", False)
+        if is_read != user_data.is_read:
+            db.session.begin_nested()
+            if user_data.new:
+                db.session.add(user_data)
+            user_data.is_read = is_read
+            db.session.commit()
+        return user_data.toJson()
+
+    return Response(status=405)
+
+def getCurrentUser() -> User:
+    return g.user
+
+def getUserID() -> int:
+    return getCurrentUser()["id"]

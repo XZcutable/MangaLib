@@ -1,0 +1,3 @@
+function updateMangaReadStatus(isRead) {
+    
+}

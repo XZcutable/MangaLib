@@ -62,8 +62,10 @@ def info(manga_id: int):
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
         return redirect(url_for('home'))
+    
+    user_manga_data: UserMangaData = UserMangaData.fromUserAndManga(api.getUserID(), manga)
 
-    return render_template('manga/info.html', manga=manga.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
+    return render_template('manga/info.html', manga=manga.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
 @bp.route("/resume")
 @bp.route("/resume/<int:manga_id>")
@@ -188,7 +190,7 @@ def getLatest(count = 10):
 def executeMangaQuery(query):
     return [title for title in query.values(Manga.id, Manga.title)]
 
-def createManga(dir, folderName):
+def addOrUpdateManga(dir, folderName):
     path = os.path.join(dir, folderName)
     if(not os.path.isdir(path)):
         print(f"Skipping {path}: Does not exist")
@@ -204,14 +206,14 @@ def createManga(dir, folderName):
     files: list = api.lsFiles(path, filters=image_types)['files']
     Path.sortList(files)
 
-    manga = Manga.getOrUpdate(title=folderName, manga_path=path)
-    chapters_to_add: list[Chapter] = []
+    manga = Manga.getOrCreate(title=folderName, manga_path=path)
+    new_chapters: list[Chapter] = []
 
     if(len(files) == 0 and len(folders) == 0):
         print(f"Empty Folder: {path}")
     
     files_scanned = False
-    index = 1
+    next_chapter_number = len(manga.chapters) + 1
 
     # The perfered way is to have no files in the base folder if there are chapters
     # and all the files if there is only chapter. But it would work regardless
@@ -220,22 +222,22 @@ def createManga(dir, folderName):
        
     for folder in folders:
         chapter_path = os.path.join(path, folder)
-        chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
-        
-        Path.sortList(chapter_files)
+        chapter: Chapter = Chapter.getOrCreate(manga, chapter_path, next_chapter_number)
 
-        chapter = createChapter(chapter_path, index, chapter_files)
-        if(len(chapter_files) == 0):
-            print(f"Empty Chapter: {chapter_path}")
-        else:
-            chapters_to_add.append(chapter)
-            index += 1
+        if chapter.new:
+            chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
+            Path.sortList(chapter_files)
+            if(len(chapter_files) == 0):
+                print(f"Empty Chapter: {chapter_path}")
+            else:
+                new_chapters.append(chapter)
+                next_chapter_number += 1
 
-    if index > 1:
+    if next_chapter_number > len(manga.chapters) + 1:
         files_scanned = True
 
     if files_scanned:
-        manga.chapters = chapters_to_add
+        manga.chapters.extend(new_chapters)
 
     elif not files_scanned:
         if manga.new:
@@ -244,20 +246,18 @@ def createManga(dir, folderName):
             print(f"Scanned an empty Manga: {path}")
 
     return manga
-
-
     
-def createChapter(chapter_path: str, number: int, files: list):
-    chapter: Chapter = Chapter(number=number, path=chapter_path)
-    index = 1
+def addPagesToChapter(chapter: Chapter, files: list):
+    next_page_number = len(chapter.pages) + 1
 
-    pages_to_add = []
+    new_pages = []
 
     for file in files:
-        page = Page(file_name=file, number=index)
-        pages_to_add.append(page)
-        index += 1
+        page: Page = Page.getOrCreate(file_name=file, number=next_page_number)
+        if page.new:
+            new_pages.append(page)
+            next_page_number += 1
 
-    chapter.pages = pages_to_add
+    chapter.pages.extend(new_pages)
 
     return chapter

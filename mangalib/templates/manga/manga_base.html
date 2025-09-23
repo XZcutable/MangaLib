@@ -11,12 +11,16 @@
     const chapter = {{ chapter|default(false, true)|tojson }};
     const page = {{ page|default(false, true)|tojson }};
 
+    const user_manga_data = {{ user_manga_data|default(false, true)|tojson }}
+
     const HIDE_TITLES = {{ HIDE_TITLES|default(false, true)|tojson }};
 
     const IMAGE_URL_BASE = "{{ url_for('manga.image') }}";
     const PAGE_URL_BASE = "{{ url_for('manga.read') }}";
-    const SAVE_PROGRESS_URL = "{{ url_for('api.save_user_progress') }}"
+    const SAVE_PROGRESS_URL = "{{ url_for('api.save_user_progress') }}";
+    const UPDATE_READ_STATUS_URL = "{{ url_for('api.update_read_status') }}";
 </script>
+<script src="{{ url_for('static', filename='assets/scripts/manga-api.js') }}"></script>
 {% endblock %}
 
 {% block style %}
