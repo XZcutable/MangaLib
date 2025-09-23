@@ -68,6 +68,7 @@ async function updateMangaTitle(id, old_title, new_title) {
 </script>
 
 <div class="settings-panel manga-grid-container w3-padding w3-xlarge text-shadow">
+    <button class="w3-button w3-large w3-grey w3-round-large" onclick="document.location=&quot;{{ url_for('manga.info') }}/{{ manga.id }}&quot;">Back</button>
     <div class="no-hover" for="manga_title"><b>Title</b></div>
     <input type="text" id="manga_title" value="{{ manga.title }}">
     <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.title }}')">Reset</button>
