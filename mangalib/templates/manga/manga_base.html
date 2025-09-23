@@ -15,10 +15,17 @@
 
     const HIDE_TITLES = {{ HIDE_TITLES|default(false, true)|tojson }};
 
-    const IMAGE_URL_BASE = "{{ url_for('manga.image') }}";
-    const PAGE_URL_BASE = "{{ url_for('manga.read') }}";
+    const IMAGE_URL = "{{ url_for('manga.image') }}";
+    const INFO_URL = "{{ url_for('manga.info') }}";
+    const RESUME_URL = "{{ url_for('manga.resume') }}";
+    const PAGE_URL = "{{ url_for('manga.read') }}";
     const SAVE_PROGRESS_URL = "{{ url_for('api.save_user_progress') }}";
     const UPDATE_READ_STATUS_URL = "{{ url_for('api.update_read_status') }}";
+    const QUERY_REQUEST_URL = "{{ url_for('api.generate_manga_cards') }}";
+
+    function search(search) {
+        document.location = `{{ url_for('manga.search') }}?q=${search}`
+    }
 </script>
 <script src="{{ url_for('static', filename='assets/scripts/manga-api.js') }}"></script>
 {% endblock %}

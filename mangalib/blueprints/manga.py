@@ -3,12 +3,12 @@ from flask import (
 )
 
 from . import api
-from .models import Manga, Chapter, Page, Path, UserMangaData
+from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag
 from .auth import get_role_context
 
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, desc, func, select
 
-import os, random
+import os, re
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
@@ -32,7 +32,8 @@ def home():
     return render_template('manga/home.html', titles=getLatest(count=30), HIDE_TITLES=HIDE_TITLES)
 
 def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
-    query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
+    # query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
+    query = select(Manga.id, Manga.title)
     if sort == 'asc':
         query = query.order_by(asc(Manga.id))
     elif sort == 'desc':
@@ -40,8 +41,7 @@ def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
 
     query = query.offset(offset).limit(count)
 
-    titles = executeMangaQuery(query)
-    return titles
+    return [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
 
 @bp.route('/latest')
 def latest():
@@ -154,6 +154,44 @@ def fetch_page(page: Page):
 def upload():
     pass
 
+TERM_PATTERN = re.compile(r"(?<![:\"'])\b\w+\b(?![:\"'])")
+TAG_PATTERN = re.compile(r"(?<!\w|!)tag:(\w+)")
+NTAG_PATTERN = re.compile(r"!tag:(\w+)")
+DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
+QUOTE_PATTERN = re.compile(r"'(.*?)'")
+
+@bp.route("/search")
+def search():
+    q = request.args.get('q')
+    if q is None:
+        return render_template("manga/search.html", results=[])
+    
+    q = q.lower()
+    terms = [*TERM_PATTERN.findall(q), *[*DQUOTE_PATTERN.findall(q), *QUOTE_PATTERN.findall(q)]]
+    tags = TAG_PATTERN.findall(q)
+    ntags = NTAG_PATTERN.findall(q)
+
+    # print(f"{terms=}, {tags=}, {ntags=}")
+    query = (
+        select(Manga.id, Manga.title)
+        .join(MangaMetadata, MangaMetadata.manga_id == Manga.id)
+    )
+
+    for term in terms:
+        query = query.where(Manga.title.contains(term))
+
+    if len(tags) > 0:
+        query = query.where(MangaMetadata.tags.any(ContentTag.tag.in_(tags)))
+
+    if len(ntags) > 0:
+        query = query.where(~MangaMetadata.tags.any(ContentTag.tag.in_(ntags)))
+
+    results = [{"id": result[0], "title": result[1]} for result in db.session.execute(query)]
+
+    print("Results:", results)
+
+    return render_template("manga/search.html", results=results, HIDE_TITLES=HIDE_TITLES)
+
 FETCH_PAGE = fetch_page
 HIDE_MANGA = False
 def hide_content(hide: bool):
@@ -195,8 +233,8 @@ def getLatest(count = 10):
     latest = Manga.query.distinct(Manga.id).order_by(Manga.date_uploaded).limit(count).all()
     return latest
 
-def executeMangaQuery(query):
-    return [title for title in query.values(Manga.id, Manga.title)]
+# def executeMangaQuery(query):
+#     return [title for title in query.values(Manga.id, Manga.title)]
 
 def addOrUpdateManga(dir, folderName):
     path = os.path.join(dir, folderName)

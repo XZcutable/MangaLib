@@ -36,11 +36,11 @@
             <!-- Large Screens -->
             <div class="w3-hide-small w3-hide-medium w3-xlarge">
                 <a href="{{ url_for('manga.home') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-home"></i></a>
-                <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-rss">&nbsp;Latest</i></a>
-                <a href="{{ url_for('manga.all') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-folder">&nbsp;All</i></a>
-                <a href="{{ url_for('manga.random_manga') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-random">&nbsp;Random</i></a>
-                <a href="{{ url_for('manga.random_unread') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-random">&nbsp;Unread</i></a>
-                <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button w3-round-large w3-hide-small"><i class="fa fa-upload">&nbsp;Upload</i></a>
+                <a href="{{ url_for('manga.latest') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-rss">&nbsp;Latest</i></a>
+                <a href="{{ url_for('manga.all') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-folder">&nbsp;All</i></a>
+                <a href="{{ url_for('manga.random_manga') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-random">&nbsp;Random</i></a>
+                <a href="{{ url_for('manga.random_unread') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-random">&nbsp;Unread</i></a>
+                <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-upload">&nbsp;Upload</i></a>
             
                 <div class="w3-right">
                     <div class="user-menu w3-dropdown-hover" style="background-color: transparent;">
@@ -50,10 +50,9 @@
                             <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
                         </div>
                     </div>
-                    <span class="manga-search">
-                        <input type="search" placeholder="Search..." id="search-input" class="w3-round-large w3-rest">
-                        <button id="search-button" class="w3-button w3-round-large"><i class="fa fa-search"></i></button>
-                    </span>
+                    <form method="get" style="display: inline-block;" action="{{ url_for('manga.search') }}">
+                        <input type="search" name="q" placeholder="Search..." class="w3-round-large" style="margin: 5px;" minlength="1" required>
+                    </form>
                 </div>
             </div>
 

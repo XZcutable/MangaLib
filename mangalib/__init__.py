@@ -38,6 +38,7 @@ def create_app():
     app.add_url_rule('/latest', endpoint='manga.latest')
     app.add_url_rule('/random', endpoint='manga.random')
     app.add_url_rule('/settings', endpoint='settings')
+    app.add_url_rule('/search', endpoint='manga.search')
 
     return app
 

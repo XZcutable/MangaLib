@@ -81,7 +81,7 @@ addEventListener("load", () => {
                         <div class="w3-padding">
                             <div id="tag-grid" class="tag-grid">
                                 {% for tag in manga.manga_metadata.tags %}
-                                    <div class="tag-grid-item w3-button" onclick="searchFor('{{ tag }}')">{{ tag }}</div>
+                                    <div class="tag-grid-item w3-button" onclick="search('tag:{{ tag }}')">{{ tag }}</div>
                                 {% endfor %}
                             </div>
                         </div>

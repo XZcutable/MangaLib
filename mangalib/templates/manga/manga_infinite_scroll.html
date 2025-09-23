@@ -1,0 +1,30 @@
+{% extends 'manga/manga_base.html' %}
+{% block title %}Search{% endblock %}
+
+{% block script %}
+    {{ super() }}
+
+{% block config %}
+<script src="{{ url_for('static', filename='assets/scripts/infinite-scroll.js') }}"></script>
+
+<script>
+    var batch_size = 20;
+    var offset = 0;
+    var sort = "{{ sort|default('desc') }}"
+</script>
+{% endblock %}
+
+{% endblock %}
+
+{% block content %}
+<div class="manga-grid-container">
+    {% block grid_header %}{% endblock %}
+    <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>{{ title|default("title") }}</strong></span>
+    {% block grid %}
+    {{ manga_grid_empty() }}
+    {% endblock %}
+    <div class="scroll-load-spin">
+        <i id="scroll-load-icon" class="fa fa-spinner w3-hide"></i>
+    </div>
+</div>
+{% endblock %}

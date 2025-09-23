@@ -195,7 +195,7 @@ function touchCancel(event) {
 
 function home() {
     navigating = true;
-    document.location = `${PAGE_URL_BASE}/${manga.id}`;
+    document.location = `${INFO_URL}/${manga.id}`;
 }
 
 function nextPage() {

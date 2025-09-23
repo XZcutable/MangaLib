@@ -29,29 +29,7 @@ const big_dealy = 10000;
 
 
 var delay = small_dealy;
-
-async function fetchTitles(content, request) {
-    isLoading = true;
-
-    var load_icon = document.getElementById(loading_icon_id);
-    load_icon.classList.remove('w3-hide');
-    load_icon.parentElement.classList.add("loading");
-    // content.scrollTop = content.scrollTopMax;
-
-    var args = `?count=${batch_size}&offset=${offset}&sort=${request.sort || 'desc'}`;
-    console.log(request.url + args);
-    try {
-        await fetch(request.url + args).then(response => {
-            if (response.status == 200) {
-                response.text().then(processFetch);
-            } else {
-                clean_up(big_dealy, false);
-            }
-        });
-    } catch {
-        clean_up(big_dealy, false);
-    }
-}
+var sort = 'desc'
 
 function clean_up(delay, success) {
     var load_icon = document.getElementById(loading_icon_id);
@@ -77,17 +55,6 @@ function clean_up(delay, success) {
     }
 }
 
-function processFetch(grid_html) {
-    if(grid_html === "") {
-        clean_up(big_dealy, false);
-        load_icon.classList.add('w3-hide');
-        load_icon.parentElement.classList.remove("loading");
-    } else {
-        var grid = document.getElementById(grid_id);
-        grid.innerHTML += grid_html;
-        clean_up(small_dealy, true);
-    }
-}
 
 window.addEventListener('load', function() {
     var content = this.document.getElementById(scroll_id);
@@ -98,9 +65,88 @@ window.addEventListener('load', function() {
 function detect_end_of_scroll() {
     var content = document.getElementById(scroll_id);
     if(content.scrollTop >= content.scrollTopMax - scroll_detector_height && !isLoading) {
-        fetchTitles(content, query_request(batch_size, offset));
+        request_batch(batch_size, offset);
         return true;
     } else {
         return false;
     }
+}
+
+async function request_batch(batch_size, offset) {
+    if(isLoading) {
+        return;
+    }
+    
+    console.log("REQUESTING")
+    isLoading = true;
+
+    var load_icon = document.getElementById(loading_icon_id);
+    load_icon.classList.remove('w3-hide');
+    load_icon.parentElement.classList.add("loading");
+    // content.scrollTop = content.scrollTopMax;
+
+    try {
+        console.log("CONNECTION")
+        await fetchTitles(batch_size, offset).then(response => {
+        console.log("REQUESTED")
+
+        if (response.status == 200) {
+            response.json().then(process_batch);
+        } else {
+            clean_up(big_dealy, false);
+        }
+    });;
+    } catch {
+        clean_up(big_dealy, false);
+        console.log("Error Fetching Tiles")
+    }
+}
+
+function fetchTitles(batch_size, offset) {
+    var request = `${QUERY_REQUEST_URL}?count=${batch_size}&offset=${offset}&sort=${sort}`;
+    console.log(request);
+    return fetch(request);
+}
+
+function processFetch(grid_html) {
+    if(grid_html === "") {
+        clean_up(big_dealy, false);
+    } else {
+        var grid = document.getElementById(grid_id);
+        grid.innerHTML += grid_html;
+        clean_up(small_dealy, true);
+    }
+}
+
+temp = null;
+function process_batch(manga_infos) {
+    if(manga_infos.length > 0) {
+        var grid = document.getElementById(grid_id);
+        // console.log(sort)
+        for(let i in manga_infos) {
+            let info = manga_infos[i];
+            item_html = createGridItem(info.id, info.title);
+            grid.innerHTML += item_html;
+        }
+        clean_up(small_dealy, true);
+    } else {
+        clean_up(big_dealy, false);
+    }
+}
+
+function createGridItem(manga_id, title) {
+    return `
+    <div class="manga-card w3-card w3-round-large">
+        <a href="${RESUME_URL}/${manga_id}">
+            <div class="manga-card-thumbnail w3-hover-opacity">
+                <img src="${IMAGE_URL}/${manga_id}/1" alt="Thumbnail" class="w3-round-large no-hover">
+            </div>
+        </a>
+        <a href="${INFO_URL}/${manga_id}">
+            <div class="manga-card-title w3-tiny w3-text-white text-shadow">
+                ${title}
+            </div>
+        </a>
+    </div>
+    `;
 }

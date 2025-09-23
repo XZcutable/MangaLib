@@ -176,9 +176,9 @@ def generate_manga_cards():
     count = request.args.get('count', 30)
 
     titles = m.fetchTitles(sort=sort, offset=offset, count=count)
-
-    html = render_template("manga/grid_generator.html", titles=titles, HIDE_TITLES=m.HIDE_TITLES)
-    return html.lstrip()
+    return titles
+    # html = render_template("manga/grid_generator.html", titles=titles, HIDE_TITLES=m.HIDE_TITLES)
+    # return html.lstrip()
 
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
@@ -251,7 +251,7 @@ def get_page_info(manga_id: int, chapter_number: int, page_number: int):
             else:
                 return page.toJson()
 
-valid_tag_regex = "^[a-z]+(\W+[a-z]*)*[a-z]$"
+valid_tag_regex = r"^[a-z]+(\W+[a-z]*)*[a-z]$"
 valid_tag_pattern = re.compile(valid_tag_regex)
 
 @bp.route('/content-tag/add', methods=['POST'])

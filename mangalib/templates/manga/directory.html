@@ -1,38 +1,15 @@
-{% extends 'manga/manga_base.html' %}
+{% extends 'manga/manga_infinite_scroll.html' %}
 {% block title %}Home{% endblock %}
 
-{% block script %}
-    {{ super() }}
-
-    <script>
-        var batch_size = 20;
-        var offset = 0; // page initially loads 15
-
-        var query_request = () => ({"url": "{{ url_for('api.generate_manga_cards') }}", "sort": "{{ sort }}"});
-    </script>
-    <script src="{{ url_for('static', filename='assets/scripts/infinite-scroll.js') }}"></script>
-{% endblock %}
-
-{% block content %}
-
-{% set title %}
-    {% if sort == 'asc' %}
+{% if sort == 'asc' %}
+    {% set title %}
         Oldest
-    {% else %}
+    {% endset %}
+    {% set sort %}asc{% endset %}
+    
+{% else %}
+    {% set title %}
         Newest
-    {% endif %}
-{% endset %}
-
-<div class="manga-grid-container">
-    {# {% if titles|length <= 0 %}
-        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>{{ title }}</strong></span>
-        <div class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding">Nothing yet :(</div>
-    {% else %} #}
-        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>{{ title }}</strong></span>
-        {{ manga_grid_empty() }}
-        <div class="scroll-load-spin">
-            <i id="scroll-load-icon" class="fa fa-spinner w3-hide"></i>
-        </div>
-    {# {% endif %} #}
-</div>
-{% endblock %}
+    {% endset %}
+    {% set sort %}desc{% endset %}
+{% endif %}
