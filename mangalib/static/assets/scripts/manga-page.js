@@ -195,9 +195,6 @@ function touchCancel(event) {
 
 function home() {
     navigating = true;
-    if(!progress_saved) {
-        save_progress(true);
-    }
     document.location = `${PAGE_URL_BASE}/${manga.id}`;
 }
 
@@ -308,18 +305,19 @@ async function save_progress(force_save=false) {
 }
 
 addEventListener("load", () => {
-    const content = document.getElementById("main-content");
-    const listener = () => {
-        content.removeEventListener("mouseleave", listener);
-        save_progress();
-        console.log("Save");
-    }
-    content.addEventListener("mouseleave", listener)
-});
+    if(page.number >= chapter.pages.length) {
+        save_progress(true);
+    } else {
+        setTimeout(save_progress, 1000);
 
-addEventListener('load', () => {
-    setTimeout(save_progress, 1000);
-})
+        const content = document.getElementById("main-content");
+        const listener = () => {
+            content.removeEventListener("mouseleave", listener);
+            save_progress();
+        }
+        content.addEventListener("mouseleave", listener)
+    }
+});
 
 addEventListener('load', loadUIEvents);
 
@@ -342,5 +340,3 @@ document.addEventListener("keydown", function(event) {
             break;
     }
 });
-
-window.addEventListener("popstate", () => {console.log("pop")})
