@@ -12,8 +12,6 @@ from datetime import datetime, timezone
 
 from mangalib.lib.enum import Access
 
-import json
-
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     def __getitem__(self, key):
         return getattr(self, key)

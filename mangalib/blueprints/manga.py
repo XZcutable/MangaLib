@@ -6,7 +6,7 @@ from . import api
 from .models import Manga, Chapter, Page, Path, UserMangaData
 from .auth import get_role_context
 
-from sqlalchemy import asc, desc
+from sqlalchemy import asc, desc, func
 
 import os, random
 
@@ -52,9 +52,15 @@ def all():
     return render_template('manga/directory.html', sort='asc', HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/random')
-def random():
-    total = Manga.query.count()
-    return redirect(f"{url_for('manga')}/{random.randrange(1,total)}/1")
+def random_manga():
+    manga = Manga.query.order_by(func.random()).first() 
+    return redirect(f"{url_for('manga.read')}/{manga.id}/1")
+
+@bp.route('/random-unread')
+def random_unread():
+    user_read = [ row.manga_id for row in UserMangaData.query.filter_by(is_read = True).values(UserMangaData.manga_id)]
+    manga: Manga = Manga.query.filter(Manga.id.not_in(user_read)).order_by(func.random())
+    return redirect(f"{url_for('manga.read')}/{manga.id}/1")
 
 @bp.route('')
 @bp.route('/<int:manga_id>')
@@ -63,7 +69,7 @@ def info(manga_id: int):
     if manga is None:
         return redirect(url_for('home'))
     
-    user_manga_data: UserMangaData = UserMangaData.fromUserAndManga(api.getUserID(), manga)
+    user_manga_data: UserMangaData = UserMangaData.getOrCreate(api.getUserID(), manga)
 
     return render_template('manga/info.html', manga=manga.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
@@ -97,11 +103,11 @@ def read(manga_id: int, page_number=0, chapter_number=1):
     
     chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_number)
     if chapter is None:
-        return redirect(f"{url_for('manga')}/{manga_id}")
+        return redirect(f"{url_for('manga.info')}/{manga_id}")
     
     page: Page | None = Page.fromChapter(chapter, page_number)
     if page is None:
-        return redirect(f"{url_for('manga')}/{manga_id}")
+        return redirect(f"{url_for('manga.info')}/{manga_id}")
     
     return render_template('manga/page.html', manga=manga.toJson(), chapter=chapter.toJson(), page=page.toJson())
 

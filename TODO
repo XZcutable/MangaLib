@@ -1,7 +1,5 @@
 Current Project:
-Show status of manga in manga info (read or not)
-Ability to mark manga as read in manga info
-random unread
+random unread handle case where someone read everything
 
 Next Task:
 implement search
