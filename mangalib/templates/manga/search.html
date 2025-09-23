@@ -10,3 +10,15 @@ Results
     <input id="search-bar" name="q" class="w3-padding" style="width: 100%;" type="search" placeholder="search" value="{{ request.args.q }}">
 </form>
 {% endblock %}
+
+{% block script %}
+{{ super() }}
+
+<script>
+results = {{ results|tojson }};
+
+async function fetchTitles(batch_size, offset) {
+    return results.slice(offset, offset + batch_size);
+}
+</script>
+{% endblock %}

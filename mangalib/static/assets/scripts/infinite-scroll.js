@@ -1,24 +1,4 @@
-/*
-Pages that would like inifinte scroll should have a function defined somewhere called query_request
-
-This will allow manga cards html to be generated
-
-Example:
-query_request = () => "{{ url_for('api.generate_manga_cards') }}";
-
-Additonally, a spinning load indicator was implemented and expected to be something like:
-
-<div class="scroll-load-spin">
-    <i id="scroll-load-icon" class="fa fa-spinner w3-hide"></i>
-</div>
-
-and should go right after the first grid generation
-
-var batch_size and var offset should be defined in the page itself
-*/
-
 var isLoading = false;
-
 
 const grid_id = "manga-grid";
 const scroll_id = "main-content";
@@ -84,28 +64,27 @@ async function request_batch(batch_size, offset) {
     load_icon.classList.remove('w3-hide');
     load_icon.parentElement.classList.add("loading");
     // content.scrollTop = content.scrollTopMax;
-
     try {
-        console.log("CONNECTION")
-        await fetchTitles(batch_size, offset).then(response => {
-        console.log("REQUESTED")
-
-        if (response.status == 200) {
-            response.json().then(process_batch);
-        } else {
-            clean_up(big_dealy, false);
-        }
-    });;
+        let json = await fetchTitles(batch_size, offset);
+        process_batch(json);
+        clean_up(small_dealy, false);
     } catch {
         clean_up(big_dealy, false);
-        console.log("Error Fetching Tiles")
     }
 }
 
-function fetchTitles(batch_size, offset) {
-    var request = `${QUERY_REQUEST_URL}?count=${batch_size}&offset=${offset}&sort=${sort}`;
-    console.log(request);
-    return fetch(request);
+async function fetchTitles(batch_size, offset) {
+    try {
+        var request = `${QUERY_REQUEST_URL}?count=${batch_size}&offset=${offset}&sort=${sort}`;
+        const response = await fetch(request);
+        if(response.status == 200) {
+            const json = await response.json();
+            return json;
+        }
+    } catch {
+        console.log("Error Fetching Tiles")
+    }
+    throw "No Json"
 }
 
 function processFetch(grid_html) {
