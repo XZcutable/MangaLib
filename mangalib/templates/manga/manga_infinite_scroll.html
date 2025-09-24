@@ -22,9 +22,9 @@
     <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>{{ title|default("title") }}</strong></span>
     {% block grid %}
     {{ manga_grid_empty() }}
-    {% endblock %}
     <div class="scroll-load-spin">
         <i id="scroll-load-icon" class="fa fa-spinner w3-hide"></i>
     </div>
+    {% endblock %}
 </div>
 {% endblock %}

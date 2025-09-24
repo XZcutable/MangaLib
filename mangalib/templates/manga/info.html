@@ -1,4 +1,4 @@
-{% extends 'manga/manga_base.html' %}
+{% extends 'manga/manga_infinite_scroll.html' %}
 {% block title %}
     {% if HIDE_TITLES %}
         Manga Title
@@ -19,6 +19,35 @@ addEventListener("load", () => {
         read_button.classList.add("in-progress")
     }
 });
+
+var finished = false;
+
+async function fetchTitles(batch_size, offset) {
+    let chapter = manga.chapters[0];
+    if (offset > chapter.pages.length) {
+        stop_loading = true;
+        return {"amount": 0}
+    }
+    let amount = Math.min(chapter.pages.length - offset, batch_size);
+    if(amount == 0 || amount < batch_size) {
+        stop_loading = true;
+    }
+    return {"amount": amount, "offset": offset}
+}
+
+function process_batch(data) {
+    if(data["amount"] > 0) {
+        var grid = document.getElementById(grid_id);
+        for(let page = 1; page <= data["amount"]; page++) {
+            let page_html = createPageGridItem(manga.id, 1, data["offset"] + page);
+            grid.innerHTML += page_html;
+        }
+        clean_up(small_dealy, true);
+    } else {
+        clean_up(big_dealy, false);
+    }
+}
+
 </script>
 
 {% endblock %}
@@ -130,12 +159,16 @@ addEventListener("load", () => {
                 </div>
             </div>
         </div>
+       
         <div class="manga-grid-container" style="margin-top: 20px;">
-            {% if manga.chapters|length == 1 %}
+            {% block grid %}
+            {{ super() }}
+            {% endblock %}
+            {# {% if manga.chapters|length == 1 %}
                 {{ manga_page_grid(manga.chapters[0].pages) }}
             {% else %}
                 {{ manga_chapter_grid(manga) }}
-            {% endif %}
+            {% endif %} #}
         </div>
     </div>
 {% endblock %}

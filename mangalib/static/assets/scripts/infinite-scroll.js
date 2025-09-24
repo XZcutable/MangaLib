@@ -10,6 +10,7 @@ const big_dealy = 10000;
 
 var delay = small_dealy;
 var sort = 'desc'
+var stop_loading = false;
 
 function clean_up(delay, success) {
     var load_icon = document.getElementById(loading_icon_id);
@@ -44,7 +45,7 @@ window.addEventListener('load', function() {
 
 function detect_end_of_scroll() {
     var content = document.getElementById(scroll_id);
-    if(content.scrollTop >= content.scrollTopMax - scroll_detector_height && !isLoading) {
+    if(!stop_loading && content.scrollTop >= content.scrollTopMax - scroll_detector_height && !isLoading) {
         request_batch(batch_size, offset);
         return true;
     } else {
@@ -53,11 +54,10 @@ function detect_end_of_scroll() {
 }
 
 async function request_batch(batch_size, offset) {
-    if(isLoading) {
+    if(stop_loading || isLoading) {
         return;
     }
     
-    console.log("REQUESTING")
     isLoading = true;
 
     var load_icon = document.getElementById(loading_icon_id);
@@ -65,10 +65,10 @@ async function request_batch(batch_size, offset) {
     load_icon.parentElement.classList.add("loading");
     // content.scrollTop = content.scrollTopMax;
     try {
-        let json = await fetchTitles(batch_size, offset);
-        process_batch(json);
-        clean_up(small_dealy, false);
-    } catch {
+        let data = await fetchTitles(batch_size, offset);
+        process_batch(data);
+    } catch(e) {
+        console.log(e);
         clean_up(big_dealy, false);
     }
 }
@@ -87,24 +87,12 @@ async function fetchTitles(batch_size, offset) {
     throw "No Json"
 }
 
-function processFetch(grid_html) {
-    if(grid_html === "") {
-        clean_up(big_dealy, false);
-    } else {
-        var grid = document.getElementById(grid_id);
-        grid.innerHTML += grid_html;
-        clean_up(small_dealy, true);
-    }
-}
-
-temp = null;
 function process_batch(manga_infos) {
     if(manga_infos.length > 0) {
         var grid = document.getElementById(grid_id);
-        // console.log(sort)
         for(let i in manga_infos) {
             let info = manga_infos[i];
-            item_html = createGridItem(info.id, info.title);
+            item_html = createMangaGridItem(info.id, info.title);
             grid.innerHTML += item_html;
         }
         clean_up(small_dealy, true);
@@ -113,7 +101,7 @@ function process_batch(manga_infos) {
     }
 }
 
-function createGridItem(manga_id, title) {
+function createMangaGridItem(manga_id, title) {
     return `
     <div class="manga-card w3-card w3-round-large">
         <a href="${RESUME_URL}/${manga_id}">
@@ -128,4 +116,16 @@ function createGridItem(manga_id, title) {
         </a>
     </div>
     `;
+}
+
+function createPageGridItem(manga_id, chapter_number, page_number) {
+    return `
+    <div class="manga-card manga-card-page w3-card w3-round-large">
+        <a href="${PAGE_URL}/${manga_id}/${chapter_number}/${page_number}">
+            <div class="manga-card-thumbnail w3-hover-opacity">
+                <img src="${IMAGE_URL}/${manga_id}/${chapter_number}/${page_number}"" alt="Thumbnail" class="w3-round-large no-hover">
+            </div>
+        </a>
+    </div>
+    `
 }

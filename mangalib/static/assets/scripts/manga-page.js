@@ -11,11 +11,6 @@ var imageHidden = false;
 var navigating = false;
 var progress_saved = false;
 
-// Should be defined in the document
-var next_page = "";
-var prev_page = "";
-
-
 function playLeftGrad() {
     let grad = document.getElementById("left-grad");
     grad.classList.add("left-grad");
@@ -242,14 +237,15 @@ function adjustPageToFit() {
     if (page.naturalWidth > page.naturalHeight) {
         zone.classList.remove("fill-height");
         content.classList.remove("fill-height");
-        content.classList.add("center-image")
+        // Was casuing an issue with big images, not sure if needed
+        // content.classList.add("center-image")
     }
     
     if (aspect >= 2.5) {
         zone.classList.remove("fill-height");
         content.classList.remove("fill-height");
     } else if(page.naturalHeight >= window.innerHeight) {
-        content.classList.remove("center-image")
+        // content.classList.remove("center-image")
         zone.classList.add("fill-height")
     }
     
@@ -276,9 +272,9 @@ function loadUIEvents() {
     zone.addEventListener('mousedown', mouseDown)
     zone.addEventListener('mouseup', mouseUp)
 
-    let search_bad = document.getElementById(search_bar_id);
-    search_bad.addEventListener("focus", () => ignore_keys = true);
-    search_bad.addEventListener("blur", () => ignore_keys = false);
+    let search_bar = document.getElementById(SEARCH_BAR_ID);
+    search_bar.addEventListener("focus", () => ignore_keys = true);
+    search_bar.addEventListener("blur", () => ignore_keys = false);
 
     adjustPageToFit();
     let load_icon = document.getElementById("load-icon");
