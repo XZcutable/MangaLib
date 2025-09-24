@@ -14,6 +14,10 @@
 addEventListener("load", () => {
     let read_button = document.getElementById("manga-is-read-checkbox");
     read_button.checked = user_manga_data.is_read;
+
+    if(!user_manga_data.is_read && user_manga_data.current_page > 1) {
+        read_button.classList.add("in-progress")
+    }
 });
 </script>
 
@@ -23,9 +27,14 @@ addEventListener("load", () => {
 {{ super() }}
 
 <style>
-.toggle-checkbox {
+.toggle-checkbox:has(input:not(:checked)) {
     background-color: #f44336;
 }
+
+.toggle-checkbox:has(input:not(:checked)):has(input:is(.in-progress)) {
+    background-color: #2196F3;
+}
+
 
 .toggle-checkbox:has(input:checked) {
     background-color: #4CAF50;
@@ -36,11 +45,15 @@ addEventListener("load", () => {
     display: none;
 }
 
-.toggle-checkbox:has(input:checked) span.is-read {
+.toggle-checkbox:has(input:checked) .is-read {
     display: unset;
 }
 
-.toggle-checkbox:has(input:not(:checked)) span.not-read {
+.toggle-checkbox:has(input:not(:checked)):not(:has(input.in-progress)) .not-read {
+    display: unset;
+}
+
+.toggle-checkbox:has(input:not(:checked)):has(input.in-progress) .is-reading {
     display: unset;
 }
 
@@ -86,10 +99,11 @@ addEventListener("load", () => {
                             </div>
                         </div>
                         <div>
-                            <a href="{{ url_for('manga.resume') }}/{{ manga.id }}" class="w3-button w3-round-large" style="background-color: #4CAF50;">Resume</a>
+                            <button onclick="document.location = &quot;{{ url_for('manga.resume') }}/{{ manga.id }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                             <label class="toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
                                 <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
                                 <span class="is-read">Read</span>
+                                <span class="is-reading">In Progress</span>
                                 <span class="not-read">Not Read</span>
                             </label>
                         </div>

@@ -6,7 +6,7 @@ from . import api
 from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag
 from .auth import get_role_context
 
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, desc, func, select, and_, or_, any_
 
 import os, re
 
@@ -161,6 +161,8 @@ DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
 QUOTE_PATTERN = re.compile(r"'(.*?)'")
 
 READ = "read"
+TAGGED = "tagged"
+IN_PROGRESS = "progress"
 
 @bp.route("/search")
 def search():
@@ -178,27 +180,61 @@ def search():
         .join(MangaMetadata, MangaMetadata.manga_id == Manga.id)
     )
 
-    filter_unread = READ in tags
-    filter_read = READ in ntags
+    def handle_special_tag(tag, stmt, nstmt):
+        filter_stmt = tag in tags
+        filter_nstmt = tag in ntags
+
+        if filter_stmt != filter_nstmt:
+            if filter_stmt:
+                tags.pop(tags.index(tag))
+                return stmt
+            elif filter_nstmt:
+                ntags.pop(ntags.index(tag))
+                return nstmt
+
+    def has_special_tag(tag):
+        filter_stmt = tag in tags
+        filter_nstmt = tag in ntags
+
+        if filter_stmt and filter_nstmt:
+            tags.pop(tags.index(tag))
+            ntags.pop(ntags.index(tag))
+        elif filter_stmt != filter_nstmt:
+            return True
+        
+        return False
+
+
+    user_id = None
+    joined_user_data = False
 
     # Doing it this way will only show titles the user has interacted with before and not others
     # I like this interaction and it is now intended behavior
-    if filter_unread != filter_read:
-        user_id = api.getUserID()
-        query = query.join_from(Manga, UserMangaData, Manga.id == UserMangaData.manga_id and UserMangaData.user_id == user_id)
+    if has_special_tag(READ):
+        user_id = user_id or api.getUserID()
+        if not joined_user_data:
+            query = query.join_from(Manga, UserMangaData, Manga.id == UserMangaData.manga_id and UserMangaData.user_id == user_id)
+            joined_user_data = True
 
-        if filter_unread:
-            tags.pop(tags.index(READ))
-            query = query.where(UserMangaData.is_read)
-        elif filter_read:
-            ntags.pop(ntags.index(READ))
-            query = query.where(~UserMangaData.is_read)
+        filter_read = query.where(UserMangaData.is_read)
+        filter_unread = query.where(~UserMangaData.is_read)
+        query = handle_special_tag(READ, filter_read, filter_unread)
 
-    elif filter_unread:
-        tags.pop(tags.index(READ))
-    elif filter_read:
-        ntags.pop(ntags.index(READ))
 
+    if has_special_tag(TAGGED):
+        filter_tagged = query.where(MangaMetadata.tags.any(ContentTag.tag != None))
+        filter_untagged = query.where(~MangaMetadata.tags.any(ContentTag.tag != None))
+        query = handle_special_tag(TAGGED, filter_tagged, filter_untagged)
+
+    if has_special_tag(IN_PROGRESS):
+        user_id = user_id or api.getUserID()
+        if not joined_user_data:
+            query = query.join_from(Manga, UserMangaData, Manga.id == UserMangaData.manga_id and UserMangaData.user_id == user_id)
+            joined_user_data = True
+
+        filter_in_progress = query.where(and_(UserMangaData != None, UserMangaData.is_read == False, or_(UserMangaData.current_page > 1, UserMangaData.current_chapter > 1)))
+        filter_no_progress = query.where(or_(UserMangaData == None, and_(UserMangaData.is_read == False, UserMangaData.current_page == 1, UserMangaData.current_chapter == 1)))
+        query = handle_special_tag(IN_PROGRESS, filter_in_progress, filter_no_progress)
 
     for term in terms:
         query = query.where(Manga.title.contains(term))
@@ -214,6 +250,8 @@ def search():
     # print("Results:", results)
 
     return render_template("manga/search.html", results=results, HIDE_TITLES=HIDE_TITLES)
+
+    
 
 FETCH_PAGE = fetch_page
 HIDE_MANGA = False

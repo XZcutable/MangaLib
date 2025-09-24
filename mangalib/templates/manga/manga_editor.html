@@ -9,17 +9,20 @@
 
 {% block content %}
 <script>
-function reset_form(id, value) {
-    let element = document.getElementById(id);
-    element.value = value;
+function reset_title(original=false) {
+    let element = document.getElementById("manga_title");
+    element.value = original ? manga.original_title : manga.title;
 }
 
-async function updateMangaTitle(id, old_title, new_title) {
+async function updateMangaTitle() {
+    let element = document.getElementById("manga_title");
+    let old_title = manga.title;
+    let new_title = element.value;
     if(old_title === new_title) {
         return;
     }
 
-    let message = `You will be updating the title of manga id ${id} to '${new_title}'. Are you sure you wish to proceed?`
+    let message = `You will be updating the title of manga id {{ manga.id }} to '${new_title}'. Are you sure you wish to proceed?`
     if(confirm(message)) {
         const url = "{{ url_for('api.edit_manga_title', manga_id=manga.id) }}";
         let formData = new FormData();
@@ -72,12 +75,12 @@ async function updateMangaTitle(id, old_title, new_title) {
     <div class="no-hover" for="manga_title"><b>Title</b></div>
     <input type="text" id="manga_title" value="{{ manga.title }}">
     <div class="" style="display: inline; width: 100%; text-wrap-mode: nowrap; text-align: center;">
-        <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.title }}')">Reset</button>
-        <button class="w3-button w3-grey w3-round-large" onclick="reset_form('manga_title', '{{ manga.original_title }}')">True Reset</button>
+        <button class="w3-button w3-grey w3-round-large" onclick="reset_title()">Reset</button>
+        <button class="w3-button w3-grey w3-round-large" onclick="reset_title(true)">True Reset</button>
          <div class="" style="display: inline-block; width: 35vw; overflow: hidden; text-wrap-mode: nowrap; text-overflow: ellipsis;">
             <span class="w3-large no-hover" style="">{{ manga.original_title }}</span>
         </div>
-        <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle('{{ manga.id }}', '{{ manga.title }}', document.getElementById('manga_title').value)">Save</button>
+        <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle()">Save</button>
     </div>
     <div class="no-hover"><b>Tags</b></div>
     <form name="manga-content-tags-input" method="post">
