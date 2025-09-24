@@ -151,7 +151,7 @@ def register():
 @bp.route('/login', methods=('GET', 'POST'))
 def login():
     if g.user is not None:
-        return redirect(url_for('home'))
+        return redirect(url_for('manga.home'))
     
     username, password = '', ''
 
@@ -182,7 +182,7 @@ def logout():
     session.clear()
     session['logged_out'] = True
     flash("Successfully Logged Out", 'info')
-    return redirect(url_for('home'))
+    return redirect(url_for('manga.home'))
 
 def get_role_context():
     user_role = Access.fromString(g.user['role'])
