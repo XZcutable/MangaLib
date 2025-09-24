@@ -78,7 +78,7 @@ def changePassword():
     else:
         flash(error, 'error')
 
-    return redirect(url_for(request.args['redirect'] or 'home'))
+    return redirect(url_for(request.args['redirect'] or 'manga.home'))
 
 @bp.route('/auth/change-username', methods=["POST"])
 def changeUsername():
@@ -99,7 +99,7 @@ def changeUsername():
 @bp.route('/register', methods=('GET', 'POST'))
 def register():
     if g.user is not None:
-        return redirect(url_for('home'))
+        return redirect(url_for('manga.home'))
     
     username, password = '', ''
     error = None
