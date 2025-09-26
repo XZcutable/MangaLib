@@ -1,5 +1,5 @@
 from flask import (
-    Flask, Blueprint, redirect, render_template, session, request, url_for, send_from_directory, send_file, g
+    Flask, Blueprint, redirect, render_template, request, url_for, send_from_directory, send_file, g
 )
 
 from . import api
@@ -26,10 +26,13 @@ def init_app(app: Flask):
     latest_count = app.config.get("LATEST_COUNT", latest_count)
     fetch_count = app.config.get("FETCH_COUNT", fetch_count)
 
+    @app.route('/')
+    def index():
+        return render_template('manga/home.html', titles=getLatest(count=30), HIDE_TITLES=HIDE_TITLES)
+
 @bp.route('/home')
 def home():
-    clear_manga()
-    return render_template('manga/home.html', titles=getLatest(count=30), HIDE_TITLES=HIDE_TITLES)
+    return redirect(url_for("index"))
 
 def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
     # query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
@@ -282,32 +285,9 @@ def hide_titles(hide: bool):
 
     HIDE_TITLES = hide
 
-def set_current_manga(manga: Manga | None) -> Manga | None:
-    if manga is None:
-        clear_manga()
-        return None
-    else:
-        session['current_manga'] = manga.id
-        set_current_page(1)
-        return manga
-
-def get_current_manga() -> int:
-    return session.get('current_manga', None)
-
-def set_current_page(page: int):
-    session['current_page'] = page
-
-def clear_manga():
-    session['current_manga'] = None
-    session['current_chapter'] = None
-    session['current_page'] = None
-
 def getLatest(count = 10):
     latest = Manga.query.distinct(Manga.id).order_by(Manga.date_uploaded).limit(count).all()
     return latest
-
-# def executeMangaQuery(query):
-#     return [title for title in query.values(Manga.id, Manga.title)]
 
 def addOrUpdateManga(dir, folderName):
     path = os.path.join(dir, folderName)
@@ -331,7 +311,7 @@ def addOrUpdateManga(dir, folderName):
     if(len(files) == 0 and len(folders) == 0):
         print(f"Empty Folder: {path}")
     
-    files_scanned = False
+    chapter_added = False
     next_chapter_number = len(manga.chapters) + 1
 
     # The perfered way is to have no files in the base folder if there are chapters
@@ -342,27 +322,37 @@ def addOrUpdateManga(dir, folderName):
     for folder in folders:
         chapter_path = os.path.join(path, folder)
         chapter: Chapter = Chapter.getOrCreate(manga, chapter_path, next_chapter_number)
+        
+        chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
 
         if chapter.new:
-            chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
-            Path.sortList(chapter_files)
             if(len(chapter_files) == 0):
                 print(f"Empty Chapter: {chapter_path}")
             else:
+                Path.sortList(chapter_files)
+                addPagesToChapter(chapter, chapter_files)
+
                 new_chapters.append(chapter)
                 next_chapter_number += 1
+        else:
+            if(len(chapter_files) == 0):
+                print(f"Empty Old Chapter: {chapter_path}")
+                db.session.delete(chapter)
+            else:
+                Page.sortList(chapter.pages)
+
 
     if next_chapter_number > len(manga.chapters) + 1:
-        files_scanned = True
+        chapter_added = True
 
-    if files_scanned:
+    if chapter_added:
         manga.chapters.extend(new_chapters)
 
-    elif not files_scanned:
+    elif not chapter_added:
         if manga.new:
             pass
         else:
-            print(f"Scanned an empty Manga: {path}")
+            print(f"No change in Manga: {path}")
 
     return manga
     
@@ -372,7 +362,7 @@ def addPagesToChapter(chapter: Chapter, files: list):
     new_pages = []
 
     for file in files:
-        page: Page = Page.getOrCreate(file_name=file, number=next_page_number)
+        page: Page = Page.getOrCreate(chapter=chapter, file_name=file, number=next_page_number)
         if page.new:
             new_pages.append(page)
             next_page_number += 1

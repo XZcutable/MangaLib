@@ -145,6 +145,19 @@ def isDir():
         return { 'valid': False }
     return {'valid': os.path.isdir(dir)}
 
+@bp.route("/delete-manga")
+@owner_access
+def delete_manga():
+    manga_id = request.args.get("manga_id")
+    if manga_id is not None:
+        manga = Manga.fromID(manga_id)
+        if manga is not None:
+            db.session.delete(manga)
+            db.session.commit()
+            return redirect(url_for("manga.home"))
+
+    return redirect(url_for("manga.home"))
+
 def getRootFolders():
     if os.name == 'nt':
         folders = [f'{drive}:/' for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if os.path.exists(f'{drive}:/')]
@@ -183,7 +196,7 @@ def fetch_titles():
 def edit_manga(manga_id: int):
     manga: Manga = Manga.fromID(manga_id)
     if manga is None:
-        return redirect(url_for("home"))
+        return redirect(url_for("manga.home"))
     return render_template("manga/manga_editor.html", manga=manga.toJson())
 
 @bp.route('/settings/config', methods=['GET','POST'])

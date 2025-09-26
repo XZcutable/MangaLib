@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 
 from mangalib.lib.enum import Access
 
+import os
+
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     def __getitem__(self, key):
         return getattr(self, key)
@@ -41,9 +43,9 @@ def init_db():
 class Path(db.Model):
     path: Mapped[str_pk]
 
-    def sortList(page_list: list[str]):
-        page_list.sort(key=str.casefold)
-        page_list.sort(key=len)
+    def sortList(path_list: list[str]):
+        path_list.sort(key=lambda path: os.path.splitext(str.casefold(path)[0]))
+        path_list.sort(key=len)
 
 # Username, passwords, preferences
 class User(Base):
@@ -144,9 +146,9 @@ class Manga(Base):
     path: Mapped[str]
 
 
-    manga_metadata:Mapped["MangaMetadata"] = relationship()
+    manga_metadata:Mapped["MangaMetadata"] = relationship(cascade="all, delete-orphan")
 
-    chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga")
+    chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga", cascade="all, delete-orphan")
 
     date_uploaded:Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
 
@@ -158,15 +160,14 @@ class Manga(Base):
     def getOrCreate(title:str, manga_path: str) -> "Manga":
         manga: Manga = Manga.query.filter_by(path=manga_path).one_or_none()
         if manga is None:
-            manga = Manga(title=title, path=manga_path)
-            manga.manga_metadata = MangaMetadata()
+            manga = Manga(title=title, path=manga_path, original_title=title, manga_metadata=MangaMetadata())
             manga.original_title = title
             manga.new = True
             return manga
         else:
             manga.original_title = title
-            if manga.manga_metadata is None:
-                manga.manga_metadata = MangaMetadata()
+            # if manga.manga_metadata is None:
+            #     manga.manga_metadata = MangaMetadata()
             return manga  
 
     def __repr__(self):
@@ -239,8 +240,8 @@ class Chapter(Base):
     def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
          return Chapter.query.get({"manga_id": manga.id, "number": number})
     
-    def sortList(page_list: list["Chapter"]):
-        page_list.sort(key=lambda chapter: chapter.number)
+    def sortList(chapter_list: list["Chapter"]):
+        chapter_list.sort(key=lambda chapter: chapter.number)
     
     def getOrCreate(manga: Manga, chapter_path: str, number: int) -> "Chapter":
         # chapter = Chapter.fromManga(manga, number)
@@ -266,8 +267,8 @@ class Page(Base):
     new = False
 
     def sortList(page_list: list["Page"]):
-        page_list.sort(key=lambda page: str.casefold(page.file_name))
-        page_list.sort(key=lambda page: len(page.file_name))
+        page_list.sort(key=lambda page: os.path.splitext(str.casefold(page.file_name)[0]))
+        page_list.sort(key=lambda page: len(os.path.splitext(page.file_name)[0]))
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -304,10 +305,10 @@ class Page(Base):
     def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
         return Page.query.get({"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})
     
-    def getOrCreate(chapter: Chapter, file_name: str, next_number: int):
+    def getOrCreate(chapter: Chapter, file_name: str, number: int):
         page = Page.query.filter_by(manga_id=chapter.manga_id, chapter_number=chapter.number, file_name=file_name).one_or_none()
         if page is None:
-            page = Page(number=next_number, file_name=file_name)
+            page = Page(number=number, file_name=file_name)
             page.new = True
             return page
         else:

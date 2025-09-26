@@ -42,6 +42,12 @@ async function updateMangaTitle() {
 </script>
 
 <script>
+    function deleteManga(manga_id) {
+        if (confirm("Are you sure you want to delete this manga?")) {
+            document.location = "{{ url_for('api.delete_manga', manga_id=manga.id) }}"
+        }
+    }
+
     function load_tags(tagsJson) {
         const table = document.getElementById("content-tags");
         console.log(manga.manga_metadata.tags)
@@ -99,6 +105,9 @@ async function updateMangaTitle() {
         <label for="tag-save-submit">
             <input type="submit" class="w3-button w3-grey w3-round-large" value="Save Tags" formaction="{{ url_for('api.set_content_tags', manga_id=manga.id) }}">
         </label>
+    </form>
+    <div class="no-hover"><b>Danger Zone</b></div>
+        <button class="w3-button w3-round-large w3-red" onclick="deleteManga({{ manga.id }})">Delete Manga</button>
     </form>
 </div>
 {% endblock %}
