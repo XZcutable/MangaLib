@@ -338,8 +338,10 @@ def addOrUpdateManga(dir, folderName):
             if(len(chapter_files) == 0):
                 print(f"Empty Old Chapter: {chapter_path}")
                 db.session.delete(chapter)
+            elif(len(chapter.pages) == 0):
+                print("Empty chapter in path:", chapter_path)
             else:
-                Page.sortList(chapter.pages)
+                Page.addPagesAndSort(chapter, chapter_files)
 
 
     if next_chapter_number > len(manga.chapters) + 1:

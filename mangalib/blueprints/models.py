@@ -44,8 +44,8 @@ class Path(db.Model):
     path: Mapped[str_pk]
 
     def sortList(path_list: list[str]):
-        path_list.sort(key=lambda path: os.path.splitext(str.casefold(path)[0]))
-        path_list.sort(key=len)
+        path_list.sort(key=lambda path: str.casefold(os.path.splitext(path)[0]))
+        path_list.sort(key=lambda path: len(os.path.splitext(path)[0]))
 
 # Username, passwords, preferences
 class User(Base):
@@ -266,9 +266,30 @@ class Page(Base):
 
     new = False
 
+    def addPagesAndSort(chapter: Chapter, file_list: list[str]):
+        Path.sortList(file_list)
+
+        for page in chapter.pages[len(file_list):]:
+            db.session.delete(page)
+
+        for page in chapter.pages:
+            page.file_name = file_list[page.number - 1]
+
+        new_pages = file_list[len(chapter.pages):]
+
+        next_page = len(new_pages) + 1
+        for page_name in new_pages:
+            chapter.pages(Page(file_name=page_name, number=next_page))
+            next_page += 1
+
     def sortList(page_list: list["Page"]):
-        page_list.sort(key=lambda page: os.path.splitext(str.casefold(page.file_name)[0]))
-        page_list.sort(key=lambda page: len(os.path.splitext(page.file_name)[0]))
+        file_list = [page.file_name for page in page_list]
+        
+        Path.sortList(file_list)
+
+        for page in page_list:
+            page.file_name = file_list[page.number - 1]
+
 
     __table_args__ = (
         ForeignKeyConstraint(
