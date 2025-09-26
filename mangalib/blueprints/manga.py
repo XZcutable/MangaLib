@@ -163,6 +163,7 @@ QUOTE_PATTERN = re.compile(r"'(.*?)'")
 READ = "read"
 TAGGED = "tagged"
 IN_PROGRESS = "progress"
+NSFW = "nsfw"
 
 @bp.route("/search")
 def search():
@@ -204,9 +205,16 @@ def search():
         
         return False
 
+    def replace_symbols(ls: list[str]):
+        for i in range(len(ls)):
+            ls[i] = ls[i].replace("_", " ")
+
 
     user_id = None
     joined_user_data = False
+    replace_symbols(terms)
+    replace_symbols(tags)
+    replace_symbols(ntags)
 
     # Doing it this way will only show titles the user has interacted with before and not others
     # I like this interaction and it is now intended behavior
@@ -219,7 +227,6 @@ def search():
         filter_read = query.where(UserMangaData.is_read)
         filter_unread = query.where(~UserMangaData.is_read)
         query = handle_special_tag(READ, filter_read, filter_unread)
-
 
     if has_special_tag(TAGGED):
         filter_tagged = query.where(MangaMetadata.tags.any(ContentTag.tag != None))
@@ -235,6 +242,11 @@ def search():
         filter_in_progress = query.where(and_(UserMangaData != None, UserMangaData.is_read == False, or_(UserMangaData.current_page > 1, UserMangaData.current_chapter > 1)))
         filter_no_progress = query.where(or_(UserMangaData == None, and_(UserMangaData.is_read == False, UserMangaData.current_page == 1, UserMangaData.current_chapter == 1)))
         query = handle_special_tag(IN_PROGRESS, filter_in_progress, filter_no_progress)
+
+    if has_special_tag(NSFW):
+        filter_nsfw = query.where(MangaMetadata.tags.any(ContentTag.nsfw))
+        filter_sfw = query.where(~MangaMetadata.tags.any(ContentTag.nsfw))
+        query = handle_special_tag(NSFW, filter_nsfw, filter_sfw)
 
     for term in terms:
         query = query.where(Manga.title.contains(term))

@@ -256,32 +256,42 @@ valid_tag_pattern = re.compile(valid_tag_regex)
 def add_content_tag():
     new_tag = request.form['content-tag'].lower()
     if valid_tag_pattern.fullmatch(new_tag):
-        if ContentTag.query.where(ContentTag.tag == new_tag).one_or_none() is None:
+        existing_tag: ContentTag = ContentTag.query.where(ContentTag.tag == new_tag).one_or_none()
+        if existing_tag is None:
             tag = ContentTag(tag=new_tag)
             db.session.add(tag)
             db.session.commit()
             flash("Added Tag", "success")
-            return redirect(location=request.referrer)
+        elif existing_tag.nsfw:
+            existing_tag.nsfw = False
+            db.session.commit()
+            flash(f"Tag '{new_tag}' changed to SFW", "success")
         else:
             flash(f"Tag '{new_tag}' already exists", "error")
-            return redirect(location=request.referrer)
+
+        return redirect(location=request.referrer)
     else:
         flash("Invalid Tag", "error")
         return redirect(location=request.referrer)
     
-@bp.route('/content-tag/add', methods=['POST'])
+@bp.route('/content-tag/add-nsfw', methods=['POST'])
 def add_nsfw_tag():
     new_tag = request.form['content-tag'].lower()
     if valid_tag_pattern.fullmatch(new_tag):
-        if ContentTag.query.where(ContentTag.tag == new_tag).one_or_none() is None:
+        existing_tag: ContentTag = ContentTag.query.where(ContentTag.tag == new_tag).one_or_none()
+        if existing_tag is None:
             tag = ContentTag(tag=new_tag, nsfw=True)
             db.session.add(tag)
             db.session.commit()
             flash("Added Tag", "success")
-            return redirect(location=request.referrer)
+        elif not existing_tag.nsfw:
+            existing_tag.nsfw = True
+            db.session.commit()
+            flash(f"Tag '{new_tag}' changed to NSFW", "success")
         else:
             flash(f"Tag '{new_tag}' already exists", "error")
-            return redirect(location=request.referrer)
+            
+        return redirect(location=request.referrer)
     else:
         flash("Invalid Tag", "error")
         return redirect(location=request.referrer)

@@ -102,11 +102,10 @@ class ContentTag(Base):
     __tablename__ = "content_tag"
     tag:Mapped[str_pk] = mapped_column(unique=True)
     nsfw:Mapped[bool] = mapped_column(default=False)
-    # mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="tags", single_parent=True)
     mangas:Mapped[List["MangaMetadata"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="tags")
 
     def __repr__(self):
-        return f"<Tag({self.tag=})>"
+        return f"<Tag({self.tag=}, {self.nsfw=})>"
     
     def toJson(self):
         return {
@@ -125,7 +124,6 @@ class MangaMetadata(Base):
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
 
     tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="mangas")
-    # tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", cascade="all, delete-orphan", back_populates="mangas", single_parent=True)
     language:Mapped[Optional[str]] = mapped_column(default="")
 
     def toJson(self):

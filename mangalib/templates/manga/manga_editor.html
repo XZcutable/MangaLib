@@ -42,22 +42,27 @@ async function updateMangaTitle() {
 </script>
 
 <script>
-    function load_tags(tags) {
+    function load_tags(tagsJson) {
         const table = document.getElementById("content-tags");
-        for(index in tags) {
-            tag = tags[index];
-            addTagRow(tag, manga.manga_metadata.tags.includes(tag));
+        console.log(manga.manga_metadata.tags)
+        for(index in tagsJson) {
+            json = tagsJson[index];
+            addTagRow(json, manga.manga_metadata.tags.some(o => o.tag == json.tag));
         }
     }
 
-    function addTagRow(tag, checked=false) {
+    function addTagRow(json, checked=false) {
         const tag_item_template = `
-        <label class="tag-checkbox tag-grid-item" for="tag-${tag}-toggle">
-            <input name="${tag}" id="tag-${tag}-toggle" type="checkbox"${checked ? " checked" : ""}>
-            <span class="w3-button">${ tag }</span>
+        <label class="tag-checkbox tag-grid-item" for="tag-${json.tag}-toggle">
+            <input name="${json.tag}" id="tag-${json.tag}-toggle" type="checkbox"${checked ? " checked" : ""}>
+            <span class="w3-button">${ json.tag }</span>
         </label>
         `;
-        document.getElementById("tag-grid").innerHTML += tag_item_template;
+        if(json.nsfw) {
+            document.getElementById("nsfw-tag-grid").innerHTML += tag_item_template;
+        } else {
+            document.getElementById("tag-grid").innerHTML += tag_item_template;
+        }
     }
 
     addEventListener("load", async () => {
@@ -82,14 +87,18 @@ async function updateMangaTitle() {
         </div>
         <button class="w3-button w3-round-large w3-right" onclick="updateMangaTitle()">Save</button>
     </div>
-    <div class="no-hover"><b>Tags</b></div>
     <form name="manga-content-tags-input" method="post">
+        <div class="no-hover"><b>Tags</b></div>
         <div>
             <div id="tag-grid" class="tag-grid"></div>
+        </div>
+        <div class="no-hover"><b>NSFW Tags</b></div>
+        <div>
+            <div id="nsfw-tag-grid" class="tag-grid"></div>
         </div>
         <label for="tag-save-submit">
             <input type="submit" class="w3-button w3-grey w3-round-large" value="Save Tags" formaction="{{ url_for('api.set_content_tags', manga_id=manga.id) }}">
         </label>
-    </form> 
+    </form>
 </div>
 {% endblock %}

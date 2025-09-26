@@ -343,7 +343,7 @@ input:checked + .slider:before {
                 </div>
                 <form method="post" class="w3-padding">
                     <label for="content-tag-input-nsfw">Add Tag:</label>
-                    <input id="content-tag-nsfw-input" name="content-nsfw-tag" type="text" placeholder="NSFW Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+(\W+[a-z]*)*[a-z]$"  required>
+                    <input id="content-tag-nsfw-input" name="content-tag" type="text" placeholder="NSFW Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+(\W+[a-z]*)*[a-z]$"  required>
                     <input class="w3-padding-small" type="submit" value="Add Tag" formaction="{{ url_for('api.add_nsfw_tag') }}">
                 </form>
             </div>

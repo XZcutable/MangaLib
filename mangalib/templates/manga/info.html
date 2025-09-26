@@ -122,8 +122,8 @@ function process_batch(data) {
                         <div class="w3-large text-shadow w3-text-grey">Tags</div>
                         <div class="w3-padding">
                             <div id="tag-grid" class="tag-grid">
-                                {% for tag in manga.manga_metadata.tags %}
-                                    <div class="tag-grid-item w3-button" onclick="search('tag:{{ tag }}')">{{ tag }}</div>
+                                {% for json in manga.manga_metadata.tags %}
+                                    <div class="tag-grid-item w3-button" onclick="search('tag:{{ json.tag|replace(' ', '_') }}')">{{ json.tag }}</div>
                                 {% endfor %}
                             </div>
                         </div>
