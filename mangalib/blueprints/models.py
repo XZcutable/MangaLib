@@ -269,18 +269,21 @@ class Page(Base):
     def addPagesAndSort(chapter: Chapter, file_list: list[str]):
         Path.sortList(file_list)
 
-        for page in chapter.pages[len(file_list):]:
-            db.session.delete(page)
+        file_count = len(file_list)
+        page_count = len(chapter.pages)
+        if file_count < page_count:
+            # print("Files Missing")
+            for i in range(page_count - file_count):
+                index = file_count + i
+                page = chapter.pages[index]
+                db.session.delete(page)
+                chapter.pages.pop(index)
 
-        for page in chapter.pages:
-            page.file_name = file_list[page.number - 1]
-
-        new_pages = file_list[len(chapter.pages):]
-
-        next_page = len(new_pages) + 1
-        for page_name in new_pages:
-            chapter.pages(Page(file_name=page_name, number=next_page))
-            next_page += 1
+        for i in range(file_count):
+            page_number = i + 1
+            page: Page = Page.getOrCreate(chapter, file_name=file_list[i], number=page_number)
+            if page.new:
+                chapter.pages.append(page)
 
     def sortList(page_list: list["Page"]):
         file_list = [page.file_name for page in page_list]
@@ -327,12 +330,14 @@ class Page(Base):
         return Page.query.get({"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})
     
     def getOrCreate(chapter: Chapter, file_name: str, number: int):
-        page = Page.query.filter_by(manga_id=chapter.manga_id, chapter_number=chapter.number, file_name=file_name).one_or_none()
+        page: Page = Page.query.filter_by(manga_id=chapter.manga_id, chapter_number=chapter.number, number=number).one_or_none()
         if page is None:
             page = Page(number=number, file_name=file_name)
             page.new = True
             return page
         else:
+            if page.file_name != file_name:
+                page.file_name = file_name
             return page
 
 class Metadata():
