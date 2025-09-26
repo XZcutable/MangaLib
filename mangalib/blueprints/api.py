@@ -269,6 +269,23 @@ def add_content_tag():
         flash("Invalid Tag", "error")
         return redirect(location=request.referrer)
     
+@bp.route('/content-tag/add', methods=['POST'])
+def add_nsfw_tag():
+    new_tag = request.form['content-tag'].lower()
+    if valid_tag_pattern.fullmatch(new_tag):
+        if ContentTag.query.where(ContentTag.tag == new_tag).one_or_none() is None:
+            tag = ContentTag(tag=new_tag, nsfw=True)
+            db.session.add(tag)
+            db.session.commit()
+            flash("Added Tag", "success")
+            return redirect(location=request.referrer)
+        else:
+            flash(f"Tag '{new_tag}' already exists", "error")
+            return redirect(location=request.referrer)
+    else:
+        flash("Invalid Tag", "error")
+        return redirect(location=request.referrer)
+    
 @bp.route('/content-tag/remove', methods=['POST'])
 def remove_content_tag():
     remove_tag = request.form['content-tag'].lower()
@@ -285,7 +302,7 @@ def remove_content_tag():
     
 @bp.route('/content-tag')
 def get_content_tags():
-    return { "tags": [ row.tag for row in ContentTag.query.order_by(ContentTag.tag).values(ContentTag.tag) ] }
+    return { "tags": [ row.toJson() for row in ContentTag.query.order_by(ContentTag.tag).all() ] }
 
 @bp.route('/content-tag/<int:manga_id>')
 def get_manga_tags(manga_id: int):

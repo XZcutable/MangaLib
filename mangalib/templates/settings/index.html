@@ -237,7 +237,6 @@ input:checked + .slider:before {
     })
 
     function load_tags(tags) {
-        const table = document.getElementById("content-tags");
         for(index in tags) {
             tag = tags[index];
             addTagRow(tag);
@@ -303,9 +302,14 @@ input:checked + .slider:before {
             </div>
             {% if isAdmin %}
             <script>
-                function addTagRow(tag) {
-                    const tag_item_template = `<div class="tag-grid-item w3-button" onclick="removeTag(this, this.textContent)">${ tag }</div>`;
-                    document.getElementById("tag-grid").innerHTML += tag_item_template;
+                function addTagRow(json) {
+                    const tag_item_template = `<div class="tag-grid-item w3-button" onclick="removeTag(this, this.textContent)">${ json.tag }</div>`;
+
+                    if(json.nsfw) {
+                        document.getElementById("nsfw-tag-grid").innerHTML += tag_item_template;
+                    } else {
+                        document.getElementById("tag-grid").innerHTML += tag_item_template;
+                    }
                 }
 
                 async function removeTag(self, tag) {
@@ -331,6 +335,16 @@ input:checked + .slider:before {
                     <label for="content-tag-input">Add Tag:</label>
                     <input id="content-tag-input" name="content-tag" type="text" placeholder="Content Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+(\W+[a-z]*)*[a-z]$"  required>
                     <input class="w3-padding-small" type="submit" value="Add Tag" formaction="{{ url_for('api.add_content_tag') }}">
+                </form>
+                <div class="w3-container w3-padding">
+                    <div class="w3-xlarge no-hover"><b>NSFW Tags</b></div>
+                    <div id="nsfw-tag-grid" class="tag-grid w3-grid">
+                    </div>
+                </div>
+                <form method="post" class="w3-padding">
+                    <label for="content-tag-input-nsfw">Add Tag:</label>
+                    <input id="content-tag-nsfw-input" name="content-nsfw-tag" type="text" placeholder="NSFW Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+(\W+[a-z]*)*[a-z]$"  required>
+                    <input class="w3-padding-small" type="submit" value="Add Tag" formaction="{{ url_for('api.add_nsfw_tag') }}">
                 </form>
             </div>
             {% endif %}

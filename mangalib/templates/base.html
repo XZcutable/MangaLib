@@ -60,8 +60,11 @@
             <div class="w3-block w3-hide-large w3-hide-medium">
                 <a href="{{ url_for('manga.home') }}" class="w3-bar-item w3-button w3-round-large"><i class="w3-xlarge fa fa-home"></i></a>
                 <span class="manga-search">
-                    <input type="search" placeholder="Search..." id="search-input" class="w3-bar-item">
-                    <button id="search-button" class="w3-bar-item w3-button w3-grey"><i class="fa fa-search"></i></button>
+                    <form method="get" style="display: inline;" action="{{ url_for('manga.search') }}">
+                        {# <input type="search" placeholder="Search..." id="search-input" class="w3-bar-item"> #}
+                        <input type="search" id="search-bar-input" name="q" placeholder="Search..." class="w3-bar-item w3-round-large" style="margin: 5px;display: inline-block" minlength="1" required>
+                        {# <button id="search-button" class="w3-bar-item w3-button w3-grey"><i class="fa fa-search"></i></button> #}
+                    </form>
                 </span>
 
                 <div class="w3-dropdown-click w3-right">
