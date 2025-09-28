@@ -105,9 +105,9 @@ async function updateMangaTitle() {
         <label for="tag-save-submit">
             <input type="submit" class="w3-button w3-grey w3-round-large" value="Save Tags" formaction="{{ url_for('api.set_content_tags', manga_id=manga.id) }}">
         </label>
-    </form>
-    <div class="no-hover"><b>Danger Zone</b></div>
-        <button class="w3-button w3-round-large w3-red" onclick="deleteManga({{ manga.id }})">Delete Manga</button>
-    </form>
+        <div class="no-hover"><b>Danger Zone</b></div>
+        </form>
+            <button class="w3-button w3-round-large w3-red w3-right" onclick="deleteManga({{ manga.id }})">Delete Manga</button>
+        </form>
 </div>
 {% endblock %}
