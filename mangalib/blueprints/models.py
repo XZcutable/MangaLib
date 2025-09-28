@@ -70,6 +70,7 @@ class UserMangaData(Base):
     current_page:Mapped[int] = mapped_column(default=1)
     is_read:Mapped[bool] = mapped_column(default=False)
     is_favorite:Mapped[bool] = mapped_column(default=False)
+    last_seen:Mapped[Optional[datetime]] = mapped_column(default=None, nullable=True)
 
     manga:Mapped["Manga"] = relationship(default=None, viewonly=True)
 
@@ -83,6 +84,7 @@ class UserMangaData(Base):
             "current_page": self.current_page,
             "is_read": self.is_read,
             "is_favorite": self.is_favorite,
+            "last_seen": self.last_seen
         }
 
     def getOrCreate(userID: int, manga: "Manga"):
@@ -97,7 +99,7 @@ class UserMangaData(Base):
         return UserMangaData.query.get({"user_id": userID, "manga_id": manga.id })
     
     def __repr__(self):
-        return f"<UserMangaData({self.user_id=}, {self.manga_id=}, {self.current_chapter=}, {self.current_page=}, {self.is_read=}, {self.is_favorite=})>"
+        return f"<UserMangaData({self.user_id=}, {self.manga_id=}, {self.current_chapter=}, {self.current_page=}, {self.is_read=}, {self.is_favorite=}, {self.last_seen=})>"
 
 
 class ContentTag(Base):

@@ -1,5 +1,5 @@
 {% extends 'manga/manga_base.html' %}
-{% block title %}Search{% endblock %}
+{% block title %}{{ title|default("title") }}{% endblock %}
 
 {% block script %}
     {{ super() }}

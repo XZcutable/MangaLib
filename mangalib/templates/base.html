@@ -47,6 +47,7 @@
                         <button class="w3-text-white w3-button text-shadow w3-round-large"><i class="fa fa-user-o">&nbsp;&nbsp;{{ g.user['username'] }}</i></button>
                         <div class="w3-dropdown-content w3-bar-block w3-round-large">
                             <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button"><i class="fa fa-gear">&nbsp;Settings</i></a>
+                            <a href="{{ url_for('manga.history') }}" class="w3-bar-item w3-button"><i class="fa fa-history">&nbsp;History</i></a>
                             <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button"><i class="fa fa-sign-out">&nbsp;Logout</i></a>
                         </div>
                     </div>

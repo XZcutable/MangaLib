@@ -4,6 +4,8 @@ from flask import (
     Blueprint, flash, request, render_template, redirect, url_for, Response, g
 )
 
+from sqlalchemy import and_, select
+
 from . import settings
 from .auth import owner_access, admin_access
 from . import manga as m
@@ -12,6 +14,7 @@ from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User
 from . import models
 
 import re
+from datetime import datetime
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -185,11 +188,32 @@ def isValidFile(dir: str, file: str, filters: tuple | None):
 @bp.route('/fetch-titles')
 def fetch_titles():
     sort = request.args.get('sort', 'asc')
-    offset = request.args.get('offset', 0)
-    count = request.args.get('count', 30)
+    offset = int(request.args.get('offset', '0'))
+    count = int(request.args.get('count', '30'))
 
     titles = m.fetchTitles(sort=sort, offset=offset, count=count)
     return titles
+
+@bp.route("/fetch-history")
+def fetch_history():
+    sort = request.args.get('sort', 'asc')
+    offset = int(request.args.get('offset', '0'))
+    count = int(request.args.get('count', '30'))
+
+    query = select(Manga.id, Manga.title)
+    user_id = getUserID()
+    #, UserMangaData.last_seen != None
+    query = query.join_from(Manga, UserMangaData, and_(Manga.id == UserMangaData.manga_id, UserMangaData.user_id == user_id))
+    if sort == 'asc':
+        query = query.order_by(UserMangaData.last_seen.asc().nulls_last())
+    elif sort == 'desc':
+        query = query.order_by(UserMangaData.last_seen.desc().nulls_last())
+    
+    query = query.offset(offset).limit(min(count, 100))
+
+    results = [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
+    # print(results)
+    return results
 
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
@@ -374,6 +398,7 @@ def save_user_progress():
 
                 user_data.current_chapter = chapter.number
                 user_data.current_page = page.number
+                user_data.last_seen = datetime.now()
 
                 if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
                     user_data.is_read = True

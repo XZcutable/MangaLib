@@ -6,7 +6,8 @@ from . import api
 from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag
 from .auth import get_role_context
 
-from sqlalchemy import asc, desc, func, select, and_, or_, any_
+from sqlalchemy import asc, desc, func, select, and_, or_
+from sqlalchemy import Select
 
 import os, re
 
@@ -42,17 +43,25 @@ def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
     elif sort == 'desc':
         query = query.order_by(desc(Manga.id))
 
-    query = query.offset(offset).limit(count)
+    query = query.offset(offset)
+
+
+    if count > 0:
+        query = query.limit(min(count, 100))
 
     return [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
 
 @bp.route('/latest')
 def latest():
-    return render_template('manga/directory.html', sort='desc', HIDE_TITLES=HIDE_TITLES)
+    return render_template('manga/manga_infinite_scroll.html', sort='desc', title="Latest", HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/all')
 def all():
-    return render_template('manga/directory.html', sort='asc', HIDE_TITLES=HIDE_TITLES)
+    return render_template('manga/manga_infinite_scroll.html', sort='asc', title="All", HIDE_TITLES=HIDE_TITLES)
+
+@bp.route('/history')
+def history():
+    return render_template('manga/history.html', sort='desc', title="History", HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/random')
 def random_manga():
@@ -116,7 +125,6 @@ def read(manga_id: int, page_number=0, chapter_number=1):
     
     return render_template('manga/page.html', manga=manga.toJson(), chapter=chapter.toJson(), page=page.toJson())
 
-
 IMAGE_404 = lambda *_: send_file("static/assets/images/error/404.png", max_age=10*24*60*60)
 
 @bp.route('/manga-image')
@@ -152,6 +160,7 @@ def fetch_page(page: Page):
     if response.status_code == 304:
         response.status_code = 200
     return response
+
 
 @bp.route('/upload', methods=('GET', 'POST'))
 def upload():
@@ -239,7 +248,7 @@ def search():
     if has_special_tag(IN_PROGRESS):
         user_id = user_id or api.getUserID()
         if not joined_user_data:
-            query = query.join_from(Manga, UserMangaData, Manga.id == UserMangaData.manga_id and UserMangaData.user_id == user_id)
+            query = query.join_from(Manga, UserMangaData, and_(Manga.id == UserMangaData.manga_id, UserMangaData.user_id == user_id))
             joined_user_data = True
 
         filter_in_progress = query.where(and_(UserMangaData != None, UserMangaData.is_read == False, or_(UserMangaData.current_page > 1, UserMangaData.current_chapter > 1)))

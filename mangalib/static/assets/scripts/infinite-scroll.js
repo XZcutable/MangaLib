@@ -12,11 +12,11 @@ var delay = small_dealy;
 var sort = 'desc'
 var stop_loading = false;
 
-function clean_up(delay, success) {
+function clean_up(delay, success, processed) {
     var load_icon = document.getElementById(loading_icon_id);
     
     if(success) {
-        offset += batch_size;
+        offset += processed;
 
         setTimeout(() => {
             isLoading = false;
@@ -95,7 +95,7 @@ function process_batch(manga_infos) {
             item_html = createMangaGridItem(info.id, info.title);
             grid.innerHTML += item_html;
         }
-        clean_up(small_dealy, true);
+        clean_up(small_dealy, true, manga_infos.length);
     } else {
         clean_up(big_dealy, false);
     }
