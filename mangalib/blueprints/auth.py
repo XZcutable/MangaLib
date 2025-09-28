@@ -21,10 +21,6 @@ def init_app(app: Flask):
     app.cli.add_command(change_user_role)
     app.cli.add_command(change_user_password)
 
-@bp.after_app_request
-def after_request(response: Response):
-    return response
-
 @bp.before_app_request
 def load_logged_in_user():
     user_id = session.get('user_id')
@@ -41,19 +37,25 @@ def load_logged_in_user():
         print("User error")
         return redirect(url_for('auth.logout'))
 
-    g.requires_clearance = True
-    if request.path.startswith('/static'):
-        g.requires_clearance = False
-    elif request.path in [url_for(endpoint) for endpoint in public_access]:
-        g.requires_clearance = False
+    if g.get("requires_clearance") is None:
+        g.requires_clearance = True
+    
+    if g.requires_clearance:
+        if request.path.startswith('/static'):
+            g.requires_clearance = False
+            return
+        elif request.path in [url_for(endpoint) for endpoint in public_access]:
+            g.requires_clearance = False
+            return
 
-    if g.requires_clearance and g.user is None:
+    if g.user is None:
         if session.get('logged_out') is not None:
             session.clear()
         else:
             flash("Account Needed", 'error')
-
-        return redirect(url_for('auth.login'))
+        session["requested_url"] = request.base_url
+        print(session["requested_url"])
+        return redirect(url_for("auth.login"))
 
 @bp.route('/auth/change-password', methods=('POST',))
 def changePassword():
@@ -150,6 +152,8 @@ def register():
 
 @bp.route('/login', methods=('GET', 'POST'))
 def login():
+    print(request.referrer)
+    # if g.get("user") is not None:
     if g.user is not None:
         return redirect(url_for('manga.home'))
     
@@ -167,15 +171,17 @@ def login():
             error = 'Incorrect password'
 
         if error is None:
+            landing_page = session.get("requested_url", "/")
             session.clear()
             session['user_id'] = user.id
             g.user = user
             flash("Login Successful", 'success')
-            return redirect('/')
+            return redirect(landing_page)
         
         flash(error, 'error')
 
-    return render_template('auth/login.html', last_username=username, last_password=password)
+    html_data = render_template('auth/login.html', last_username=username, last_password=password)
+    return html_data
 
 @bp.route('/logout')
 def logout():
