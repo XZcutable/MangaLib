@@ -389,13 +389,16 @@ def update_read_status():
     if manga is not None:
         user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
         is_read = request.form.get("is_read", 'False').lower() == "true"
-        print(is_read)
+        reset = request.form.get("reset", 'False').lower() == "true"
+        db.session.begin_nested()
+        if user_data.new:
+            db.session.add(user_data)
         if is_read != user_data.is_read:
-            db.session.begin_nested()
-            if user_data.new:
-                db.session.add(user_data)
             user_data.is_read = is_read
-            db.session.commit()
+        if reset:
+            user_data.current_chapter = 1
+            user_data.current_page = 1
+        db.session.commit()
         return user_data.toJson()
 
     return Response(status=405)
