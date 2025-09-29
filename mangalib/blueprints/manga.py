@@ -6,7 +6,7 @@ from . import api
 from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag
 from .auth import get_role_context
 
-from sqlalchemy import asc, desc, func, select, and_, or_
+from sqlalchemy import func, select, and_, or_
 from sqlalchemy import Select
 
 import os, re
@@ -39,9 +39,9 @@ def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
     # query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
     query = select(Manga.id, Manga.title)
     if sort == 'asc':
-        query = query.order_by(asc(Manga.id))
+        query = query.order_by(Manga.id.asc())
     elif sort == 'desc':
-        query = query.order_by(desc(Manga.id))
+        query = query.order_by(Manga.id.desc())
 
     query = query.offset(offset)
 
@@ -295,7 +295,7 @@ def hide_titles(hide: bool):
     HIDE_TITLES = hide
 
 def getLatest(count = 10):
-    latest = Manga.query.distinct(Manga.id).order_by(Manga.date_uploaded).limit(count).all()
+    latest = Manga.query.distinct(Manga.id).order_by(Manga.date_uploaded.desc()).limit(count).all()
     return latest
 
 def addOrUpdateManga(dir, folderName):
