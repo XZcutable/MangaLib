@@ -42,7 +42,7 @@ function process_batch(data) {
             let page_html = createPageGridItem(manga.id, 1, data["offset"] + page);
             grid.innerHTML += page_html;
         }
-        clean_up(small_dealy, true);
+        clean_up(small_dealy, true, data["amount"]);
     } else {
         clean_up(big_dealy, false);
     }
