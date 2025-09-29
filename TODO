@@ -9,7 +9,7 @@ Next Hard Tasks:
 Add pending or verified status to uploading manga option
 
 Features needs for MVP:
-- users and passowrd and registration
+- users and password and registration
 - way to add manga to the library
 - way to view manga
 - Track what is read and tags, and editable
@@ -20,6 +20,7 @@ Add way to edit page order, and remove pages
 Add a way to combine mangas as chapters or link together?
 Add Chapters to manga info
 - Add way to delete manga, or mark deleted
+- User History
 Mobile experience parity
 
 Future Tasks:
@@ -28,7 +29,7 @@ Implement data editing
 Add a play options 1s,3s, 5s
 eventually add pdf support
 Add way to edit sql as owner
-Imeplement way to sync the folder names with the title names
+Impelement way to sync the folder names with the title names
 
 
 Polish:
