@@ -215,6 +215,27 @@ def fetch_history():
     # print(results)
     return results
 
+@bp.route("/fetch-favorites")
+def fetch_favorites():
+    sort = request.args.get('sort', 'asc')
+    offset = int(request.args.get('offset', '0'))
+    count = int(request.args.get('count', '30'))
+
+    query = select(Manga.id, Manga.title)
+    user_id = getUserID()
+    #, UserMangaData.last_seen != None
+    query = query.join_from(Manga, UserMangaData, and_(Manga.id == UserMangaData.manga_id, UserMangaData.user_id == user_id, UserMangaData.is_favorite))
+    if sort == 'asc':
+        query = query.order_by(UserMangaData.favorited_when.asc().nulls_last())
+    elif sort == 'desc':
+        query = query.order_by(UserMangaData.favorited_when.desc().nulls_last())
+    
+    query = query.offset(offset).limit(min(count, 100))
+
+    results = [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
+    # print(results)
+    return results
+
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
 def edit_manga(manga_id: int):
@@ -423,6 +444,23 @@ def update_read_status():
         if reset:
             user_data.current_chapter = 1
             user_data.current_page = 1
+        db.session.commit()
+        return user_data.toJson()
+
+    return Response(status=405)
+
+@bp.route('/user/manga/favorite', methods=["POST"])
+def update_fav_status():
+    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    if manga is not None:
+        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        is_fav = request.form.get("is_fav", 'False').lower() == "true"
+        db.session.begin_nested()
+        if user_data.new:
+            db.session.add(user_data)
+        if is_fav != user_data.is_favorite:
+            user_data.is_favorite = is_fav
+        user_data.favorited_when = datetime.now()
         db.session.commit()
         return user_data.toJson()
 

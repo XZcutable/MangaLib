@@ -63,6 +63,10 @@ def all():
 def history():
     return render_template('manga/history.html', sort='desc', title="History", HIDE_TITLES=HIDE_TITLES)
 
+@bp.route('/favorites')
+def favorites():
+    return render_template('manga/favorites.html', sort='desc', title="Favorites", HIDE_TITLES=HIDE_TITLES)
+
 @bp.route('/random')
 def random_manga():
     manga = Manga.query.order_by(func.random()).first() 
@@ -167,8 +171,8 @@ def upload():
     pass
 
 TERM_PATTERN = re.compile(r"(?<![:\"'])\b\w+\b(?![:\"'])")
-TAG_PATTERN = re.compile(r"(?<!\w|!)tag:(\w+)")
-NTAG_PATTERN = re.compile(r"!tag:(\w+)")
+TAG_PATTERN = re.compile(r"(?<!\w|!)tag:([\w,]+)")
+NTAG_PATTERN = re.compile(r"!tag:([\w,]+)")
 DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
 QUOTE_PATTERN = re.compile(r"'(.*?)'")
 
@@ -184,9 +188,9 @@ def search():
         return render_template("manga/search.html", results=[])
     
     q = q.lower()
-    terms = [*TERM_PATTERN.findall(q), *[*DQUOTE_PATTERN.findall(q), *QUOTE_PATTERN.findall(q)]]
-    tags = TAG_PATTERN.findall(q)
-    ntags = NTAG_PATTERN.findall(q)
+    terms: list[str] = [*TERM_PATTERN.findall(q), *[*DQUOTE_PATTERN.findall(q), *QUOTE_PATTERN.findall(q)]]
+    tags: list[str] = TAG_PATTERN.findall(q)
+    ntags: list[str] = NTAG_PATTERN.findall(q)
 
     query = (
         select(Manga.id, Manga.title)
@@ -264,11 +268,20 @@ def search():
         query = query.where(Manga.title.contains(term))
 
     if len(tags) > 0:
+        # for tag in tags:
+            # if ',' in tag:
+            #     all_tags = tag.split(',')
+            #     for t in all_tags:
+            #         query = query.where(ContentTag.tag.is_ t)
+            # else:
+                # query = query.where(MangaMetadata.tags.any(ContentTag.tag == tag))
         query = query.where(MangaMetadata.tags.any(ContentTag.tag.in_(tags)))
 
     if len(ntags) > 0:
         query = query.where(~MangaMetadata.tags.any(ContentTag.tag.in_(ntags)))
 
+
+    query = query.distinct(Manga.id)
     results = [{"id": result[0], "title": result[1]} for result in db.session.execute(query)]
 
     # print("Results:", results)

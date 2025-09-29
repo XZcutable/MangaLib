@@ -13,3 +13,15 @@ async function updateMangaReadStatus(isRead) {
 
     }
 }
+
+async function updateMangaFavStatus(isFav) {
+    let formData = new FormData();
+    formData.append("is_fav", isFav);
+
+    try {
+        await fetch(`${UPDATE_FAV_STATUS_URL}?manga_id=${manga.id}`, {method: "POST", body: formData});
+        document.location.reload();
+    } catch {
+
+    }
+}
