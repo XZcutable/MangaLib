@@ -6,7 +6,7 @@ from . import api
 from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag, MangaContentTag
 from .auth import get_role_context
 
-from sqlalchemy import func, select, text, bindparam, and_, or_, any_, not_, all_, distinct
+from sqlalchemy import func, select, text, bindparam, and_, or_, any_, not_, all_, distinct, join
 from sqlalchemy import Select, Subquery
 
 import os, re
@@ -181,6 +181,8 @@ TAGGED = "tagged"
 IN_PROGRESS = "progress"
 NSFW = "nsfw"
 
+SPECIAL_TAGS = [READ, TAGGED, IN_PROGRESS, NSFW]
+
 @bp.route("/search")
 def search():
     q = request.args.get('q')
@@ -192,29 +194,67 @@ def search():
     tags: list[str] = TAG_PATTERN.findall(q)
     ntags: list[str] = NTAG_PATTERN.findall(q)
 
-    def handle_special_tag(tag, stmt, nstmt):
-        filter_stmt = tag in tags
-        filter_nstmt = tag in ntags
+    manga_query = select(distinct(Manga.id), Manga.title)
 
-        if filter_stmt != filter_nstmt:
-            if filter_stmt:
-                tags.pop(tags.index(tag))
-                return stmt
-            elif filter_nstmt:
-                ntags.pop(ntags.index(tag))
-                return nstmt
+    def is_special_tag(tag):
+        return tag in SPECIAL_TAGS
 
-    def has_special_tag(tag):
-        filter_stmt = tag in tags
-        filter_nstmt = tag in ntags
 
-        if filter_stmt and filter_nstmt:
-            tags.pop(tags.index(tag))
-            ntags.pop(ntags.index(tag))
-        elif filter_stmt != filter_nstmt:
-            return True
-        
-        return False
+    def handle_special_tag(tag, positive, metadata_query: Select[tuple[int]]):
+        global user_id
+        if tag == READ:
+            user_id = api.getUserID()
+            read_query = (
+                select(Manga.id)
+                .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
+                .where(UserMangaData.is_read)
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(read_query))
+            else:
+                filter = filter.where(~Manga.id.in_(read_query))
+            return filter
+        elif tag == TAGGED:
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .group_by(MangaContentTag.manga_id)
+                .having(func.count() > 0)
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(tag_query))
+            else:
+                filter = filter.where(~Manga.id.in_(tag_query))
+            return filter
+        elif tag == IN_PROGRESS:
+            user_id = api.getUserID()
+            progress_query = (
+                select(Manga.id)
+                .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
+                .where((~UserMangaData.is_read) & ((UserMangaData.current_chapter > 1) | (UserMangaData.current_page > 1)))
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(progress_query))
+            else:
+                filter = filter.where(~Manga.id.in_(progress_query))
+            return filter
+        elif tag == NSFW:
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .group_by(MangaContentTag.manga_id)
+                .join(ContentTag)
+                .having(func.count(ContentTag.nsfw) > 0)
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(tag_query))
+            else:
+                filter = filter.where(~MangaContentTag.manga_id.in_(tag_query))
+            return filter
+        else:
+            pass
 
     def replace_symbols(ls: list[str]):
         for i in range(len(ls)):
@@ -228,38 +268,60 @@ def search():
             else:
                 some.append(tag)
 
-    user_id = None
-    joined_user_data = False
+    
     replace_symbols(terms)
     replace_symbols(tags)
     replace_symbols(ntags)
 
-    metadata_query = select(MangaContentTag.manga_id)
+    for term in terms:
+        query = query.where(Manga.title.contains(term))
+
+    if len(tags) or len(ntags):
+        manga_query = manga_query.outerjoin(MangaContentTag, Manga.id == MangaContentTag.manga_id)
 
     if len(tags) > 0:
         or_tags:list[str] = []
-        and_tags:list[list[str]] = []
-        split_tags(tags, or_tags, and_tags)
+        and_tags_list:list[list[str]] = []
+        split_tags(tags, or_tags, and_tags_list)
+
+        for or_tag in [tag for tag in or_tags]:
+            if is_special_tag(or_tag):
+                manga_query = handle_special_tag(or_tag, True, manga_query)
+                or_tags.remove(or_tag)
 
         if len(or_tags):
-            metadata_query = metadata_query.where(MangaContentTag.tag.in_(or_tags))
+            manga_query = manga_query.where(MangaContentTag.tag.in_(or_tags))
 
-        for and_tag in and_tags:
+        for and_tags in and_tags_list:
+            for and_tag in [tag for tag in and_tags]:
+                if is_special_tag(and_tag):
+                    and_tags.remove(and_tag)
+                    manga_query = handle_special_tag(and_tag, True, manga_query)
             tag_query = (
                 select(MangaContentTag.manga_id)
-                .where(MangaContentTag.tag.in_(and_tag))
+                .where(MangaContentTag.tag.in_(and_tags))
                 .group_by(MangaContentTag.manga_id)
-                .having(func.count() == len(and_tag))
+                .having(func.count() == len(and_tags))
             )
-            metadata_query = metadata_query.where(MangaContentTag.manga_id.in_(tag_query))
+            manga_query = manga_query.where(Manga.id.in_(tag_query))
 
     if len(ntags) > 0:
         nor_tags:list[str] = []
-        nand_tags:list[list[str]] = []
-        split_tags(ntags, nor_tags, nand_tags)
+        nand_tags_list:list[list[str]] = []
+        split_tags(ntags, nor_tags, nand_tags_list)
 
-        for nand_tag in nand_tags:
-            nor_tags.extend(nand_tag)
+        for nor_tag in [tag for tag in nor_tags]:
+            if is_special_tag(nor_tag):
+                manga_query = handle_special_tag(nor_tag, False, manga_query)
+                nor_tags.remove(nor_tag)
+
+        for nand_tags in nand_tags_list:
+            for nand_tag in [tag for tag in nand_tags]:
+                if is_special_tag(nand_tag):
+                    # nand_tags.remove(nand_tag)
+                    manga_query = handle_special_tag(nand_tags, False, manga_query)
+                else:
+                    nor_tags.append(nand_tag)
 
         if len(nor_tags):
             tag_query = (
@@ -268,52 +330,15 @@ def search():
                 .group_by(MangaContentTag.manga_id)
                 .having(func.count() > 0)
             )
-            metadata_query = metadata_query.where(MangaContentTag.manga_id.not_in(tag_query))
+            manga_query = manga_query.where(MangaContentTag.manga_id.not_in(tag_query)) # Shows Only Tagged
+            # manga_query = manga_query.where(Manga.id.not_in(tag_query)) # Shows Untagged
 
-    # Doing it this way will only show titles the user has interacted with before and not others
-    # I like this interaction and it is now intended behavior
-    if has_special_tag(READ):
-        user_id = user_id or api.getUserID()
-        if not joined_user_data:
-            query = query.join_from(Manga, UserMangaData, Manga.id == UserMangaData.manga_id and UserMangaData.user_id == user_id)
-            joined_user_data = True
 
-        filter_read = query.where(UserMangaData.is_read)
-        filter_unread = query.where(~UserMangaData.is_read)
-        query = handle_special_tag(READ, filter_read, filter_unread)
-
-    if has_special_tag(TAGGED):
-        filter_tagged = query.where(MangaMetadata.tags.any(ContentTag.tag != None))
-        filter_untagged = query.where(~MangaMetadata.tags.any(ContentTag.tag != None))
-        query = handle_special_tag(TAGGED, filter_tagged, filter_untagged)
-
-    if has_special_tag(IN_PROGRESS):
-        user_id = user_id or api.getUserID()
-        if not joined_user_data:
-            query = query.join_from(Manga, UserMangaData, and_(Manga.id == UserMangaData.manga_id, UserMangaData.user_id == user_id))
-            joined_user_data = True
-
-        filter_in_progress = query.where(and_(UserMangaData != None, UserMangaData.is_read == False, or_(UserMangaData.current_page > 1, UserMangaData.current_chapter > 1)))
-        filter_no_progress = query.where(or_(UserMangaData == None, and_(UserMangaData.is_read == False, UserMangaData.current_page == 1, UserMangaData.current_chapter == 1)))
-        query = handle_special_tag(IN_PROGRESS, filter_in_progress, filter_no_progress)
-
-    if has_special_tag(NSFW):
-        filter_nsfw = query.where(MangaMetadata.tags.any(ContentTag.nsfw))
-        filter_sfw = query.where(~MangaMetadata.tags.any(ContentTag.nsfw))
-        query = handle_special_tag(NSFW, filter_nsfw, filter_sfw)
-
-    query = select(distinct(Manga.id), Manga.title).join(metadata_query.alias("manga_content_tag"), MangaContentTag.manga_id == Manga.id)
-    # print(query)
-    for term in terms:
-        query = query.where(Manga.title.contains(term))
-
-    results = [{"id": id, "title": title} for (id, title) in db.session.execute(query)]
-    print(len(results))
-    # results = [{"id": id, "title": title} for (id, title) in results]
+    results = [{"id": id, "title": title} for (id, title) in db.session.execute(manga_query)]
+    # print(results)
+    # print(len(results))
 
     return render_template("manga/search.html", results=results, HIDE_TITLES=HIDE_TITLES)
-
-    
 
 FETCH_PAGE = fetch_page
 HIDE_MANGA = False
