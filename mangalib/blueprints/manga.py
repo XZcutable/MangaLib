@@ -199,7 +199,6 @@ def search():
     def is_special_tag(tag):
         return tag in SPECIAL_TAGS
 
-
     def handle_special_tag(tag, positive, metadata_query: Select[tuple[int]]):
         global user_id
         if tag == READ:
@@ -267,14 +266,13 @@ def search():
                 all.append(tag.split(','))
             else:
                 some.append(tag)
-
     
     replace_symbols(terms)
     replace_symbols(tags)
     replace_symbols(ntags)
 
     for term in terms:
-        query = query.where(Manga.title.contains(term))
+        manga_query = manga_query.where(Manga.title.contains(term))
 
     if len(tags) or len(ntags):
         manga_query = manga_query.outerjoin(MangaContentTag, Manga.id == MangaContentTag.manga_id)
