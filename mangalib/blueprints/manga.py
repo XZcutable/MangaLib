@@ -3,11 +3,11 @@ from flask import (
 )
 
 from . import api
-from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag
+from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag, MangaContentTag
 from .auth import get_role_context
 
-from sqlalchemy import func, select, and_, or_
-from sqlalchemy import Select
+from sqlalchemy import func, select, text, bindparam, and_, or_, any_, not_, all_, distinct
+from sqlalchemy import Select, Subquery
 
 import os, re
 
@@ -52,11 +52,11 @@ def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
     return [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
 
 @bp.route('/latest')
-def latest():
+def latest_titles():
     return render_template('manga/manga_infinite_scroll.html', sort='desc', title="Latest", HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/all')
-def all():
+def all_titles():
     return render_template('manga/manga_infinite_scroll.html', sort='asc', title="All", HIDE_TITLES=HIDE_TITLES)
 
 @bp.route('/history')
@@ -170,7 +170,7 @@ def fetch_page(page: Page):
 def upload():
     pass
 
-TERM_PATTERN = re.compile(r"(?<![:\"'])\b\w+\b(?![:\"'])")
+TERM_PATTERN = re.compile(r"(?<![:\",'])\b\w+\b(?![:\",'])")
 TAG_PATTERN = re.compile(r"(?<!\w|!)tag:([\w,]+)")
 NTAG_PATTERN = re.compile(r"!tag:([\w,]+)")
 DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
@@ -191,11 +191,6 @@ def search():
     terms: list[str] = [*TERM_PATTERN.findall(q), *[*DQUOTE_PATTERN.findall(q), *QUOTE_PATTERN.findall(q)]]
     tags: list[str] = TAG_PATTERN.findall(q)
     ntags: list[str] = NTAG_PATTERN.findall(q)
-
-    query = (
-        select(Manga.id, Manga.title)
-        .join(MangaMetadata, MangaMetadata.manga_id == Manga.id)
-    )
 
     def handle_special_tag(tag, stmt, nstmt):
         filter_stmt = tag in tags
@@ -224,13 +219,56 @@ def search():
     def replace_symbols(ls: list[str]):
         for i in range(len(ls)):
             ls[i] = ls[i].replace("_", " ")
+            ls[i] = ls[i].strip(", ")
 
+    def split_tags(tags: list[str], some: list[str], all: list[list[str]]):
+        for tag in tags:
+            if ',' in tag:
+                all.append(tag.split(','))
+            else:
+                some.append(tag)
 
     user_id = None
     joined_user_data = False
     replace_symbols(terms)
     replace_symbols(tags)
     replace_symbols(ntags)
+
+    metadata_query = select(MangaContentTag.manga_id)
+
+    if len(tags) > 0:
+        or_tags:list[str] = []
+        and_tags:list[list[str]] = []
+        split_tags(tags, or_tags, and_tags)
+
+        if len(or_tags):
+            metadata_query = metadata_query.where(MangaContentTag.tag.in_(or_tags))
+
+        for and_tag in and_tags:
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .where(MangaContentTag.tag.in_(and_tag))
+                .group_by(MangaContentTag.manga_id)
+                .having(func.count() == len(and_tag))
+            )
+            metadata_query = metadata_query.where(MangaContentTag.manga_id.in_(tag_query))
+
+    if len(ntags) > 0:
+        nor_tags:list[str] = []
+        nand_tags:list[list[str]] = []
+        split_tags(ntags, nor_tags, nand_tags)
+
+        for nand_tag in nand_tags:
+            nor_tags.extend(nand_tag)
+
+        if len(nor_tags):
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .where(MangaContentTag.tag.in_(nor_tags))
+                .group_by(MangaContentTag.manga_id)
+                .having(func.count() > 0)
+            )
+            metadata_query = metadata_query.where(MangaContentTag.manga_id.not_in(tag_query))
 
     # Doing it this way will only show titles the user has interacted with before and not others
     # I like this interaction and it is now intended behavior
@@ -264,27 +302,14 @@ def search():
         filter_sfw = query.where(~MangaMetadata.tags.any(ContentTag.nsfw))
         query = handle_special_tag(NSFW, filter_nsfw, filter_sfw)
 
+    query = select(distinct(Manga.id), Manga.title).join(metadata_query.alias("manga_content_tag"), MangaContentTag.manga_id == Manga.id)
+    # print(query)
     for term in terms:
         query = query.where(Manga.title.contains(term))
 
-    if len(tags) > 0:
-        # for tag in tags:
-            # if ',' in tag:
-            #     all_tags = tag.split(',')
-            #     for t in all_tags:
-            #         query = query.where(ContentTag.tag.is_ t)
-            # else:
-                # query = query.where(MangaMetadata.tags.any(ContentTag.tag == tag))
-        query = query.where(MangaMetadata.tags.any(ContentTag.tag.in_(tags)))
-
-    if len(ntags) > 0:
-        query = query.where(~MangaMetadata.tags.any(ContentTag.tag.in_(ntags)))
-
-
-    query = query.distinct(Manga.id)
-    results = [{"id": result[0], "title": result[1]} for result in db.session.execute(query)]
-
-    # print("Results:", results)
+    results = [{"id": id, "title": title} for (id, title) in db.session.execute(query)]
+    print(len(results))
+    # results = [{"id": id, "title": title} for (id, title) in results]
 
     return render_template("manga/search.html", results=results, HIDE_TITLES=HIDE_TITLES)
 
