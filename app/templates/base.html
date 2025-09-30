@@ -58,21 +58,21 @@
                 <div class="w3-dropdown-hover" style="background-color: transparent;">
                     <button class="w3-text-white w3-button text-shadow w3-round-large"><i class="fa-solid fa-user fa-hover-bounce"></i><span class="w3-hide-small">&nbsp;&nbsp;{{ g.user['username'] }}</span></button>
                     <div class="w3-dropdown-content w3-bar-block w3-round-large" style="right: 0%;">
-                        <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-gear"></i><span>&nbsp;Settings</span></a>
-                        <a href="{{ url_for('manga.favorites') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-heart"></i><span>&nbsp;Favorites</span></a>
-                        <a href="{{ url_for('manga.history') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-history"></i><span>&nbsp;History</span></a>
-                        <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-sign-out"></i><span>&nbsp;Logout</span></a>
+                        <a href="{{ url_for('settings') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-gear fa-hover-bounce"></i><span>&nbsp;Settings</span></a>
+                        <a href="{{ url_for('manga.favorites') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-heart fa-hover-bounce"></i><span>&nbsp;Favorites</span></a>
+                        <a href="{{ url_for('manga.history') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-history fa-hover-bounce"></i><span>&nbsp;History</span></a>
+                        <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button"><i class="fa-solid fa-sign-out fa-hover-bounce"></i><span>&nbsp;Logout</span></a>
                     </div>
                 </div>
                     
             </div>
         {% else %}
             {% if request.path == url_for('auth.register') %}
-            <span class="w3-bar-item w3-dark-grey no-hover w3-right"><i class="fa fa-pencil-square-o">&nbsp;Register</i></span>
-            <a href="{{ url_for('auth.login') }}" class="w3-bar-item w3-button w3-right"><i class="fa fa-sign-in">&nbsp;Login</i></a>
+                <span class="w3-bar-item w3-dark-grey no-hover w3-right w3-round-large"><i class="fa-solid fa-pencil-square fa-hover-bounce"></i>&nbsp;Register</span>
+                <a href="{{ url_for('auth.login') }}" class="w3-bar-item w3-button w3-right w3-round-large"><i class="fa-solid fa-sign-in fa-hover-bounce"></i><span>&nbsp;Login</span></a>
             {% elif request.path == url_for('auth.login') %}
-            <a href="{{ url_for('auth.register') }}" class="w3-bar-item w3-button w3-right"><i class="fa fa-pencil-square-o">&nbsp;Register</i></a>
-            <span class="w3-bar-item w3-dark-grey no-hover w3-right"><i class="fa fa-sign-in">&nbsp;Login</i></span>
+                <a href="{{ url_for('auth.register') }}" class="w3-bar-item w3-button w3-right w3-round-large"><i class="fa-solid fa-pencil-square fa-hover-bounce"></i><span>&nbsp;Register</span></a>
+                <span class="w3-bar-item w3-dark-grey no-hover w3-right w3-round-large"><i class="fa-solid fa-sign-in fa-hover-bounce"></i>&nbsp;Login</span>
             {% endif %}
         {% endif %}
     </div>
