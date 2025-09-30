@@ -3,8 +3,8 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mangalib.blueprints.models import db, User
-from mangalib.lib.enum import Access
+from app.blueprints.models import db, User
+from app.lib.enum import Access
 
 bp = Blueprint('auth', __name__, url_prefix='')
 public_access = ['auth.login', 'auth.register', 'auth.logout']

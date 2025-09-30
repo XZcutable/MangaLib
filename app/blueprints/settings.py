@@ -1,9 +1,8 @@
 from flask import (
     Blueprint, g, render_template, Flask
 )
-from mangalib.blueprints.models import db, Path
-
-from mangalib.lib.enum import Access
+from app.blueprints.models import db, Path
+from app.lib.enum import Access
 
 from .auth import get_role_context
 

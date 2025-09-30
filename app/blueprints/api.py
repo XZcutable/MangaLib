@@ -11,8 +11,6 @@ from .auth import owner_access, admin_access
 from . import manga as m
 from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User
 
-from . import models
-
 import re
 from datetime import datetime
 

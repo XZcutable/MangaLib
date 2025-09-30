@@ -2,7 +2,7 @@ import os
 
 from flask import Flask
 
-from mangalib.blueprints import auth, manga, models, settings, api
+from app.blueprints import auth, manga, models, settings, api
 
 import tomllib
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, Mapped, mapped_co
 
 from datetime import datetime, timezone
 
-from mangalib.lib.enum import Access
+from app.lib.enum import Access
 
 import os
 
