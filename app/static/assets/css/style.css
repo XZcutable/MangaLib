@@ -18,8 +18,13 @@ a {
 }
 
 a:hover {
+    text-decoration: none;
+}
+
+a.underline:hover {
     text-decoration: underline;
 }
+
 
 html {
     height: 100%;
