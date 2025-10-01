@@ -15,11 +15,16 @@ addEventListener("load", () => {
     let read_button = document.getElementById("manga-is-read-checkbox");
     read_button.checked = user_manga_data.is_read;
 
+    read_button = document.getElementById("manga-is-read-checkbox-mobile");
+    read_button.checked = user_manga_data.is_read;
+
     if(!user_manga_data.is_read && user_manga_data.current_page > 1) {
         read_button.classList.add("in-progress")
     }
 
     let fav_button = document.getElementById("manga-is-favorite");
+    fav_button.checked = user_manga_data.is_favorite
+    fav_button = document.getElementById("manga-is-favorite-mobile");
     fav_button.checked = user_manga_data.is_favorite
 });
 
@@ -58,128 +63,109 @@ function process_batch(data) {
 {% block style %}
 {{ super() }}
 
-<style>
-.manga-status:has(input:not(:checked)) {
-    background-color: #f44336;
-}
-
-.manga-status:has(input:not(:checked)):has(input:is(.in-progress)) {
-    background-color: #2196F3;
-}
-
-
-.manga-status:has(input:checked) {
-    background-color: #4CAF50;
-}
-
-
-.manga-status span {
-    display: none;
-}
-
-.manga-status:has(input:checked) .is-read {
-    display: unset;
-}
-
-.manga-status:has(input:not(:checked)):not(:has(input.in-progress)) .not-read {
-    display: unset;
-}
-
-.manga-status:has(input:not(:checked)):has(input.in-progress) .is-reading {
-    display: unset;
-}
-
-.fav-icon:has(input:checked) {
-    background-color: forestgreen;
-}
-
-</style>
-
 {% endblock %}
 
 {% block content %}
-    <div class="manga-info" style="padding-top: 25px;">
-        <div class="w3-row">
-            <div class="w3-col l3 w3-container"></div>
-            <div class="w3-col l6 s12 w3-row">
-                <div class="w3-col s6 l6">
-                    <img src="{{ url_for('manga.image') }}/{{ manga.id }}/1" alt="Thumbnail" class="w3-round-large w3-image">
-                </div>
-                <div class="w3-col l6 s6 w3-container w3-padding">
-                    <div class="w3-hide-small">
-                        <div class="w3-xlarge text-shadow w3-text-light-grey">
+    
+    <div class="manga-grid-container w3-round-large" style="margin-top: 10px;">
+        <div class="w3-hide-small w3-padding" style="height: 50vh; display: flex;">
+            <div class="w3-round-large" style="height: 100%; max-width: 50%; text-align: center;">
+                <img class="w3-image w3-round-large" src="{{ url_for('manga.image') }}/{{ manga.id }}/1" alt="Thumbnail" style="height: 100%; max-width: 100%;">
+            </div>
+            <div class="w3-padding" style="flex-grow: 1;">
+                <div class="" style="display: flex;">
+                    <div class="w3-xlarge text-shadow w3-text-light-grey" style="flex-grow: 1;">
                         {% if HIDE_TITLES %}
                             Manga Title
                         {% else %}
                             {{manga.title}}
                         {% endif %}
-                        {% if isAdmin %}
-                            <a href="{{ url_for('api.edit_manga', manga_id=manga.id) }}" class="w3-tiny w3-dark-grey w3-round-large w3-bar-item w3-button"><i class="w3-xlarge fa fa-gear"></i></a>
-                        {% endif %}
-                        </div>
-
-                        <div class="w3-large text-shadow w3-text-grey">Artist: </div>
-                        <div class="w3-large text-shadow w3-text-grey">Language: </div>
-                        <div class="w3-large text-shadow w3-text-grey">Categories: </div>
-                        {% if manga.chapters|length == 1 %}
-                            <div class="w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
-                        {% else %}
-                            <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
-                        {% endif %}
-                        <div class="w3-large text-shadow w3-text-grey">Tags</div>
-                        <div class="w3-padding">
-                            <div id="tag-grid" class="tag-grid">
-                                {% for json in manga.manga_metadata.tags %}
-                                    <div class="tag-grid-item w3-button" onclick="search('tag:{{ json.tag|replace(' ', '_') }}')">{{ json.tag }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div>
-                            <button onclick="document.location = &quot;{{ url_for('manga.resume') }}/{{ manga.id }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
-                            <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
-                                <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
-                                <span class="is-read">Read</span>
-                                <span class="is-reading">In Progress</span>
-                                <span class="not-read">Not Read</span>
-                            </label>
-                            <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-favorite">
-                                <input id="manga-is-favorite" name="is-favorite" type="checkbox" onchange="updateMangaFavStatus(this.checked)">
-                                <i class="fa fa-heart"></i></button>
-                            </label>
-                        </div>
                     </div>
-                    
-                    <div class="w3-hide-large w3-hide-medium">
-                        <div class="w3-small text-shadow w3-text-light-grey">{{manga.title}}</div>
-                        <div class="w3-small text-shadow w3-text-grey">Artist: </div>
-                        <div class="w3-small text-shadow w3-text-grey">Language: </div>
-                        <div class="w3-small text-shadow w3-text-grey">Categories: </div>
-                        {% if manga.chapters|length == 1 %}
-                            <div class="w3-small text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
-                        {% else %}
-                            <div class="w3-small text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
-                        {% endif %}
-                        <div class="w3-grid" style="gap:2px; column-gap:16px; grid-template-columns:repeat(auto-fit,minmax(30px,1fr))">
-                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
-                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
-                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
-                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
-                            <div class="w3-tiny text-shadow w3-text-grey">Tags</div>
-                        </div>
+                    {% if isAdmin %}
+                        <a href="{{ url_for('api.edit_manga', manga_id=manga.id) }}" class="w3-padding-small w3-dark-grey w3-round-large w3-xlarge" style="width: min-content;height: min-content;"><i class="fa-solid fa-gear fa-hover-bounce"></i></a>
+                    {% endif %}
+                </div>
+                <div class="w3-large text-shadow w3-text-grey">Artist: </div>
+                <div class="w3-large text-shadow w3-text-grey">Language: </div>
+                <div class="w3-large text-shadow w3-text-grey">Categories: </div>
+                {% if manga.chapters|length == 1 %}
+                    <div class="w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
+                {% else %}
+                    <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
+                {% endif %}
+                <div class="w3-large text-shadow w3-text-grey">Tags</div>
+                <div class="w3-padding">
+                    <div id="tag-grid" class="tag-grid">
+                        {% for json in manga.manga_metadata.tags %}
+                            <div class="tag-grid-item w3-button w3-grey" onclick="search('tag:{{ json.tag|replace(' ', '_') }}')">{{ json.tag }}</div>
+                        {% endfor %}
                     </div>
+                </div>
+                <div class="w3-padding" style="display: flex; gap: 6px;">
+                    <button onclick="document.location = &quot;{{ url_for('manga.resume') }}/{{ manga.id }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
+                    <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
+                        <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
+                        <span class="is-read">Read</span>
+                        <span class="is-reading">In Progress</span>
+                        <span class="not-read">Not Read</span>
+                    </label>
+                    <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-favorite">
+                        <input id="manga-is-favorite" name="is-favorite" type="checkbox" onchange="updateMangaFavStatus(this.checked)">
+                        <i class="fa-solid fa-heart fa-hover-bounce"></i>
+                    </label>
                 </div>
             </div>
         </div>
-       
-        <div class="manga-grid-container" style="margin-top: 20px;">
-            {% block grid %}
-            {{ super() }}
-            {% endblock %}
-            {# {% if manga.chapters|length == 1 %}
-                {{ manga_page_grid(manga.chapters[0].pages) }}
+
+        <div class="w3-hide-large w3-hide-medium w3-round-large" style="min-height: 50vh; display: flex; flex-direction: column;">
+            {% if isAdmin %}
+            <div style="position: absolute; right: 0%; margin: 5px 5px;">
+                <a href="{{ url_for('api.edit_manga', manga_id=manga.id) }}" class="w3-padding-small w3-dark-grey w3-round-large w3-xlarge" style="width: min-content;height: min-content;"><i class="fa-solid fa-gear fa-hover-bounce"></i></a>
+            </div>
+            {% endif %}
+            <div class="w3-round-large" style="height: 40vh; width: 100%; text-align: center; margin-top: 10px;">
+                <img class="w3-image w3-round-large" src="{{ url_for('manga.image') }}/{{ manga.id }}/1" alt="Thumbnail" style="height: 100%; max-width: 100%;">
+            </div>
+            <div class="w3-padding-small w3-xlarge text-shadow w3-text-light-grey" style="flex-grow: 1;">
+                {% if HIDE_TITLES %}
+                    Manga Title
+                {% else %}
+                    {{manga.title}}
+                {% endif %}
+            </div>
+            <div class="w3-padding" style="display: flex; gap: 6px;">
+                <button onclick="document.location = &quot;{{ url_for('manga.resume') }}/{{ manga.id }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
+                <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox-mobile">
+                    <input id="manga-is-read-checkbox-mobile" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
+                    <span class="is-read">Read</span>
+                    <span class="is-reading">In Progress</span>
+                    <span class="not-read">Not Read</span>
+                </label>
+                <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-favorite-mobile">
+                    <input id="manga-is-favorite-mobile" name="is-favorite" type="checkbox" onchange="updateMangaFavStatus(this.checked)">
+                    <i class="fa-solid fa-heart fa-hover-bounce"></i>
+                </label>
+            </div>
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Artist: </div>
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Language: </div>
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Categories: </div>
+            {% if manga.chapters|length == 1 %}
+                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
             {% else %}
-                {{ manga_chapter_grid(manga) }}
-            {% endif %} #}
+                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
+            {% endif %}
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Tags</div>
+            <div class="w3-padding">
+                <div id="tag-grid" class="tag-grid">
+                    {% for json in manga.manga_metadata.tags %}
+                        <div class="tag-grid-item w3-button w3-grey" onclick="search('tag:{{ json.tag|replace(' ', '_') }}')">{{ json.tag }}</div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
+        
+        {% block grid %}
+        {{ super() }}
+        {% endblock %}
     </div>
 {% endblock %}

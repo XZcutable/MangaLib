@@ -248,3 +248,39 @@
     background-color: aqua !important;
 }
 
+.manga-status:has(input:not(:checked)) {
+    background-color: #f44336;
+}
+
+.manga-status:has(input:not(:checked)):has(input:is(.in-progress)) {
+    background-color: #2196F3;
+}
+
+
+.manga-status:has(input:checked) {
+    background-color: #4CAF50;
+}
+
+.manga-status span {
+    display: none;
+}
+
+.manga-status:has(input:checked) .is-read {
+    display: unset;
+}
+
+.manga-status:has(input:not(:checked)):not(:has(input.in-progress)) .not-read {
+    display: unset;
+}
+
+.manga-status:has(input:not(:checked)):has(input.in-progress) .is-reading {
+    display: unset;
+}
+
+.fav-icon:has(input:checked) {
+    background-color: forestgreen;
+}
+
+.fav-icon {
+    background-color: grey;
+}
