@@ -102,6 +102,9 @@ function process_batch(manga_infos) {
 }
 
 function createMangaGridItem(manga_id, title) {
+    if(HIDE_TITLES) {
+        title = "Manga Title Here"
+    }
     return `
     <div class="manga-card w3-card w3-round-large">
         <a href="${RESUME_URL}/${manga_id}">
