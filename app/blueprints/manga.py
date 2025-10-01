@@ -176,12 +176,15 @@ NTAG_PATTERN = re.compile(r"!tag:([\w,]+)")
 DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
 QUOTE_PATTERN = re.compile(r"'(.*?)'")
 
+UNREAD = "unread"
 READ = "read"
 TAGGED = "tagged"
+UNTAGGED = "untagged"
 IN_PROGRESS = "progress"
+SFW = "sfw"
 NSFW = "nsfw"
 
-SPECIAL_TAGS = [READ, TAGGED, IN_PROGRESS, NSFW]
+SPECIAL_TAGS = [READ, UNREAD, TAGGED, UNTAGGED, IN_PROGRESS, NSFW, SFW]
 
 @bp.route("/search")
 def search():
@@ -200,6 +203,16 @@ def search():
         return tag in SPECIAL_TAGS
 
     def handle_special_tag(tag, positive, metadata_query: Select[tuple[int]]):
+        if tag == UNTAGGED:
+            tag = TAGGED
+            positive = not positive
+        elif tag == SFW:
+            tag = NSFW
+            positive = not positive
+        elif tag == UNREAD:
+            tag = READ
+            positive = not positive
+
         global user_id
         if tag == READ:
             user_id = api.getUserID()
