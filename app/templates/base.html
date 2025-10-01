@@ -41,16 +41,14 @@
     </script>
     <div class="nav-bar w3-padding w3-bar w3-asphalt">
         {% if g.user %}
-            <!-- Large Screens -->
             <div class="w3-large" style="display: flex; ">
                 <a href="{{ url_for('manga.home') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-house fa-hover-bounce fa-lg"></i><span class="w3-hide-small">&nbsp;Home</span></a>
                 <a href="{{ url_for('manga.latest_titles') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-rss fa-lg fa-hover-bounce"></i><span class="w3-hide-small">&nbsp;Latest</span></a>
                 <a href="{{ url_for('manga.all_titles') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-folder fa-hover-bounce"></i><span class="w3-hide-small">&nbsp;All</span></a>
                 <a href="{{ url_for('manga.random_manga') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-shuffle fa-hover-bounce"></i><span class="w3-hide-small">&nbsp;Random</span></a>
                 <a href="{{ url_for('manga.random_unread') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-book fa-hover-bounce"></i><span class="w3-hide-small">&nbsp;Unread</span></a>
-                <a href="{{ url_for('manga.search') }}" class="w3-hide-large w3-hide-medium w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-magnifying-glass fa-hover-bounce"></i></a>
-                {# <a href="{{ url_for('manga.upload') }}" class="w3-bar-item w3-button w3-round-large"><i class="fa fa-upload">&nbsp;Upload</i></a> #}
-                <form method="get" class="w3-hide-small" style="flex-grow: 1; display: flex;" action="{{ url_for('manga.search') }}">
+                <a href="{{ url_for('manga.search') }}" class="w3-hide-large w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-magnifying-glass fa-hover-bounce"></i></a>
+                <form method="get" class="w3-hide-small w3-hide-medium" style="flex-grow: 1; display: flex;" action="{{ url_for('manga.search') }}">
                     <button class="w3-bar-item w3-button w3-round-large"><i class="fa-solid fa-magnifying-glass fa-hover-bounce"><input type="submit" style="display: none;"></i></button>
                     <input type="search" id="search-bar-input" name="q" placeholder="Search..." class="w3-round-large" style="margin: 5px; width: 100%;" minlength="1" required>
                 </form>
@@ -84,16 +82,6 @@
         {% block content %}{% endblock %}
     </div>
     {% block content_footer %}{% endblock %}
-
-    
-    <!-- {% block footer %}
-        <footer id="footer" class="w3-row w3-border-top w3-grey">
-            <a href="/" class="w3-bar-item w3-button">Link</a>
-            <a href="/" class="w3-bar-item w3-button">Link</a>
-            <a href="/" class="w3-bar-item w3-button">Link</a>
-            <a href="/" class="w3-bar-item w3-button">Link</a>
-        </footer>
-    {% endblock %} -->
     </div>
 </body>
 
