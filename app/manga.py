@@ -15,17 +15,9 @@ image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
 bp = Blueprint('manga', __name__, url_prefix='/manga')
 
-latest_count = 30
-fetch_count = 15
-
 def init_app(app: Flask):
-    global latest_count, fetch_count
-
     hide_content(app.config["HIDE_MANGA"])
     hide_titles(app.config["HIDE_TITLES"])
-
-    latest_count = app.config.get("LATEST_COUNT", latest_count)
-    fetch_count = app.config.get("FETCH_COUNT", fetch_count)
     
 def home():
     random_query = (
