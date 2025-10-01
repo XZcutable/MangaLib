@@ -3,7 +3,12 @@ Change redirects to variables with string names in code
 Improve performance of scanning
 
 Next Task:
-read manga history page
+Have long titles show the full title on hover and give an indication when hovered
+Add section at bottom of pages for related manga/chapters?
+Add config to define related manga/chapters
+Add a plan to read section that removes titles after they are read
+Make infinite scroll optional and set by the user in settings and add pagation support
+
 
 Next Hard Tasks:
 Add pending or verified status to uploading manga option
@@ -21,7 +26,7 @@ Add a way to combine mangas as chapters or link together?
 Add Chapters to manga info
 - Add way to delete manga, or mark deleted
 - User History
-Mobile experience parity
+- Mobile experience parity
 
 Future Tasks:
 Right click scan and have targeted scanning
@@ -38,5 +43,3 @@ make site look better
 
 Make paths relative, so data can be moved safely
 Add versioning to site
-
-Sizing in private mode seems slighly off
