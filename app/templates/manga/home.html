@@ -4,10 +4,10 @@
 {% block content %}
 <div class="manga-grid-container">
     {% if titles|length <= 0 %}
-        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>Latest Uploads</strong></span>
+        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>Random Titles</strong></span>
         <div class="w3-text-white w3-xxlarge text-shadow no-hover">Nothing yet :(</div>
     {% else %}
-        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>Latest Uploads</strong></span>
+        <span class="w3-text-white w3-xxlarge text-shadow no-hover w3-padding"><strong>Random Titles</strong></span>
         {{ manga_grid(titles, HIDE_TITLES) }}
     {% endif %}
 </div>

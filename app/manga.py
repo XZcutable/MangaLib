@@ -26,17 +26,17 @@ def init_app(app: Flask):
 
     latest_count = app.config.get("LATEST_COUNT", latest_count)
     fetch_count = app.config.get("FETCH_COUNT", fetch_count)
-
-    @app.route('/')
-    def index():
-        return render_template('manga/home.html', titles=getLatest(count=30), HIDE_TITLES=HIDE_TITLES)
-
-@bp.route('/home')
+    
 def home():
-    return redirect(url_for("index"))
+    random_query = (
+        select(Manga)
+        .order_by(func.random())
+        .limit(30)
+    )
+    random_titles = db.session.scalars(random_query).all()
+    return render_template('manga/home.html', titles=random_titles, HIDE_TITLES=HIDE_TITLES)
 
 def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
-    # query = Manga.query.filter(Manga.chapters).distinct(Manga.id)
     query = select(Manga.id, Manga.title)
     if sort == 'asc':
         query = query.order_by(Manga.id.asc())
@@ -69,16 +69,21 @@ def favorites():
 
 @bp.route('/random')
 def random_manga():
-    manga = Manga.query.order_by(func.random()).first() 
-    return redirect(f"{url_for('manga.resume')}/{manga.id}")
+    random_id = db.session.scalar(select(Manga.id).order_by(func.random()))
+    return redirect(f"{url_for('manga.resume')}/{random_id}")
 
 @bp.route('/random-unread')
 def random_unread():
-    user_read = [ row.manga_id for row in UserMangaData.query.filter_by(is_read = True).values(UserMangaData.manga_id)]
-    manga: Manga = Manga.query.filter(Manga.id.not_in(user_read)).order_by(func.random()).first()
-    if manga is None:
+    user_id = api.getUserID()
+    random_unread_query = (
+        select(Manga.id).outerjoin(UserMangaData, UserMangaData.user_id == user_id)
+        .where((UserMangaData.is_read == None) | (~UserMangaData.is_read))
+        .order_by(func.random())
+    )
+    random_id = db.session.scalar(random_unread_query)
+    if random_id is None:
         return random_manga()
-    return redirect(f"{url_for('manga.resume')}/{manga.id}")
+    return redirect(f"{url_for('manga.resume')}/{random_id}")
 
 @bp.route('')
 @bp.route('/<int:manga_id>')
@@ -367,10 +372,6 @@ def hide_titles(hide: bool):
     global HIDE_TITLES
 
     HIDE_TITLES = hide
-
-def getLatest(count = 10):
-    latest = Manga.query.distinct(Manga.id).order_by(Manga.date_uploaded.desc()).limit(count).all()
-    return latest
 
 def addOrUpdateManga(dir, folderName):
     path = os.path.join(dir, folderName)
