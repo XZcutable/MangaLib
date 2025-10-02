@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from app.enum import Access
 
-import os
+import os, re
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     def __getitem__(self, key):
@@ -44,8 +44,15 @@ class Path(db.Model):
     path: Mapped[str_pk]
 
     def sortList(path_list: list[str]):
-        path_list.sort(key=lambda path: str.casefold(os.path.splitext(path)[0]))
-        path_list.sort(key=lambda path: len(os.path.splitext(path)[0]))
+        # path_list.sort(key=lambda path: str.casefold(os.path.splitext(path)[0]))
+        # path_list.sort(key=lambda path: len(os.path.splitext(path)[0]))
+        path_list.sort(key=lambda path: Path.alphanum_key(os.path.splitext(path)[0]))
+
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [Path.convert(c) for c in re.split('([0-9]+)', key)]
+
+    def natural_sort(path_list: list[str]): 
+        return path_list.sort(key=Path.alphanum_key)
 
 # Username, passwords, preferences
 class User(Base):
@@ -161,7 +168,9 @@ class Manga(Base):
         return Chapter.fromManga(self, number)
 
     def getOrCreate(title:str, manga_path: str) -> "Manga":
-        manga: Manga = Manga.query.filter_by(path=manga_path).one_or_none()
+        # manga: Manga = Manga.query.filter_by(path=manga_path).one_or_none()
+        # manga: Manga = db.session.get(Manga, {"path": manga_path})
+        manga: Manga = db.session.scalar(select(Manga).where(Manga.path == manga_path))
         if manga is None:
             manga = Manga(title=title, path=manga_path, original_title=title, manga_metadata=MangaMetadata())
             manga.original_title = title
@@ -246,30 +255,38 @@ class Chapter(Base):
     def sortList(chapter_list: list["Chapter"]):
         if len(chapter_list) <= 1:
             return
-        print([(chapter.number, chapter.title) for chapter in chapter_list])
-        chapter_list.sort(key=lambda chapter: str.casefold(chapter.title))
+        last_order = [(chapter.number, chapter.title) for chapter in chapter_list]
+        chapter_list.sort(key=lambda chapter: Path.alphanum_key(chapter.title))
 
-        db.session.begin_nested()
+        order_changed = False
         for i in range(len(chapter_list)):
-            chapter_list[i].number = -chapter_list[i].number
-            for page in chapter_list[i].pages:
-                page.chapter_number = -page.chapter_number
-        db.session.commit()
-        db.session.begin_nested()
-        for i in range(len(chapter_list)):
-            chapter_list[i].number = i + 1
-            for page in chapter_list[i].pages:
-                page.chapter_number = i + 1
-        db.session.commit()
+            chapter = chapter_list[i]
+            old_chapter = last_order[i]
+            if(chapter.number != old_chapter[0] or chapter.title != old_chapter[1]):
+                order_changed = True
+                break
 
-        print("sorted")
-        print([(chapter.number, chapter.title) for chapter in chapter_list])
+        if order_changed:
+            db.session.begin_nested()
+            for i in range(len(chapter_list)):
+                if not chapter_list[i].new:
+                    chapter_list[i].number = -chapter_list[i].number
+                    for page in chapter_list[i].pages:
+                        page.chapter_number = -page.chapter_number
+            db.session.commit()
+            db.session.begin_nested()
+            for i in range(len(chapter_list)):
+                chapter_list[i].number = i + 1
+                for page in chapter_list[i].pages:
+                    page.chapter_number = i + 1
+            db.session.commit()
     
     def getOrCreate(manga: Manga, chapter_path: str, number: int, title: str) -> "Chapter":
         chapter_query = (
-            select(Chapter).where(Chapter.manga_id == Manga.id).where(Chapter.path == chapter_path)
+            select(Chapter).where(Chapter.manga_id == manga.id).where(Chapter.path == chapter_path)
         )
         chapter: Chapter = db.session.scalar(chapter_query)
+        # chapter: Chapter = db.session.get(Chapter, {"manga_id": manga.id, "number": number})
         if chapter is None:
             chapter = Chapter(number=number, path=chapter_path)
             chapter.new = True
