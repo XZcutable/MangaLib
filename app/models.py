@@ -5,7 +5,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import click
 
-from sqlalchemy import ForeignKey, ForeignKeyConstraint
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, select
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, Mapped, mapped_column, relationship
 
 from datetime import datetime, timezone
@@ -149,7 +149,6 @@ class Manga(Base):
     original_title:Mapped[str]
     path: Mapped[str]
 
-
     manga_metadata:Mapped["MangaMetadata"] = relationship(cascade="all, delete-orphan")
 
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga", cascade="all, delete-orphan")
@@ -245,17 +244,40 @@ class Chapter(Base):
          return Chapter.query.get({"manga_id": manga.id, "number": number})
     
     def sortList(chapter_list: list["Chapter"]):
-        chapter_list.sort(key=lambda chapter: chapter.number)
+        if len(chapter_list) <= 1:
+            return
+        print([(chapter.number, chapter.title) for chapter in chapter_list])
+        chapter_list.sort(key=lambda chapter: str.casefold(chapter.title))
+
+        db.session.begin_nested()
+        for i in range(len(chapter_list)):
+            chapter_list[i].number = -chapter_list[i].number
+            for page in chapter_list[i].pages:
+                page.chapter_number = -page.chapter_number
+        db.session.commit()
+        db.session.begin_nested()
+        for i in range(len(chapter_list)):
+            chapter_list[i].number = i + 1
+            for page in chapter_list[i].pages:
+                page.chapter_number = i + 1
+        db.session.commit()
+
+        print("sorted")
+        print([(chapter.number, chapter.title) for chapter in chapter_list])
     
-    def getOrCreate(manga: Manga, chapter_path: str, number: int) -> "Chapter":
-        # chapter = Chapter.fromManga(manga, number)
-        chapter = Chapter.query.filter_by(manga_id=manga.id, path=chapter_path).one_or_none()
+    def getOrCreate(manga: Manga, chapter_path: str, number: int, title: str) -> "Chapter":
+        chapter_query = (
+            select(Chapter).where(Chapter.manga_id == Manga.id).where(Chapter.path == chapter_path)
+        )
+        chapter: Chapter = db.session.scalar(chapter_query)
         if chapter is None:
             chapter = Chapter(number=number, path=chapter_path)
             chapter.new = True
+            chapter.title = title
             return chapter
         else:
             chapter.new = False
+            chapter.title = title
             return chapter
     
 class Page(Base):
@@ -277,8 +299,7 @@ class Page(Base):
         page_count = len(chapter.pages)
         if file_count < page_count:
             # print("Files Missing")
-            for i in range(page_count - file_count):
-                index = file_count + i
+            for index in range(page_count - 1, file_count - 1, -1):
                 page = chapter.pages[index]
                 db.session.delete(page)
                 chapter.pages.pop(index)
@@ -335,6 +356,10 @@ class Page(Base):
     
     def getOrCreate(chapter: Chapter, file_name: str, number: int):
         page: Page = Page.query.filter_by(manga_id=chapter.manga_id, chapter_number=chapter.number, number=number).one_or_none()
+        # page_query = (
+        #     select(Page).where(Page.manga_id == chapter.manga_id).where(Page.chapter_number == chapter.number)
+        # )
+        # page: Page = db.session.scalar(page_query)
         if page is None:
             page = Page(number=number, file_name=file_name)
             page.new = True

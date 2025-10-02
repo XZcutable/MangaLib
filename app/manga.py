@@ -139,6 +139,7 @@ def image(manga_id=None, page_num=None, chapter_num=1):
     
     manga: Manga | None = Manga.fromID(id=manga_id)
     if manga is None:
+        # print("Manga Not Real")
         return IMAGE_404()
     
     chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_num)
@@ -148,12 +149,16 @@ def image(manga_id=None, page_num=None, chapter_num=1):
     
     page: Page | None = Page.fromChapter(chapter=chapter, number=page_num)
     if page is None:
+        # print("Page Not Real")
         return IMAGE_404()
     
+    # print(page)
     return FETCH_PAGE(page)
 
 def fetch_page(page: Page):
-    if not os.path.exists(os.path.join(page.chapter.path, page.file_name)):
+    img_path = os.path.join(page.chapter.path, page.file_name)
+    print(img_path, os.path.exists(img_path))
+    if not os.path.exists(img_path):
         return IMAGE_404()
     
     ext = os.path.splitext(page.file_name)[1]
@@ -381,7 +386,7 @@ def addOrUpdateManga(dir, folderName):
     files: list = api.lsFiles(path, filters=image_types)['files']
     Path.sortList(files)
 
-    manga = Manga.getOrCreate(title=folderName, manga_path=path)
+    manga: Manga = Manga.getOrCreate(title=folderName, manga_path=path)
     new_chapters: list[Chapter] = []
 
     if(len(files) == 0 and len(folders) == 0):
@@ -397,7 +402,7 @@ def addOrUpdateManga(dir, folderName):
        
     for folder in folders:
         chapter_path = os.path.join(path, folder)
-        chapter: Chapter = Chapter.getOrCreate(manga, chapter_path, next_chapter_number)
+        chapter: Chapter = Chapter.getOrCreate(manga, chapter_path, next_chapter_number, folder)
         
         chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
 
@@ -431,6 +436,8 @@ def addOrUpdateManga(dir, folderName):
             pass
         else:
             print(f"No change in Manga: {path}")
+
+    Chapter.sortList(manga.chapters)
 
     return manga
     
