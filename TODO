@@ -1,6 +1,13 @@
 Current Project:
 Change redirects to variables with string names in code
 Improve performance of scanning
+Add a dropdown on page previews so that they would only load when pressed?
+Chapter tag
+
+Bug:
+Potential bug when the manga has a lot of chapters maybe. 640 had that issue until removed an readded so unsure what the cause is
+Bug seems to be related to if the first chapter is empty.
+I probably need to handle chapters differently or cut them entirely
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered
