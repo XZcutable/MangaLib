@@ -402,7 +402,7 @@ def addOrUpdateManga(dir, folderName):
        
     for folder in folders:
         chapter_path = os.path.join(path, folder)
-        chapter: Chapter = Chapter.getOrCreate(manga, chapter_path, next_chapter_number, folder)
+        chapter: Chapter = Chapter.create(manga, chapter_path, next_chapter_number, folder)
         
         chapter_files: list = api.lsFiles(chapter_path, filters=image_types)['files']
 
@@ -447,7 +447,7 @@ def addPagesToChapter(chapter: Chapter, files: list):
     new_pages = []
 
     for file in files:
-        page: Page = Page.getOrCreate(chapter=chapter, file_name=file, number=next_page_number)
+        page: Page = Page.create(chapter=chapter, file_name=file, number=next_page_number)
         if page.new:
             new_pages.append(page)
             next_page_number += 1

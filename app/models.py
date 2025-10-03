@@ -44,8 +44,6 @@ class Path(db.Model):
     path: Mapped[str_pk]
 
     def sortList(path_list: list[str]):
-        # path_list.sort(key=lambda path: str.casefold(os.path.splitext(path)[0]))
-        # path_list.sort(key=lambda path: len(os.path.splitext(path)[0]))
         path_list.sort(key=lambda path: Path.alphanum_key(os.path.splitext(path)[0]))
 
     convert = lambda text: int(text) if text.isdigit() else text.lower()
@@ -126,7 +124,6 @@ class ContentTag(Base):
             "nsfw": self.nsfw,
         }
 
-
 class MangaContentTag(Base):
     __tablename__ = "manga_content_tag"
     manga_id:Mapped[int_pk] = mapped_column(ForeignKey("manga_metadata.manga_id"))
@@ -168,8 +165,6 @@ class Manga(Base):
         return Chapter.fromManga(self, number)
 
     def getOrCreate(title:str, manga_path: str) -> "Manga":
-        # manga: Manga = Manga.query.filter_by(path=manga_path).one_or_none()
-        # manga: Manga = db.session.get(Manga, {"path": manga_path})
         manga: Manga = db.session.scalar(select(Manga).where(Manga.path == manga_path))
         if manga is None:
             manga = Manga(title=title, path=manga_path, original_title=title, manga_metadata=MangaMetadata())
@@ -178,12 +173,9 @@ class Manga(Base):
             return manga
         else:
             manga.original_title = title
-            # if manga.manga_metadata is None:
-            #     manga.manga_metadata = MangaMetadata()
             return manga  
 
     def __repr__(self):
-        # return json.dumps(self.toJson())
         return f"<Manga({self.id=}, {self.title=}, {self.chapters=}, {self.manga_metadata=})>"
     
     def toJson(self, shallow_copy=False):
@@ -222,13 +214,10 @@ class Chapter(Base):
 
     pages:Mapped[List["Page"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="chapter")
 
-    new = False
-
     def getPage(self, number: int) -> Optional["Page"]:
         return Page.fromChapter(self, number)
 
     def __repr__(self):
-        # return json.dumps(self.toJson())
         return f"<Chapter({self.manga_id=}, {self.title=}, {self.number=}, {self.pages=})"
     
     def toJson(self, shallow_copy=False):
@@ -250,52 +239,12 @@ class Chapter(Base):
             }
    
     def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
-         return Chapter.query.get({"manga_id": manga.id, "number": number})
+         return db.session.get(Chapter, {"manga_id": manga.id, "number": number})
     
-    def sortList(chapter_list: list["Chapter"]):
-        if len(chapter_list) <= 1:
-            return
-        last_order = [(chapter.number, chapter.title) for chapter in chapter_list]
-        chapter_list.sort(key=lambda chapter: Path.alphanum_key(chapter.title))
-
-        order_changed = False
-        for i in range(len(chapter_list)):
-            chapter = chapter_list[i]
-            old_chapter = last_order[i]
-            if(chapter.number != old_chapter[0] or chapter.title != old_chapter[1]):
-                order_changed = True
-                break
-
-        if order_changed:
-            db.session.begin_nested()
-            for i in range(len(chapter_list)):
-                if not chapter_list[i].new:
-                    chapter_list[i].number = -chapter_list[i].number
-                    for page in chapter_list[i].pages:
-                        page.chapter_number = -page.chapter_number
-            db.session.commit()
-            db.session.begin_nested()
-            for i in range(len(chapter_list)):
-                chapter_list[i].number = i + 1
-                for page in chapter_list[i].pages:
-                    page.chapter_number = i + 1
-            db.session.commit()
-    
-    def getOrCreate(manga: Manga, chapter_path: str, number: int, title: str) -> "Chapter":
-        chapter_query = (
-            select(Chapter).where(Chapter.manga_id == manga.id).where(Chapter.path == chapter_path)
-        )
-        chapter: Chapter = db.session.scalar(chapter_query)
-        # chapter: Chapter = db.session.get(Chapter, {"manga_id": manga.id, "number": number})
-        if chapter is None:
-            chapter = Chapter(number=number, path=chapter_path)
-            chapter.new = True
-            chapter.title = title
-            return chapter
-        else:
-            chapter.new = False
-            chapter.title = title
-            return chapter
+    def create(chapter_path: str, number: int, title: str) -> "Chapter":
+        chapter = Chapter(number=number, path=chapter_path)
+        chapter.title = title
+        return chapter
     
 class Page(Base):
     __tablename__ = "page"
@@ -307,35 +256,6 @@ class Page(Base):
     manga:Mapped["Manga"] = relationship("Manga", foreign_keys=[manga_id], default=None, viewonly=True)
     chapter:Mapped["Chapter"] = relationship(foreign_keys=[manga_id, chapter_number], default=None, viewonly=True)
 
-    new = False
-
-    def addPagesAndSort(chapter: Chapter, file_list: list[str]):
-        Path.sortList(file_list)
-
-        file_count = len(file_list)
-        page_count = len(chapter.pages)
-        if file_count < page_count:
-            # print("Files Missing")
-            for index in range(page_count - 1, file_count - 1, -1):
-                page = chapter.pages[index]
-                db.session.delete(page)
-                chapter.pages.pop(index)
-
-        for i in range(file_count):
-            page_number = i + 1
-            page: Page = Page.getOrCreate(chapter, file_name=file_list[i], number=page_number)
-            if page.new:
-                chapter.pages.append(page)
-
-    def sortList(page_list: list["Page"]):
-        file_list = [page.file_name for page in page_list]
-        
-        Path.sortList(file_list)
-
-        for page in page_list:
-            page.file_name = file_list[page.number - 1]
-
-
     __table_args__ = (
         ForeignKeyConstraint(
             [manga_id], ["manga.id"]
@@ -346,7 +266,6 @@ class Page(Base):
     )
 
     def __repr__(self):
-        # return json.dumps(self.toJson())
         return f"<Page({self.number=}, {self.file_name=}, {self.manga_id=}, {self.chapter_number=})>"
     
     def toJson(self, shallow_copy=False):
@@ -369,22 +288,11 @@ class Page(Base):
             }
     
     def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
-        return Page.query.get({"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})
+        return db.session.get(Page, {"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})
     
-    def getOrCreate(chapter: Chapter, file_name: str, number: int):
-        page: Page = Page.query.filter_by(manga_id=chapter.manga_id, chapter_number=chapter.number, number=number).one_or_none()
-        # page_query = (
-        #     select(Page).where(Page.manga_id == chapter.manga_id).where(Page.chapter_number == chapter.number)
-        # )
-        # page: Page = db.session.scalar(page_query)
-        if page is None:
-            page = Page(number=number, file_name=file_name)
-            page.new = True
-            return page
-        else:
-            if page.file_name != file_name:
-                page.file_name = file_name
-            return page
+    def create(file_name: str, number: int):
+        page = Page(number=number, file_name=file_name)
+        return page
 
 class Metadata():
     pass

@@ -7,9 +7,9 @@ from flask import (
 from sqlalchemy import and_, select
 
 from . import settings
-from .auth import owner_access, admin_access
+from .auth import owner_access, admin_access, get_role_context
 from . import manga as m
-from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User
+from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
 
 import re
 from datetime import datetime
@@ -20,22 +20,108 @@ bp = Blueprint('api', __name__, url_prefix='/api')
 @owner_access
 def scanPaths():
     paths = getPaths()['paths']
+    paths_to_scan = request.form.get("paths")
+    if paths_to_scan is not None:
+        if type(paths_to_scan) == str:
+            if paths_to_scan in paths:
+                paths = [paths_to_scan]
+            else:
+                flash(f"Path does not exist: {paths_to_scan}", 'error')
+                return {'result': 'fail'}
+        if type(paths_to_scan) == list[str]:
+            actual_paths_to_scan = []
+            for path in paths:
+                if path in paths_to_scan:
+                    actual_paths_to_scan.append(path)
+                else:
+                     flash(f"Path does not exist: {path}", 'error')
+            if len(actual_paths_to_scan) == 0:
+                flash(f"Found no paths to scan", 'error')
+                return {'result': 'fail'}
+            else:
+                paths = actual_paths_to_scan
+
     print(f"Need to scan {len(paths)} paths")
-    new_manga: list = []
+    # new_manga: list = []
+    db.session.begin_nested()
     for path in paths:
-        folders = lsDirs(path)['folders']
+        manga_folders = lsDirs(path)['folders']
         # print(f"Need to scan {len(folders)} folders")
-        for folder in folders:
-            manga = m.addOrUpdateManga(path, folder)
-            if manga.new:
-                new_manga.append(manga)
+        for manga_folder in manga_folders:
+            manga_path = os.path.join(path, manga_folder)
+            scan_manga_path(manga_path)
+            # manga = m.addOrUpdateManga(path, manga_folder)
+            # if manga.new:
+            #     new_manga.append(manga)
         #     break
         # break
 
-    db.session.add_all(new_manga)
+    # db.session.add_all(new_manga)
     db.session.commit()
     flash("Scanning", 'info')
     return {'result': 'success'}
+
+@owner_access
+@bp.route('/scan-manga')
+def rescan():
+    manga_id = request.args.get("manga_id")
+    manga: Manga = db.session.get(Manga, {"id": manga_id})
+    if manga is None:
+        flash(f"Manga {manga_id} not found", "error")
+    else:
+        db.session.begin_nested()
+        (success, error) = scan_manga_path(manga.path, manga)
+        if success:
+            flash("Rescanned Manga", "success")
+            db.session.commit()
+        else:
+            flash(f"Unable to rescan manga: {error}", "error")
+            db.session.rollback()
+        
+    return redirect(request.referrer)
+
+def scan_manga_path(path: str, manga: Manga = None):
+    if manga is not None and path != manga.path:
+            print(f"Manga Path mismatch: got {path}, expected {manga.path}")
+            return (False, f"Manga Path mismatch: got {path}, expected {manga.path}")
+    else:
+        # db.session.begin_nested()
+
+        manga_name = path.split("/")[-1]
+        manga = Manga.getOrCreate(title=manga_name, manga_path=path)
+        # for chapter in manga.chapters:
+        #     db.session.delete(chapter)
+        manga.chapters = []
+
+        chapter_names: list[str] = lsDirs(path)['folders']
+        Path.sortList(chapter_names)
+        chapter_names.insert(0, path)
+        next_chapter_number = 1
+        for chapter_name in chapter_names:
+            chapter_path = os.path.join(path, chapter_name)
+            page_names = lsFiles(chapter_path, filters=m.image_types)['files']
+            Path.sortList(page_names)
+
+            if len(page_names) == 0:
+                continue
+
+            chapter: Chapter = Chapter.create(chapter_path=chapter_path, number=next_chapter_number, title=chapter_name)
+            next_chapter_number += 1
+
+            next_page_number = 1
+            for page_name in page_names:
+                page: Page = Page.create(file_name=page_name, number=next_page_number)
+                next_page_number += 1
+                chapter.pages.append(page)
+            manga.chapters.append(chapter)
+        
+        if manga.new:
+            db.session.add(manga)
+
+        # db.session.commit()
+
+        print(f"Manga ({manga.id}, {manga.title}), updated with {len(manga.chapters)} chapter(s)")
+        return (True, None)
 
 @bp.route('/add-path')
 @owner_access
@@ -129,6 +215,7 @@ def lsFiles(dir: str | None, filters: tuple | None):
         return { 'dir': dir, 'files': [] }
     
     dir = os.path.normpath(dir).replace('\\', '/')
+    print(dir, os.path.isfile(dir), os.path.isdir(dir))
     if os.path.isfile(dir):
         if filters is None or os.path.splitext(dir)[1] in filters:
             return { 'dir': dir, 'files': [ dir ] }
@@ -240,7 +327,7 @@ def edit_manga(manga_id: int):
     manga: Manga = Manga.fromID(manga_id)
     if manga is None:
         return redirect(url_for("manga.home"))
-    return render_template("manga/manga_editor.html", manga=manga.toJson())
+    return render_template("manga/manga_editor.html", manga=manga.toJson(), **get_role_context())
 
 @bp.route('/settings/config', methods=['GET','POST'])
 @owner_access
