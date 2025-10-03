@@ -42,21 +42,13 @@ def scanPaths():
                 paths = actual_paths_to_scan
 
     print(f"Need to scan {len(paths)} paths")
-    # new_manga: list = []
     db.session.begin_nested()
     for path in paths:
         manga_folders = lsDirs(path)['folders']
-        # print(f"Need to scan {len(folders)} folders")
         for manga_folder in manga_folders:
             manga_path = os.path.join(path, manga_folder)
             scan_manga_path(manga_path)
-            # manga = m.addOrUpdateManga(path, manga_folder)
-            # if manga.new:
-            #     new_manga.append(manga)
-        #     break
-        # break
-
-    # db.session.add_all(new_manga)
+    
     db.session.commit()
     flash("Scanning", 'info')
     return {'result': 'success'}
@@ -85,12 +77,8 @@ def scan_manga_path(path: str, manga: Manga = None):
             print(f"Manga Path mismatch: got {path}, expected {manga.path}")
             return (False, f"Manga Path mismatch: got {path}, expected {manga.path}")
     else:
-        # db.session.begin_nested()
-
         manga_name = path.split("/")[-1]
         manga = Manga.getOrCreate(title=manga_name, manga_path=path)
-        # for chapter in manga.chapters:
-        #     db.session.delete(chapter)
         manga.chapters = []
 
         chapter_names: list[str] = lsDirs(path)['folders']
@@ -117,8 +105,6 @@ def scan_manga_path(path: str, manga: Manga = None):
         
         if manga.new:
             db.session.add(manga)
-
-        # db.session.commit()
 
         print(f"Manga ({manga.id}, {manga.title}), updated with {len(manga.chapters)} chapter(s)")
         return (True, None)
@@ -215,7 +201,6 @@ def lsFiles(dir: str | None, filters: tuple | None):
         return { 'dir': dir, 'files': [] }
     
     dir = os.path.normpath(dir).replace('\\', '/')
-    print(dir, os.path.isfile(dir), os.path.isdir(dir))
     if os.path.isfile(dir):
         if filters is None or os.path.splitext(dir)[1] in filters:
             return { 'dir': dir, 'files': [ dir ] }
