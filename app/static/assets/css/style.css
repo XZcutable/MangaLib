@@ -181,3 +181,61 @@ div.scroll-load-spin i {
 .toggle-checkbox input {
     display: none;
 }
+
+.w3-round-large-top {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.w3-round-large-bottom {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.w3-round-large-top-right {
+    border-top-right-radius: 8px;
+}
+
+.w3-round-large-top-left {
+    border-bottom-left-radius: 8px;
+}
+
+
+.w3-round-large-bottom-right {
+    border-bottom-right-radius: 8px;
+}
+
+.w3-round-large-bottom-left {
+    border-bottom-left-radius: 8px;
+}
+
+.w3-dropdown-hover .hover-dropdown-button {
+    width: 100% !important;
+}
+
+.w3-dropdown-hover:has(.hover-dropdown-button) .w3-dropdown-content {
+    border-radius: 0px 0px 8px 8px;
+}
+
+.w3-dropdown-hover:has(.hover-dropdown-button) .w3-dropdown-content > *:last-child {
+    border-radius: 0px 0px 8px 8px;
+}
+
+.w3-dropdown-hover:has(.hover-dropdown-button) .w3-dropdown-content {
+    width: 100% !important;
+}
+.w3-dropdown-hover:has(.hover-dropdown-button) {
+    border-radius: 8px;
+}
+
+.hover-dropdown-button {
+    border-radius: 8px;
+}
+
+.hover-dropdown-button:has(.hover-dropdown-button):hover {
+    border-radius: 8px 8px 0px 0px;
+}
+
+.w3-dropdown-hover:has(.hover-dropdown-button):hover .hover-dropdown-button {
+    border-radius: 8px 8px 0px 0px;
+}

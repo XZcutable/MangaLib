@@ -3,16 +3,16 @@
 
 {% block style %}
 <link rel="stylesheet" href="/static/assets/css/styles/settings.css">
+<link rel="stylesheet" href="/static/assets/css/styles/manga-style.css">
 
 <style>
+.selected {
+    background-color: lightgray;
+}
 
-    .selected {
-        background-color: lightgray;
-    }
-
-    .settings-content {
-        display: none;
-    }
+.settings-content {
+    display: none;
+}
 
 /* The switch - the box around the slider */
 .switch {
@@ -326,9 +326,9 @@ input:checked + .slider:before {
             </script>
             <div id="admin-settings" class="settings-content">
                 <div class="no-hover w3-xxlarge"><u>Admin Settings</u></div>
-                <div class="w3-container w3-padding">
+                <div class="w3-padding">
                     <div class="w3-xlarge no-hover"><b>Tags</b></div>
-                    <div id="tag-grid" class="tag-grid w3-grid">
+                    <div id="tag-grid" class="tag-grid">
                     </div>
                 </div>
                 <form method="post" class="w3-padding">

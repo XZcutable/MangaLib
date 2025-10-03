@@ -83,6 +83,7 @@ function process_batch(data) {
             <div class="w3-round-large" style="height: 100%; min-width: 40%; text-align: center;">
                 <img class="w3-image w3-round-large" src="{{ url_for('manga.image') }}/{{ manga.id }}/1" alt="Thumbnail" style="height: 100%; max-width: 100%;">
             </div>
+            {# Desktop #}
             <div class="w3-padding" style="flex-grow: 1;">
                 <div class="" style="display: flex;">
                     <div class="w3-xlarge text-shadow w3-text-light-grey" style="flex-grow: 1;">
@@ -128,6 +129,7 @@ function process_batch(data) {
             </div>
         </div>
 
+        {# Mobile #}
         <div class="w3-hide-large w3-hide-medium w3-round-large" style="min-height: 50vh; display: flex; flex-direction: column;">
             {% if isAdmin %}
             <div style="position: absolute; right: 0%; margin: 5px 5px;">
@@ -175,6 +177,20 @@ function process_batch(data) {
             </div>
         </div>
         
+        {# TODO Make the selected chapter function and ties it to a query parameter or # #}
+        {% if manga.chapters|length > 1 %}
+        <div class="w3-padding">
+            <div class="w3-dropdown-hover" style="min-width: 50%;">
+                <button class="hover-dropdown-button w3-button w3-light-gray">Chapter</button>
+                <div class="w3-dropdown-content w3-bar-block">
+                    {% for chapter in manga.chapters %}
+                        <a class="w3-button w3-block" onclick="show_chapter({{chapter.number}})">Chapter {{chapter.number}}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% block grid %}
         {{ super() }}
         {% endblock %}
