@@ -48,6 +48,12 @@ async function updateMangaTitle() {
         }
     }
 
+    function rescan(manga_id) {
+        if (confirm("Are you sure you want to rescan this manga?")) {
+            document.location = "{{ url_for('api.rescan', manga_id=manga.id) }}"
+        }
+    }
+
     function load_tags(tagsJson) {
         const table = document.getElementById("content-tags");
         console.log(manga.manga_metadata.tags)
@@ -105,9 +111,16 @@ async function updateMangaTitle() {
         <label for="tag-save-submit">
             <input type="submit" class="w3-button w3-grey w3-round-large" value="Save Tags" formaction="{{ url_for('api.set_content_tags', manga_id=manga.id) }}">
         </label>
+        {% if isOwner%}
+        <div class="no-hover"><b>Tools</b></div>
+        </form>
+            <button class="w3-button w3-round-large" onclick="rescan({{ manga.id }})">Rescan Manga</button>
+        </form>
+
         <div class="no-hover"><b>Danger Zone</b></div>
         </form>
             <button class="w3-button w3-round-large w3-red w3-right" onclick="deleteManga({{ manga.id }})">Delete Manga</button>
         </form>
+        {% endif %}
 </div>
 {% endblock %}
