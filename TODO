@@ -1,6 +1,8 @@
 Current Project:
 Change redirects to variables with string names in code
 redo settings pages
+Add a way to define a manga thumbnail besides the first page, maybe something like thumbnail.png
+check page nav positioning w/wo chapter
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered
