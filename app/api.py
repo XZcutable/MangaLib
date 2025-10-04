@@ -77,7 +77,7 @@ def scan_manga_path(path: str, manga: Manga = None):
             print(f"Manga Path mismatch: got {path}, expected {manga.path}")
             return (False, f"Manga Path mismatch: got {path}, expected {manga.path}")
     else:
-        manga_name = path.split("/")[-1]
+        manga_name = os.path.split(path)[1]
         manga = Manga.getOrCreate(title=manga_name, manga_path=path)
         manga.chapters = []
 
@@ -87,7 +87,7 @@ def scan_manga_path(path: str, manga: Manga = None):
         next_chapter_number = 1
         for chapter_name in chapter_names:
             chapter_path = os.path.join(path, chapter_name)
-            page_names = lsFiles(chapter_path, filters=m.image_types)['files']
+            page_names: list[str] = lsFiles(chapter_path, filters=m.image_types)['files']
             Path.sortList(page_names)
 
             if len(page_names) == 0:

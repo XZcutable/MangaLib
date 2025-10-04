@@ -7,10 +7,16 @@
     {% endif %}
 {% endblock %}
 
+{% set selected_chapter = request.args.chapter|default(1)|int %}
+
 {% block script %}
 {{ super() }}
 
 <script>
+selected_chapter = {{ selected_chapter }};
+{# console.log("Chapter: {{ request.args.chapter|default(1) }}"); #}
+
+
 addEventListener("load", () => {
     let read_button = document.getElementById("manga-is-read-checkbox");
     read_button.checked = user_manga_data.is_read;
@@ -26,20 +32,23 @@ addEventListener("load", () => {
     fav_button.checked = user_manga_data.is_favorite
     fav_button = document.getElementById("manga-is-favorite-mobile");
     fav_button.checked = user_manga_data.is_favorite
+
+    
 });
 
 var finished = false;
 var total_chapters = manga.chapters.length;
-var current_chapter = 1;
 
 async function fetchTitles(batch_size, offset) {
-    let chapter = manga.chapters[0];
-    if (offset > chapter.pages.length && manga.chapters.length == 1) {
+    let chapter = manga.chapters[selected_chapter - 1];
+    console.log(batch_size, offset)
+
+    if (offset > chapter.pages.length) {
         stop_loading = true;
         return {"amount": 0}
     }
 
-    let amount = Math.min(chapter.pages.length - offset + manga.chapters.length, batch_size);
+    let amount = Math.min(chapter.pages.length - offset, batch_size);
     if(amount == 0 || amount < batch_size) {
         stop_loading = true;
     }
@@ -47,19 +56,23 @@ async function fetchTitles(batch_size, offset) {
 }
 
 function process_batch(data) {
+    let chapter = manga.chapters[selected_chapter - 1];
+    
     if(data["amount"] > 0) {
         var grid = document.getElementById(grid_id);
         for(let page = 1; page <= data["amount"]; page++) {
-            if(data["offset"] + page <= manga.chapters[0].pages.length) {
-                let page_html = createPageGridItem(manga.id, 1, data["offset"] + page);
+            if(data["offset"] + page <= chapter.pages.length) {
+                let page_html = createPageGridItem(manga.id, selected_chapter, data["offset"] + page);
                 grid.innerHTML += page_html;
-            } else {
+            } 
+            {# else {
                 let chapter_number = page - manga.chapters[0].pages.length;
-                let chapter = manga.chapters[chapter_number]
-                let page_html = createChapterGridItem(manga.id, chapter_number + 1, chapter.title);
-                grid.innerHTML += page_html;
-            }
-            
+                if (chapter_number < manga.chapters.length) {
+                    let chapter = manga.chapters[chapter_number]
+                    let page_html = createChapterGridItem(manga.id, chapter_number + 1, chapter.title);
+                    grid.innerHTML += page_html;
+                }
+            } #}
         }
         clean_up(small_dealy, true, data["amount"]);
     } else {
@@ -77,7 +90,6 @@ function process_batch(data) {
 {% endblock %}
 
 {% block content %}
-    
     <div class="manga-grid-container w3-round-large" style="margin-top: 10px;">
         <div class="w3-hide-small w3-padding" style="height: 50vh; display: flex;">
             <div class="w3-round-large" style="height: 100%; min-width: 40%; text-align: center;">
@@ -181,10 +193,12 @@ function process_batch(data) {
         {% if manga.chapters|length > 1 %}
         <div class="w3-padding">
             <div class="w3-dropdown-hover" style="min-width: 50%;">
-                <button class="hover-dropdown-button w3-button w3-light-gray">Chapter</button>
+                <button class="hover-dropdown-button w3-button w3-light-gray">Chapter {{ selected_chapter }}</button>
                 <div class="w3-dropdown-content w3-bar-block">
                     {% for chapter in manga.chapters %}
-                        <a class="w3-button w3-block" onclick="show_chapter({{chapter.number}})">Chapter {{chapter.number}}</a>
+                        {% if selected_chapter != chapter.number %}
+                        <a class="w3-button w3-block" href="?chapter={{chapter.number}}">Chapter {{chapter.number}}</a>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
