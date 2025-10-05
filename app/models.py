@@ -62,7 +62,7 @@ class User(Base):
     email: Mapped[Optional[str]]
     approved: Mapped[bool] = mapped_column(default=False)
     role: Mapped[str] = mapped_column(default=Access.USER.toString())
-    date_created: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now(timezone.utc))
+    date_created: Mapped[str] = mapped_column(default=None)
 
     def __repr__(self):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
@@ -75,8 +75,8 @@ class UserMangaData(Base):
     current_page:Mapped[int] = mapped_column(default=1)
     is_read:Mapped[bool] = mapped_column(default=False)
     is_favorite:Mapped[bool] = mapped_column(default=False)
-    favorited_when:Mapped[Optional[datetime]] = mapped_column(default=None, nullable=True)
-    last_seen:Mapped[Optional[datetime]] = mapped_column(default=None, nullable=True)
+    favorited_when:Mapped[Optional[str]] = mapped_column(default=None)
+    last_seen:Mapped[Optional[str]] = mapped_column(default=None)
 
     manga:Mapped["Manga"] = relationship(default=None, viewonly=True)
 
@@ -157,7 +157,7 @@ class Manga(Base):
 
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga", cascade="all, delete-orphan")
 
-    date_uploaded:Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    date_uploaded:Mapped[str] = mapped_column(default=None)
 
     new = False
 
@@ -169,6 +169,7 @@ class Manga(Base):
         if manga is None:
             manga = Manga(title=title, path=manga_path, original_title=title, manga_metadata=MangaMetadata())
             manga.original_title = title
+            manga.date_uploaded = str(datetime.now(timezone.utc))
             manga.new = True
             return manga
         else:
@@ -187,6 +188,7 @@ class Manga(Base):
                 "manga_metadata": self.manga_metadata.toJson(),
                 # TODO Add this to the model so i don't have to do this
                 "original_title": self.original_title,
+                "date_uploaded": self.date_uploaded,
             }
         else:
             return {
@@ -195,6 +197,7 @@ class Manga(Base):
                 "original_title": self.original_title,
                 "chapters": [chapter.toJson() for chapter in self.chapters],
                 "manga_metadata": self.manga_metadata.toJson(),
+                "date_uploaded": self.date_uploaded,
             }
 
     def fromID(id: int) -> Optional["Manga"]:

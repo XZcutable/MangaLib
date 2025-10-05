@@ -1,11 +1,11 @@
-import os
-
 from flask import Flask
+from jinja2 import filters 
 
 from . import api, auth, models, settings
 from . import manga
 
 import tomllib
+from datetime import datetime, timezone
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -22,6 +22,7 @@ def create_app():
     app.config.from_file(f'{app.root_path}/config.toml', load=tomllib.load, text=False)
 
     config_overrides(app)
+    filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
     manga.init_app(app)
     models.init_app(app)
@@ -45,9 +46,18 @@ def create_app():
     
     app.add_url_rule('/', endpoint='manga.home')
 
+    format="%b %d %Y at %I:%M %p"
+    print(datetime.now(timezone.utc).strftime(format))
+    print(datetime.now(timezone.utc).astimezone().strftime(format))
+
     return app
 
 def config_overrides(app: Flask):
     app.config['HIDE_MANGA'] = False
     app.config['HIDE_TITLES'] = False
     pass
+
+def tolocaltime(utc_time: datetime, format="%d/%m/%Y, %H:%M:%S"):
+    if type(utc_time) == str:
+        utc_time = datetime.fromisoformat(utc_time)
+    return utc_time.astimezone().strftime(format)

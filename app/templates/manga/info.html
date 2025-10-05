@@ -109,6 +109,7 @@ function process_batch(data) {
                         <a href="{{ url_for('api.edit_manga', manga_id=manga.id) }}" class="w3-padding-small w3-dark-grey w3-round-large w3-xlarge" style="width: min-content;height: min-content;"><i class="fa-solid fa-gear fa-hover-bounce"></i></a>
                     {% endif %}
                 </div>
+                <div class="w3-large text-shadow w3-text-grey">Uploaded on {{ manga.date_uploaded|tolocaltime("%b %d %Y at %I:%M %p") }}</div>
                 <div class="w3-large text-shadow w3-text-grey">Artist: </div>
                 <div class="w3-large text-shadow w3-text-grey">Language: </div>
                 <div class="w3-large text-shadow w3-text-grey">Categories: </div>

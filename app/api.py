@@ -12,7 +12,7 @@ from . import manga as m
 from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -104,6 +104,7 @@ def scan_manga_path(path: str, manga: Manga = None):
             manga.chapters.append(chapter)
         
         if manga.new:
+            manga.date_uploaded = getDatetimeISONow()
             db.session.add(manga)
 
         print(f"Manga ({manga.id}, {manga.title}), updated with {len(manga.chapters)} chapter(s)")
@@ -489,7 +490,7 @@ def save_user_progress():
 
                 user_data.current_chapter = chapter.number
                 user_data.current_page = page.number
-                user_data.last_seen = datetime.now()
+                user_data.last_seen = getDatetimeISONow()
 
                 if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
                     user_data.is_read = True
@@ -530,7 +531,7 @@ def update_fav_status():
             db.session.add(user_data)
         if is_fav != user_data.is_favorite:
             user_data.is_favorite = is_fav
-        user_data.favorited_when = datetime.now()
+        user_data.favorited_when = getDatetimeISONow()
         db.session.commit()
         return user_data.toJson()
 
@@ -541,3 +542,10 @@ def getCurrentUser() -> User:
 
 def getUserID() -> int:
     return getCurrentUser()["id"]
+
+# Seems like Jinja datetime doesn't preserve the timezone when converting to a string so just skipping the middle man
+def getDatetimeISONow():
+    return str(datetime.now(timezone.utc))
+
+def fromDatetimeISO(iso:str):
+    return datetime.fromisoformat(iso)
