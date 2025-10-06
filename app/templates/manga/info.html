@@ -44,7 +44,7 @@ addEventListener("load", () => {
 var finished = false;
 var total_chapters = manga.chapters.length;
 
-async function fetchTitles(batch_size, offset) {
+async function fetchTitles(offset) {
     let chapter = manga.chapters[selected_chapter - 1];
     console.log(batch_size, offset)
 
@@ -132,7 +132,7 @@ function process_batch(data) {
                     </div>
                 </div>
                 <div class="w3-padding" style="display: flex; gap: 6px;">
-                    <button onclick="document.location = &quot;{{ url_for('manga.info', manga_id=manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
+                    <button onclick="document.location = &quot;{{ url_for('manga.resume', manga_id=manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                     <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
                         <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
                         <span class="is-read">Read</span>
