@@ -16,7 +16,7 @@
         <!-- Need DIV for mouse events -->
         <div id="page-zone" class="page-zone fill-height">
             <i id="load-icon" class="fa-solid fa-spinner load-spin"></i>
-            <img id="page-image" class="no-hover fill-height w3-image w3-hide" src="{{ url_for('manga.image') }}/{{ manga.id }}/{{ chapter.number }}/{{ page.number }}" alt="Page">
+            <img id="page-image" class="no-hover fill-height w3-image w3-hide" src="{{ url_for('manga.image', manga_id=manga.id, chapter_number=chapter.number, page_number=page.number) }}" alt="Page">
         </div>
     </div>
 </div>
@@ -30,8 +30,8 @@
             <i class="w3-button w3-round-large fa-solid fa-left-long" onclick="prevPage()" style="width: fit-content;"></i>
             <div class="manga-dropdown w3-round-large">
                 <div id="page-dropdown" class="manga-dropdown-content w3-round-large w3-large">
-                    {% for p in chapter.pages %}
-                    <a class="manga-dropdown-item" href="{{ url_for('manga.read') }}/{{ manga.id }}/{{ chapter.number }}/{{ p.number }}">{{ p.number }}</a>
+                    {% for page in chapter.pages %}
+                    <a class="manga-dropdown-item" href="{{ url_for('manga.read', manga_id=manga.id, chapter_number=chapter.number, page_number=page.number) }}">{{ page.number }}</a>
                     {% endfor %}
                 </div>
                 <span class="no-hover">
@@ -43,8 +43,8 @@
             {% if manga.chapters|length > 1 %}
             <div class="manga-dropdown w3-round-large" style="position: absolute; left: 100%; width: max-content">
                 <div id="chapter-dropdown" class="manga-dropdown-content w3-round-large w3-large">
-                    {% for c in manga.chapters %}
-                    <a class="manga-dropdown-item" href="{{ url_for('manga.read') }}/{{ manga.id }}/{{ c.number }}/1">{{ c.number }}</a>
+                    {% for chapter in manga.chapters %}
+                    <a class="manga-dropdown-item" href="{{ url_for('manga.read', manga_id=manga.id, chapter_number=chapter.number, page_number=1) }}">{{ c.number }}</a>
                     {% endfor %}
                 </div>
                 <span class="no-hover">

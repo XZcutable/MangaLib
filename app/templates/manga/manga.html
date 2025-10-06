@@ -1,11 +1,11 @@
 {% macro manga_card(manga, hide_titles=false, title=false) -%}
     <div class="manga-card w3-card w3-round-large">
-        <a href="{{ url_for('manga.resume') }}/{{ manga.id }}">
+        <a href="{{ url_for('manga.resume', manga_id=manga.id) }}">
             <div class="manga-card-thumbnail w3-hover-opacity">
-                <img src="{{ url_for('manga.image') }}/{{ manga.id }}/1" alt="Thumbnail" class="w3-round-large no-hover">
+                <img src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" class="w3-round-large no-hover">
             </div>
         </a>
-        <a href="{{ url_for('manga.info') }}/{{ manga.id }}">
+        <a href="{{ url_for('manga.info', manga_id=manga.id) }}">
             <div class="manga-card-title w3-tiny w3-text-white text-shadow">
                 {% if hide_titles or title %}
                     {{ title or "Manga Title Here" }}
@@ -19,12 +19,12 @@
 
 {% macro chapter_card(chapter, hide_titles=false, title=false) -%}
     <div class="manga-card w3-card w3-round-large">
-        <a href="{{ url_for('manga.resume') }}/{{ chapter.manga_id }}/{{ chapter.number }}/1">
+        <a href="{{ url_for('manga.resume', manga_id=chapter.manga_id, chapter_number=chapter.number, page_number=1) }}">
             <div class="manga-card-thumbnail w3-hover-opacity">
-                <img src="{{ url_for('manga.image') }}/{{ chapter.manga_id }}/{{ chapter.number }}/1" alt="Thumbnail" class="w3-round-large no-hover">
+                <img src="{{ url_for('manga.image', manga_id=chapter.manga_id, chapter_number=chapter.number, page_number=1) }}" alt="Thumbnail" class="w3-round-large no-hover">
             </div>
         </a>
-        <a href="{{ url_for('manga.read') }}/{{ chapter.manga_id }}/{{ chapter.number }}/1">
+        <a href="{{ url_for('manga.read', manga_id=chapter.manga_id, chapter_number=chapter.number, page_number=1) }}">
             <div class="manga-card-title w3-tiny w3-text-white text-shadow">
                 {% if hide_titles or title %}
                     {{ title or "Chapter Title Here" }}
@@ -38,9 +38,9 @@
 
 {% macro manga_page(page) -%}
 <div class="manga-card manga-card-page w3-card w3-round-large">
-    <a href="{{ url_for('manga.read') }}/{{ page.manga_id }}/{{ page.chapter.number }}/{{ page.number }}">
+    <a href="{{ url_for('manga.read', manga_id=page.manga_id, chapter_number=page.chapter.number, page_number=page.number) }}">
         <div class="manga-card-thumbnail w3-hover-opacity">
-            <img src="{{ url_for('manga.image') }}/{{ page.manga_id }}/{{ page.chapter.number }}/{{ page.number }}" alt="Thumbnail" class="w3-round-large no-hover">
+            <img src="{{ url_for('manga.image', manga_id=page.manga_id, chapter_number=page.chapter.number, page_number=page.number) }}" alt="Thumbnail" class="w3-round-large no-hover">
         </div>
     </a>
 </div>

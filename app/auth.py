@@ -5,9 +5,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .models import db, User
 from .enum import Access
+from .constants import ROUTE, ENDPOINT, VAR
 
 bp = Blueprint('auth', __name__, url_prefix='')
-public_access = ['auth.login', 'auth.register', 'auth.logout']
+public_access = [ENDPOINT.AUTH_LOGIN, ENDPOINT.AUTH_REGISTER, ENDPOINT.AUTH_LOGOUT]
 
 import re, functools, click
 
@@ -35,7 +36,7 @@ def load_logged_in_user():
 
     if g.user is not None and user_id != g.user['id']:
         print("User error")
-        return redirect(url_for('auth.logout'))
+        return redirect(url_for(ENDPOINT.AUTH_LOGOUT))
 
     if g.get("requires_clearance") is None:
         g.requires_clearance = True
@@ -55,9 +56,9 @@ def load_logged_in_user():
             flash("Account Needed", 'error')
         session["requested_url"] = request.base_url
         print(session["requested_url"])
-        return redirect(url_for("auth.login"))
+        return redirect(url_for(ENDPOINT.AUTH_LOGIN))
 
-@bp.route('/auth/change-password', methods=('POST',))
+@bp.route(ROUTE.CHANGE_PASSWORD, methods=('POST',))
 def changePassword():
     old_password = request.form['old-password']
     new_password = request.form['new-password']
@@ -80,9 +81,9 @@ def changePassword():
     else:
         flash(error, 'error')
 
-    return redirect(url_for(request.args['redirect'] or 'manga.home'))
+    return redirect(url_for(request.args['redirect'] or ENDPOINT.HOME))
 
-@bp.route('/auth/change-username', methods=["POST"])
+@bp.route(ROUTE.CHANGE_USERNAME, methods=["POST"])
 def changeUsername():
     new_username = request.form["new-username"]
 
@@ -98,7 +99,7 @@ def changeUsername():
 
     return redirect(request.referrer)
 
-@bp.route('/register', methods=('GET', 'POST'))
+@bp.route(ROUTE.REGISTER, methods=('GET', 'POST'))
 def register():
     if g.user is not None:
         return redirect(url_for('manga.home'))
@@ -138,7 +139,7 @@ def register():
                     error = 'Registration is closed'
             if error is None:
                 db.session.commit()
-                return redirect(url_for("auth.login", last_username=username))
+                return redirect(url_for(ENDPOINT.AUTH_LOGIN, last_username=username))
             else:
                 db.session.rollback()
         
@@ -150,7 +151,7 @@ def register():
         registrationOpen = owner is None or current_app.config['ALLOW_NEW_USERS']
         return render_template('auth/register.html', registrationOpen=registrationOpen)
 
-@bp.route('/login', methods=('GET', 'POST'))
+@bp.route(ROUTE.LOGIN, methods=('GET', 'POST'))
 def login():
     print(request.referrer)
     # if g.get("user") is not None:
@@ -203,7 +204,7 @@ def owner_access(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if g.user is None:
-            return redirect(url_for('auth.login'))
+            return redirect(url_for(ENDPOINT.AUTH_LOGIN))
         
         user_access = Access.fromString(g.user['role'])
         if user_access < Access.OWNER:
@@ -217,7 +218,7 @@ def admin_access(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if g.user is None:
-            return redirect(url_for('auth.login'))
+            return redirect(url_for(ENDPOINT.AUTH_LOGIN))
         
         user_access = Access.fromString(g.user['role'])
         if user_access < Access.ADMIN:
@@ -231,7 +232,7 @@ def moderator_access(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if g.user is None:
-            return redirect(url_for('auth.login'))
+            return redirect(url_for(ENDPOINT.AUTH_LOGIN))
         
         user_access = Access.fromString(g.user['role'])
         if user_access < Access.MODERATOR:

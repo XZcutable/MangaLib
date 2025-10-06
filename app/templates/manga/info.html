@@ -93,7 +93,7 @@ function process_batch(data) {
     <div class="manga-grid-container w3-round-large" style="margin-top: 10px;">
         <div class="w3-hide-small w3-padding" style="height: 50vh; display: flex;">
             <div class="w3-round-large" style="height: 100%; min-width: 40%; text-align: center;">
-                <img class="w3-image w3-round-large" src="{{ url_for('manga.image') }}/{{ manga.id }}/1" alt="Thumbnail" style="height: 100%; max-width: 100%;">
+                <img class="w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
             </div>
             {# Desktop #}
             <div class="w3-padding" style="flex-grow: 1;">
@@ -127,7 +127,7 @@ function process_batch(data) {
                     </div>
                 </div>
                 <div class="w3-padding" style="display: flex; gap: 6px;">
-                    <button onclick="document.location = &quot;{{ url_for('manga.resume') }}/{{ manga.id }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
+                    <button onclick="document.location = &quot;{{ url_for('manga.info', manga_id=manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                     <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
                         <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
                         <span class="is-read">Read</span>
@@ -150,7 +150,7 @@ function process_batch(data) {
             </div>
             {% endif %}
             <div class="w3-round-large" style="height: 40vh; width: 100%; text-align: center; margin-top: 10px;">
-                <img class="w3-image w3-round-large" src="{{ url_for('manga.image') }}/{{ manga.id }}/1" alt="Thumbnail" style="height: 100%; max-width: 100%;">
+                <img class="w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
             </div>
             <div class="w3-padding-small w3-xlarge text-shadow w3-text-light-grey" style="flex-grow: 1;">
                 {% if HIDE_TITLES %}
@@ -160,7 +160,7 @@ function process_batch(data) {
                 {% endif %}
             </div>
             <div class="w3-padding" style="display: flex; gap: 6px;">
-                <button onclick="document.location = &quot;{{ url_for('manga.resume') }}/{{ manga.id }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
+                <button onclick="document.location = &quot;{{ url_for('manga.resume', manga_id= manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                 <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox-mobile">
                     <input id="manga-is-read-checkbox-mobile" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
                     <span class="is-read">Read</span>

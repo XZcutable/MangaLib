@@ -5,6 +5,7 @@ from flask import (
 from . import api
 from .models import db, Manga, Chapter, Page, Path, UserMangaData, MangaMetadata, ContentTag, MangaContentTag
 from .auth import get_role_context
+from .constants import VAR, HTML, ROUTE, ENDPOINT
 
 from sqlalchemy import func, select, text, bindparam, and_, or_, any_, not_, all_, distinct, join
 from sqlalchemy import Select, Subquery
@@ -16,8 +17,8 @@ image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 bp = Blueprint('manga', __name__, url_prefix='/manga')
 
 def init_app(app: Flask):
-    hide_content(app.config["HIDE_MANGA"])
-    hide_titles(app.config["HIDE_TITLES"])
+    hide_content(app.config[VAR.HIDE_MANGA])
+    hide_titles(app.config[VAR.HIDE_TITLES])
     
 def home():
     random_query = (
@@ -26,45 +27,43 @@ def home():
         .limit(30)
     )
     random_titles = db.session.scalars(random_query).all()
-    return render_template('manga/home.html', titles=random_titles, HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.HOME, titles=random_titles, HIDE_TITLES=HIDE_TITLES)
 
-def fetchTitles(sort: str = 'asc', offset = 0, count = 30):
+def fetchTitles(sort: str = VAR.ASC, offset = 0, count = 30):
     query = select(Manga.id, Manga.title)
-    if sort == 'asc':
+    if sort == VAR.ASC:
         query = query.order_by(Manga.id.asc())
-    elif sort == 'desc':
+    elif sort == VAR.DESC:
         query = query.order_by(Manga.id.desc())
 
     query = query.offset(offset)
-
-
     if count > 0:
         query = query.limit(min(count, 100))
 
     return [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
 
-@bp.route('/latest')
+@bp.route(ROUTE.LATEST)
 def latest_titles():
-    return render_template('manga/manga_infinite_scroll.html', sort='desc', title="Latest", HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.INFINITE_SCROLL, sort=VAR.DESC, title="Latest", HIDE_TITLES=HIDE_TITLES)
 
-@bp.route('/all')
+@bp.route(ROUTE.ALL)
 def all_titles():
-    return render_template('manga/manga_infinite_scroll.html', sort='asc', title="All", HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.INFINITE_SCROLL, sort=VAR.ASC, title="All", HIDE_TITLES=HIDE_TITLES)
 
-@bp.route('/history')
+@bp.route(ROUTE.HISTORY)
 def history():
-    return render_template('manga/history.html', sort='desc', title="History", HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.HISTORY, sort=VAR.DESC, title="History", HIDE_TITLES=HIDE_TITLES)
 
-@bp.route('/favorites')
+@bp.route(ROUTE.FAVORITES)
 def favorites():
-    return render_template('manga/favorites.html', sort='desc', title="Favorites", HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.FAVORITES, sort=VAR.DESC, title="Favorites", HIDE_TITLES=HIDE_TITLES)
 
-@bp.route('/random')
+@bp.route(ROUTE.RANDOM)
 def random_manga():
     random_id = db.session.scalar(select(Manga.id).order_by(func.random()))
-    return redirect(f"{url_for('manga.resume')}/{random_id}")
+    return redirect(f"{url_for(ENDPOINT.MANGA_RESUME, manga_id=random_id)}")
 
-@bp.route('/random-unread')
+@bp.route(ROUTE.RANDOM_UNREAD)
 def random_unread():
     user_id = api.getUserID()
     random_unread_query = (
@@ -75,26 +74,24 @@ def random_unread():
     random_id = db.session.scalar(random_unread_query)
     if random_id is None:
         return random_manga()
-    return redirect(f"{url_for('manga.resume')}/{random_id}")
+    return redirect(f"{url_for(ENDPOINT.MANGA_RESUME, manga_id=random_id)}")
 
-@bp.route('')
 @bp.route('/<int:manga_id>')
-def info(manga_id: int):
+def info(manga_id: int = None):
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
-        return redirect(url_for('home'))
+        return redirect(url_for(ENDPOINT.HOME))
     
     user_manga_data: UserMangaData = UserMangaData.getOrCreate(api.getUserID(), manga)
 
-    return render_template('manga/info.html', manga=manga.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
+    return render_template(HTML.INFO, manga=manga.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
-@bp.route("/resume")
 @bp.route("/resume/<int:manga_id>")
 @bp.route("/resume/<int:manga_id>/<int:chapter_number>")
 def resume(manga_id: int, chapter_number: int=0):
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
-        return redirect(url_for('home'))
+        return redirect(url_for(ENDPOINT.HOME))
     progress: UserMangaData = UserMangaData.getOrCreate(g.user["id"], manga)
 
     progress_data = { "manga_id": manga.id, "page_number": progress.current_page, "chapter_number": progress.current_chapter }
@@ -103,9 +100,8 @@ def resume(manga_id: int, chapter_number: int=0):
     elif chapter_number > 0 and (progress.new or chapter_number != progress.current_chapter):
         progress_data = { "manga_id": manga.id, "page_number": 1, "chapter_number": chapter_number }
 
-    return redirect(url_for("manga.read", **progress_data))
+    return redirect(url_for(ENDPOINT.MANGA_READ, **progress_data))
 
-@bp.route('')
 @bp.route('/<int:manga_id>/<int:page_number>')
 @bp.route('/<int:manga_id>/<int:chapter_number>/<int:page_number>')
 def read(manga_id: int, page_number=0, chapter_number=1):
@@ -114,26 +110,25 @@ def read(manga_id: int, page_number=0, chapter_number=1):
     
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
-        return redirect(url_for('home'))
+        return redirect(url_for(ENDPOINT.HOME))
     
     chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_number)
     if chapter is None:
-        return redirect(f"{url_for('manga.info')}/{manga_id}")
+        return redirect(f"{url_for(ENDPOINT.MANGA_INFO, manga_id=manga_id)}")
     
     page: Page | None = Page.fromChapter(chapter, page_number)
     if page is None:
-        return redirect(f"{url_for('manga.info')}/{manga_id}")
+        return redirect(f"{url_for(ENDPOINT.MANGA_INFO, manga_id=manga_id)}")
     
-    return render_template('manga/page.html', manga=manga.toJson(), chapter=chapter.toJson(), page=page.toJson())
+    return render_template(HTML.PAGE, manga=manga.toJson(), chapter=chapter.toJson(), page=page.toJson())
 
 IMAGE_404 = lambda *_: send_file("static/assets/images/error/404.png", max_age=10*24*60*60)
 
-@bp.route('/manga-image')
-@bp.route('/manga-image/<int:manga_id>/<int:page_num>')
-@bp.route('/manga-image/<int:manga_id>/<int:chapter_num>/<int:page_num>')
-def image(manga_id=None, page_num=None, chapter_num=1):
-    # print("Geting page")
-    if manga_id < 1 or page_num < 1 or chapter_num < 1:
+@bp.route('/manga-image/<int:manga_id>/<int:page_number>')
+@bp.route('/manga-image/<int:manga_id>/<int:chapter_number>/<int:page_number>')
+def image(manga_id=None, page_number=None, chapter_number=1):
+    print("Geting page")
+    if manga_id < 1 or page_number < 1 or chapter_number < 1:
         # print("Too Low")
         return IMAGE_404()
     
@@ -142,12 +137,12 @@ def image(manga_id=None, page_num=None, chapter_num=1):
         # print("Manga Not Real")
         return IMAGE_404()
     
-    chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_num)
+    chapter: Chapter | None = Chapter.fromManga(manga=manga, number=chapter_number)
     if chapter is None:
         # print("Chapter Not Real")
         return IMAGE_404()
     
-    page: Page | None = Page.fromChapter(chapter=chapter, number=page_num)
+    page: Page | None = Page.fromChapter(chapter=chapter, number=page_number)
     if page is None:
         # print("Page Not Real")
         return IMAGE_404()

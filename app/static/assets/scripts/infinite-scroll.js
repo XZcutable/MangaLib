@@ -107,12 +107,12 @@ function createMangaGridItem(manga_id, title) {
     }
     return `
     <div class="manga-card w3-card w3-round-large">
-        <a href="${RESUME_URL}/${manga_id}">
+        <a href="${MANGA_URL}/${manga_id}">
             <div class="manga-card-thumbnail w3-hover-opacity">
                 <img src="${IMAGE_URL}/${manga_id}/1" alt="Thumbnail" class="w3-round-large no-hover">
             </div>
         </a>
-        <a href="${INFO_URL}/${manga_id}">
+        <a href="${MANGA_URL}/${manga_id}">
             <div class="manga-card-title w3-tiny w3-text-white text-shadow">
                 ${title}
             </div>
@@ -127,12 +127,12 @@ function createChapterGridItem(manga_id, chapter_number, title) {
     }
     return `
     <div class="manga-card w3-card w3-round-large">
-        <a href="${PAGE_URL}/${manga_id}/${chapter_number}/1">
+        <a href="${MANGA_URL}/${manga_id}/${chapter_number}/1">
             <div class="manga-card-thumbnail w3-hover-opacity">
                 <img src="${IMAGE_URL}/${manga_id}/${chapter_number}/1" alt="Thumbnail" class="w3-round-large no-hover">
             </div>
         </a>
-        <a href="${PAGE_URL}/${manga_id}/${chapter_number}/1">
+        <a href="${MANGA_URL}/${manga_id}/${chapter_number}/1">
             <div class="manga-card-title w3-tiny w3-text-white text-shadow">
                 ${title}
             </div>
@@ -144,7 +144,7 @@ function createChapterGridItem(manga_id, chapter_number, title) {
 function createPageGridItem(manga_id, chapter_number, page_number) {
     return `
     <div class="manga-card manga-card-page w3-card w3-round-large">
-        <a href="${PAGE_URL}/${manga_id}/${chapter_number}/${page_number}">
+        <a href="${MANGA_URL}/${manga_id}/${chapter_number}/${page_number}">
             <div class="manga-card-thumbnail w3-hover-opacity">
                 <img src="${IMAGE_URL}/${manga_id}/${chapter_number}/${page_number}"" alt="Thumbnail" class="w3-round-large no-hover">
             </div>

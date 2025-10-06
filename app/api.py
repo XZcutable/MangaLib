@@ -8,6 +8,7 @@ from sqlalchemy import and_, select
 
 from . import settings
 from .auth import owner_access, admin_access, get_role_context
+from .constants import ENDPOINT
 from . import manga as m
 from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
 
@@ -228,9 +229,9 @@ def delete_manga():
         if manga is not None:
             db.session.delete(manga)
             db.session.commit()
-            return redirect(url_for("manga.home"))
+            return redirect(url_for(ENDPOINT.HOME))
 
-    return redirect(url_for("manga.home"))
+    return redirect(url_for(ENDPOINT.HOME))
 
 def getRootFolders():
     if os.name == 'nt':
@@ -312,7 +313,7 @@ def fetch_favorites():
 def edit_manga(manga_id: int):
     manga: Manga = Manga.fromID(manga_id)
     if manga is None:
-        return redirect(url_for("manga.home"))
+        return redirect(url_for(ENDPOINT.HOME))
     return render_template("manga/manga_editor.html", manga=manga.toJson(), **get_role_context())
 
 @bp.route('/settings/config', methods=['GET','POST'])

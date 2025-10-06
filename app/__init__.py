@@ -34,6 +34,8 @@ def create_app():
     app.register_blueprint(settings.bp)
     app.register_blueprint(api.bp)
 
+    app.add_url_rule('/manga/manga-image', endpoint='manga_image')
+    app.add_url_rule('/manga', endpoint='manga')
     app.add_url_rule('/all', endpoint='manga.all')
     app.add_url_rule('/latest', endpoint='manga.latest')
     app.add_url_rule('/random', endpoint='manga.random')

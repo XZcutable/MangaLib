@@ -78,7 +78,7 @@ async function updateMangaTitle() {
     }
 
     addEventListener("load", async () => {
-        {# const manga_tag_url = "{{ url_for('api.get_manga_tags', manga_id= manga.id) }}";
+        {# const manga_tag_url = "{{ url_for('api.get_manga_tags', manga_id=manga.id) }}";
         await fetch(manga_tag_url).then(response => response.ok ? response.json().then(json => manga_tags = json.tags) : false); #}
 
         const tag_url = "{{ url_for('api.get_content_tags') }}";
@@ -88,7 +88,7 @@ async function updateMangaTitle() {
 </script>
 
 <div class="settings-panel manga-grid-container w3-padding w3-xlarge text-shadow">
-    <button class="w3-button w3-large w3-grey w3-round-large" onclick="document.location=&quot;{{ url_for('manga.info') }}/{{ manga.id }}&quot;">Back</button>
+    <button class="w3-button w3-large w3-grey w3-round-large" onclick="document.location=&quot;{{ url_for('manga.info', manga_id=manga.id) }}&quot;">Back</button>
     <div class="no-hover" for="manga_title"><b>Title</b></div>
     <input type="text" id="manga_title" value="{{ manga.title }}">
     <div class="" style="display: inline; width: 100%; text-wrap-mode: nowrap; text-align: center;">
