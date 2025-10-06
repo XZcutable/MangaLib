@@ -1,7 +1,7 @@
 import os
 
 from flask import (
-    Blueprint, flash, request, render_template, redirect, url_for, Response, g
+    Flask, Blueprint, flash, request, render_template, redirect, url_for, Response, g
 )
 
 from sqlalchemy import and_, select
@@ -16,6 +16,12 @@ import re
 from datetime import datetime, timezone
 
 bp = Blueprint('api', __name__, url_prefix='/api')
+
+FETCH_BATCH_SIZE = 30
+
+def init_app(app: Flask):
+    global FETCH_BATCH_SIZE
+    FETCH_BATCH_SIZE = app.config.get("FETCH_BATCH_SIZE", FETCH_BATCH_SIZE)
 
 @bp.route('/scan-paths', methods=['POST'])
 @owner_access
@@ -279,7 +285,7 @@ def fetch_titles():
     query = (
         select(Manga.id, Manga.title)
         .order_by(SQL.ORDER.get(sort, SQL.ASC)(Manga.id))
-        .offset(offset).limit(30)
+        .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     
     return execute_query(query, mappings=["id", "title"])
@@ -297,7 +303,7 @@ def fetch_history():
             Manga.id == UserMangaData.manga_id
         ))
         .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.last_seen).nulls_last())
-        .offset(offset).limit(30)
+        .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     return execute_query(query, mappings=["id", "title"])
 
@@ -315,7 +321,7 @@ def fetch_favorites():
             Manga.id == UserMangaData.manga_id
         ))
         .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.favorited_when).nulls_last())
-        .offset(offset).limit(30)
+        .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     return execute_query(query, mappings=["id", "title"])
 
@@ -334,7 +340,7 @@ def fetch_queued():
             Manga.id == UserMangaData.manga_id
         ))
         .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.queued_when).nulls_last())
-        .offset(offset).limit(30)
+        .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     return execute_query(query, mappings=["id", "title"])
 
