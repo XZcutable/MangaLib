@@ -4,20 +4,6 @@
 {{ super() }}
 
 <script>
-
-async function fetchTitles(batch_size, offset) {
-    try {
-        var request = `${QUERY_FAVORITES_URL}?count=${batch_size}&offset=${offset}&sort=${sort}`;
-        const response = await fetch(request);
-        if(response.status == 200) {
-            const json = await response.json();
-            return json;
-        }
-    } catch {
-        console.log("Error Fetching Tiles")
-    }
-    throw "No Json"
-}
-
+var query_url = QUERY_FAVORITES_URL;
 </script>
 {% endblock %}

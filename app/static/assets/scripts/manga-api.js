@@ -25,3 +25,15 @@ async function updateMangaFavStatus(isFav) {
 
     }
 }
+
+async function updateMangaQueueStatus(isQueued) {
+    let formData = new FormData();
+    formData.append("is_queued", isQueued);
+
+    try {
+        await fetch(`${UPDATE_QUEUE_STATUS_URL}?manga_id=${manga.id}`, {method: "POST", body: formData});
+        document.location.reload();
+    } catch {
+
+    }
+}

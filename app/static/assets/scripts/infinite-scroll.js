@@ -12,6 +12,8 @@ var delay = small_dealy;
 var sort = 'desc'
 var stop_loading = false;
 
+var query_url = QUERY_REQUEST_URL;
+
 function clean_up(delay, success, processed) {
     var load_icon = document.getElementById(loading_icon_id);
     
@@ -46,14 +48,14 @@ window.addEventListener('load', function() {
 function detect_end_of_scroll() {
     var content = document.getElementById(scroll_id);
     if(!stop_loading && content.scrollTop >= content.scrollTopMax - scroll_detector_height && !isLoading) {
-        request_batch(batch_size, offset);
+        request_batch(offset);
         return true;
     } else {
         return false;
     }
 }
 
-async function request_batch(batch_size, offset) {
+async function request_batch(offset) {
     if(stop_loading || isLoading) {
         return;
     }
@@ -65,7 +67,7 @@ async function request_batch(batch_size, offset) {
     load_icon.parentElement.classList.add("loading");
     // content.scrollTop = content.scrollTopMax;
     try {
-        let data = await fetchTitles(batch_size, offset);
+        let data = await fetchTitles(offset);
         process_batch(data);
     } catch(e) {
         console.log(e);
@@ -73,9 +75,9 @@ async function request_batch(batch_size, offset) {
     }
 }
 
-async function fetchTitles(batch_size, offset) {
+async function fetchTitles(offset) {
     try {
-        var request = `${QUERY_REQUEST_URL}?count=${batch_size}&offset=${offset}&sort=${sort}`;
+        var request = `${query_url}?offset=${offset}&sort=${sort}`;
         const response = await fetch(request);
         if(response.status == 200) {
             const json = await response.json();
