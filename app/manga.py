@@ -157,7 +157,7 @@ def fetch_page(page: Page):
         return IMAGE_404()
     
     ext = os.path.splitext(page.file_name)[1]
-    response = send_from_directory(page.chapter.path, page.file_name, download_name=f"{page.number}.{ext}", max_age=10*24*60*60)
+    response = send_from_directory(page.chapter.path, page.file_name, download_name=f"{page.number}{ext}", max_age=10*24*60*60)
     if response.status_code == 304:
         response.status_code = 200
     return response
