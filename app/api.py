@@ -275,10 +275,14 @@ def isValidFile(dir: str, file: str, filters: tuple | None):
 def fetch_titles():
     sort = request.args.get('sort', 'asc')
     offset = int(request.args.get('offset', '0'))
-    count = int(request.args.get('count', '30'))
 
-    titles = m.fetchTitles(sort=sort, offset=offset, count=count)
-    return titles
+    query = (
+        select(Manga.id, Manga.title)
+        .order_by(SQL.ORDER.get(sort, SQL.ASC)(Manga.id))
+        .offset(offset).limit(30)
+    )
+    
+    return execute_query(query, mappings=["id", "title"])
 
 @bp.route("/fetch-history")
 def fetch_history():
@@ -286,7 +290,6 @@ def fetch_history():
     offset = int(request.args.get('offset', '0'))
 
     user_id = getUserID()
-    query = select(Manga.id, Manga.title)
     query = (
         select(Manga.id, Manga.title)
         .join(UserMangaData, onclause=and_(
@@ -304,7 +307,6 @@ def fetch_favorites():
     offset = int(request.args.get('offset', '0'))
 
     user_id = getUserID()
-    query = select(Manga.id, Manga.title)
     query = (
         select(Manga.id, Manga.title)
         .join(UserMangaData, onclause=and_(

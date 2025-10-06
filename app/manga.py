@@ -29,19 +29,6 @@ def home():
     random_titles = db.session.scalars(random_query).all()
     return render_template(HTML.HOME, titles=random_titles, HIDE_TITLES=HIDE_TITLES)
 
-def fetchTitles(sort: str = VAR.ASC, offset = 0, count = 30):
-    query = select(Manga.id, Manga.title)
-    if sort == VAR.ASC:
-        query = query.order_by(Manga.id.asc())
-    elif sort == VAR.DESC:
-        query = query.order_by(Manga.id.desc())
-
-    query = query.offset(offset)
-    if count > 0:
-        query = query.limit(min(count, 100))
-
-    return [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
-
 @bp.route(ROUTE.LATEST)
 def latest_titles():
     return render_template(HTML.INFINITE_SCROLL, sort=VAR.DESC, title="Latest", HIDE_TITLES=HIDE_TITLES)
