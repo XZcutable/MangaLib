@@ -8,7 +8,7 @@ from sqlalchemy import and_, select
 
 from . import settings
 from .auth import owner_access, admin_access, get_role_context
-from .constants import ENDPOINT
+from .constants import ENDPOINT, SQL
 from . import manga as m
 from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
 
@@ -219,7 +219,7 @@ def lsFiles(dir: str | None, filters: tuple | None):
 @bp.route('/open-dir/<int:manga_id>')
 @owner_access
 def open_manga_dir(manga_id: int):
-    print(manga_id)
+    # print(manga_id)
     manga: Manga = db.session.get(Manga, {"id": manga_id})
     if manga is None:
         return {}
@@ -284,43 +284,57 @@ def fetch_titles():
 def fetch_history():
     sort = request.args.get('sort', 'asc')
     offset = int(request.args.get('offset', '0'))
-    count = int(request.args.get('count', '30'))
 
-    query = select(Manga.id, Manga.title)
     user_id = getUserID()
-    #, UserMangaData.last_seen != None
-    query = query.join_from(Manga, UserMangaData, and_(Manga.id == UserMangaData.manga_id, UserMangaData.user_id == user_id))
-    if sort == 'asc':
-        query = query.order_by(UserMangaData.last_seen.asc().nulls_last())
-    elif sort == 'desc':
-        query = query.order_by(UserMangaData.last_seen.desc().nulls_last())
-    
-    query = query.offset(offset).limit(min(count, 100))
-
-    results = [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
-    # print(results)
-    return results
+    query = select(Manga.id, Manga.title)
+    query = (
+        select(Manga.id, Manga.title)
+        .join(UserMangaData, onclause=and_(
+            UserMangaData.user_id == user_id,
+            Manga.id == UserMangaData.manga_id
+        ))
+        .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.last_seen).nulls_last())
+        .offset(offset).limit(30)
+    )
+    return execute_query(query, mappings=["id", "title"])
 
 @bp.route("/fetch-favorites")
 def fetch_favorites():
     sort = request.args.get('sort', 'asc')
     offset = int(request.args.get('offset', '0'))
-    count = int(request.args.get('count', '30'))
 
-    query = select(Manga.id, Manga.title)
     user_id = getUserID()
-    #, UserMangaData.last_seen != None
-    query = query.join_from(Manga, UserMangaData, and_(Manga.id == UserMangaData.manga_id, UserMangaData.user_id == user_id, UserMangaData.is_favorite))
-    if sort == 'asc':
-        query = query.order_by(UserMangaData.favorited_when.asc().nulls_last())
-    elif sort == 'desc':
-        query = query.order_by(UserMangaData.favorited_when.desc().nulls_last())
-    
-    query = query.offset(offset).limit(min(count, 100))
+    query = select(Manga.id, Manga.title)
+    query = (
+        select(Manga.id, Manga.title)
+        .join(UserMangaData, onclause=and_(
+            UserMangaData.user_id == user_id,
+            UserMangaData.is_favorite,
+            Manga.id == UserMangaData.manga_id
+        ))
+        .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.favorited_when).nulls_last())
+        .offset(offset).limit(30)
+    )
+    return execute_query(query, mappings=["id", "title"])
 
-    results = [{ "id": result[0], "title": result[1] } for result in db.session.execute(query)]
-    # print(results)
-    return results
+@bp.route("/fetch-queued")
+def fetch_queued():
+    print("Fetch Queue")
+    sort = request.args.get('sort', 'asc')
+    offset = int(request.args.get('offset', '0'))
+
+    user_id = getUserID()
+    query = (
+        select(Manga.id, Manga.title)
+        .join(UserMangaData, onclause=and_(
+            UserMangaData.user_id == user_id,
+            UserMangaData.is_queued,
+            Manga.id == UserMangaData.manga_id
+        ))
+        .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.queued_when).nulls_last())
+        .offset(offset).limit(30)
+    )
+    return execute_query(query, mappings=["id", "title"])
 
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
@@ -509,6 +523,7 @@ def save_user_progress():
 
                 if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
                     user_data.is_read = True
+                    user_data.is_queued = False
                     user_data.current_page = 1
 
                 db.session.commit()
@@ -544,9 +559,30 @@ def update_fav_status():
         db.session.begin_nested()
         if user_data.new:
             db.session.add(user_data)
-        if is_fav != user_data.is_favorite:
-            user_data.is_favorite = is_fav
-        user_data.favorited_when = getDatetimeISONow()
+        user_data.is_favorite = is_fav
+        if is_fav:
+            user_data.favorited_when = getDatetimeISONow()
+        else:
+            user_data.favorited_when = ""
+        db.session.commit()
+        return user_data.toJson()
+
+    return Response(status=405)
+
+@bp.route('/user/manga/queue', methods=["POST"])
+def update_queue_status():
+    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    if manga is not None:
+        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        is_queued = request.form.get("is_queued", 'False').lower() == "true"
+        db.session.begin_nested()
+        if user_data.new:
+            db.session.add(user_data)
+        user_data.is_queued = is_queued
+        if is_queued:
+            user_data.queued_when = getDatetimeISONow()
+        else:
+            user_data.queued_when = ""
         db.session.commit()
         return user_data.toJson()
 
@@ -564,3 +600,10 @@ def getDatetimeISONow():
 
 def fromDatetimeISO(iso:str):
     return datetime.fromisoformat(iso)
+
+from sqlalchemy import Select
+def execute_query(query: Select[tuple[int, str]], mappings:list[str]=None):
+    if mappings is None:
+        return db.session.execute(query).tuples().all()
+    else:
+        return [{ mappings[i]:result[i] for i in range(len(mappings)) } for result in db.session.execute(query)]

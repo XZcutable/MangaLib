@@ -3,6 +3,7 @@ class ROUTE:
     ALL = "/all"
     HISTORY = "/history"
     FAVORITES = "/favorites"
+    QUEUED = "/queued"
     RANDOM = "/random"
     RANDOM_UNREAD = "/random-unread"
 
@@ -25,6 +26,7 @@ class HTML:
     INFINITE_SCROLL = "manga/manga_infinite_scroll.html"
     HISTORY = "manga/history.html"
     FAVORITES = "manga/favorites.html"
+    QUEUED = "manga/queued.html"
     INFO = "manga/info.html"
     PAGE = "manga/page.html"
 
@@ -34,3 +36,12 @@ class VAR:
 
     ASC = "asc"
     DESC = "desc"
+
+from sqlalchemy import asc, desc
+class SQL:
+    ASC = asc
+    DESC = desc
+    ORDER = {
+        "asc":asc,
+        "desc":desc
+    }

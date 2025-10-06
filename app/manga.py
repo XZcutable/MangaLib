@@ -58,6 +58,10 @@ def history():
 def favorites():
     return render_template(HTML.FAVORITES, sort=VAR.DESC, title="Favorites", HIDE_TITLES=HIDE_TITLES)
 
+@bp.route(ROUTE.QUEUED)
+def queued():
+    return render_template(HTML.QUEUED, sort=VAR.DESC, title="To Read", HIDE_TITLES=HIDE_TITLES)
+
 @bp.route(ROUTE.RANDOM)
 def random_manga():
     random_id = db.session.scalar(select(Manga.id).order_by(func.random()))
@@ -127,7 +131,7 @@ IMAGE_404 = lambda *_: send_file("static/assets/images/error/404.png", max_age=1
 @bp.route('/manga-image/<int:manga_id>/<int:page_number>')
 @bp.route('/manga-image/<int:manga_id>/<int:chapter_number>/<int:page_number>')
 def image(manga_id=None, page_number=None, chapter_number=1):
-    print("Geting page")
+    # print("Getting page")
     if manga_id < 1 or page_number < 1 or chapter_number < 1:
         # print("Too Low")
         return IMAGE_404()
@@ -152,7 +156,7 @@ def image(manga_id=None, page_number=None, chapter_number=1):
 
 def fetch_page(page: Page):
     img_path = os.path.join(page.chapter.path, page.file_name)
-    print(img_path, os.path.exists(img_path))
+    # print(img_path, os.path.exists(img_path))
     if not os.path.exists(img_path):
         return IMAGE_404()
     
