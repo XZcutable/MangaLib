@@ -107,7 +107,11 @@ def scan_manga_path(path: str, manga: Manga = None):
         if manga.new:
             manga.date_uploaded = getDatetimeISONow()
             db.session.add(manga)
+        
+        # relative_path = os.path.splitdrive(manga.path)[1]
 
+        manga.relative_path
+        
         print(f"Manga ({manga.id}, {manga.title}), updated with {len(manga.chapters)} chapter(s)")
         return (True, None)
 
@@ -211,7 +215,17 @@ def lsFiles(dir: str | None, filters: tuple | None):
             
     elif os.path.isdir(dir):
         return { 'dir': dir, 'files': [ file for file in os.listdir(dir) if isValidFile(dir, file, filters) ] }
-    
+
+@bp.route('/open-dir/<int:manga_id>')
+@owner_access
+def open_manga_dir(manga_id: int):
+    print(manga_id)
+    manga: Manga = db.session.get(Manga, {"id": manga_id})
+    if manga is None:
+        return {}
+    else:
+        return {"path": f"{manga.path}"}
+
 @bp.route('/is-dir')
 @owner_access
 def isDir():

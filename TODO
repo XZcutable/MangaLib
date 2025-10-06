@@ -1,7 +1,6 @@
 Current Project:
 Change redirects to variables with string names in code
-redo settings pages
-Add a way to define a manga thumbnail besides the first page, maybe something like thumbnail.png
+Add a to read list that queues manga to read and removes it on finish
 check page nav positioning w/wo chapter
 
 Next Task:
@@ -38,6 +37,7 @@ Add a play options 1s,3s, 5s
 eventually add pdf support
 Add way to edit sql as owner
 Impelement way to sync the folder names with the title names
+Add ability to tie a network path to the local path
 
 
 Polish:

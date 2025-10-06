@@ -158,6 +158,7 @@ class Manga(Base):
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga", cascade="all, delete-orphan")
 
     date_uploaded:Mapped[str] = mapped_column(default=None)
+    relative_path:Mapped[str] = mapped_column(default="")
 
     new = False
 
