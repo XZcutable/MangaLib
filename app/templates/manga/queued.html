@@ -1,0 +1,9 @@
+{% extends 'manga/manga_infinite_scroll.html' %}
+
+{% block script %}
+{{ super() }}
+
+<script>
+var query_url = QUERY_QUEUED_URL;
+</script>
+{% endblock %}

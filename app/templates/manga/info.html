@@ -33,6 +33,11 @@ addEventListener("load", () => {
     fav_button = document.getElementById("manga-is-favorite-mobile");
     fav_button.checked = user_manga_data.is_favorite
 
+    let queue_button = document.getElementById("manga-is-queued");
+    queue_button.checked = user_manga_data.is_queued
+    queue_button = document.getElementById("manga-is-queued-mobile");
+    queue_button.checked = user_manga_data.is_queued
+
     
 });
 
@@ -138,6 +143,10 @@ function process_batch(data) {
                         <input id="manga-is-favorite" name="is-favorite" type="checkbox" onchange="updateMangaFavStatus(this.checked)">
                         <i class="fa-solid fa-heart fa-hover-bounce"></i>
                     </label>
+                    <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-queued">
+                        <input id="manga-is-queued" name="is-queued" type="checkbox" onchange="updateMangaQueueStatus(this.checked)">
+                        <i class="fa-solid fa-bookmark fa-hover-bounce"></i>
+                    </label>
                 </div>
             </div>
         </div>
@@ -169,6 +178,10 @@ function process_batch(data) {
                 </label>
                 <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-favorite-mobile">
                     <input id="manga-is-favorite-mobile" name="is-favorite" type="checkbox" onchange="updateMangaFavStatus(this.checked)">
+                    <i class="fa-solid fa-heart fa-hover-bounce"></i>
+                </label>
+                <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-queued-mobile">
+                    <input id="manga-is-queued-mobile" name="is-queued" type="checkbox" onchange="updateMangaQueueStatus(this.checked)">
                     <i class="fa-solid fa-heart fa-hover-bounce"></i>
                 </label>
             </div>
