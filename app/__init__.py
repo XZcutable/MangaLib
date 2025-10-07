@@ -24,6 +24,7 @@ def create_app():
     config_overrides(app)
     filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
+    api.init_app(app)
     manga.init_app(app)
     models.init_app(app)
     auth.init_app(app)
@@ -55,7 +56,7 @@ def create_app():
     return app
 
 def config_overrides(app: Flask):
-    app.config['HIDE_MANGA'] = False
+    app.config['HIDE_MANGA'] = True
     app.config['HIDE_TITLES'] = False
     pass
 
