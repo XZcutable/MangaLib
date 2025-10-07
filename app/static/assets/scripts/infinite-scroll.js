@@ -109,7 +109,7 @@ function createMangaGridItem(manga_id, title) {
     }
     return `
     <div class="manga-card w3-card w3-round-large">
-        <a href="${MANGA_URL}/${manga_id}">
+        <a href="${MANGA_RESUME_URL}/${manga_id}">
             <div class="manga-card-thumbnail w3-hover-opacity">
                 <img src="${IMAGE_URL}/${manga_id}/1" alt="Thumbnail" class="w3-round-large no-hover">
             </div>
