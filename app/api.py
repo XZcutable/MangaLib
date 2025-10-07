@@ -10,7 +10,7 @@ from sqlalchemy import and_, select
 from . import settings
 from .auth import owner_access, admin_access, get_role_context
 from .constants import ENDPOINT, SQL
-from . import manga as m
+from . import manga
 from sqlalchemy import distinct, func, Select
 from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path, MangaContentTag
 
@@ -56,6 +56,7 @@ def scanPaths():
             scan_manga_path(manga_path)
     
     db.session.commit()
+    manga.update_manga_count()
     flash("Scanning", 'info')
     return {'result': 'success'}
 
@@ -93,7 +94,7 @@ def scan_manga_path(path: str, manga: Manga = None):
         next_chapter_number = 1
         for chapter_name in chapter_names:
             chapter_path = os.path.join(path, chapter_name)
-            page_names: list[str] = lsFiles(chapter_path, filters=m.image_types)['files']
+            page_names: list[str] = lsFiles(chapter_path, filters=manga.image_types)['files']
             Path.sortList(page_names)
 
             if len(page_names) == 0:
@@ -578,15 +579,15 @@ def edit_manga(manga_id: int):
 def edit_config():
     if request.method == 'POST':
         if request.form.get("hide-manga"):
-            m.hide_content(request.form["hide-manga"].lower() != 'false')
+            manga.hide_content(request.form["hide-manga"].lower() != 'false')
         
         if request.form.get("hide-titles"):
-            m.hide_titles(request.form["hide-titles"].lower() != 'false')
+            manga.hide_titles(request.form["hide-titles"].lower() != 'false')
         return Response(status=200)
     else:
         return {
-            "hide-manga": m.HIDE_MANGA,
-            "hide-titles": m.HIDE_TITLES
+            "hide-manga": manga.HIDE_MANGA,
+            "hide-titles": manga.HIDE_TITLES
         }
     
 @bp.route("/edit/manga/title/<int:manga_id>", methods=["POST"])
