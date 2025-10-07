@@ -1,4 +1,5 @@
-import os
+import os, re
+from datetime import datetime, timezone
 
 from flask import (
     Flask, Blueprint, flash, request, render_template, redirect, url_for, Response, g
@@ -10,10 +11,8 @@ from . import settings
 from .auth import owner_access, admin_access, get_role_context
 from .constants import ENDPOINT, SQL
 from . import manga as m
-from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
-
-import re
-from datetime import datetime, timezone
+from sqlalchemy import distinct, func, Select
+from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path, MangaContentTag
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -327,7 +326,6 @@ def fetch_favorites():
 
 @bp.route("/fetch-queued")
 def fetch_queued():
-    print("Fetch Queue")
     sort = request.args.get('sort', 'asc')
     offset = int(request.args.get('offset', '0'))
 
@@ -343,6 +341,229 @@ def fetch_queued():
         .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     return execute_query(query, mappings=["id", "title"])
+
+CACHE_LIMIT = 30
+CACHE_LIFESPAN_SECONDS = 300
+SEARCH_CACHE: dict[str, Select[tuple[int, str]]] = {}
+CACHE_TIMESTAMPS: dict[str, datetime] = {}
+@bp.route("fetch-search")
+def fetch_search(q: str=None):
+    sort = request.args.get('sort', "asc")
+    offset = int(request.args.get('offset', 0))
+    q = request.args.get("q")
+    
+    if q is None:
+        return []
+    
+    query = (
+        select(create_search_query(q).subquery().alias("manga"))
+        .order_by(SQL.ORDER.get(sort, SQL.ASC)(Manga.id))
+        .offset(offset).limit(FETCH_BATCH_SIZE)
+    )
+    print(query)
+    return execute_query(query, mappings=["id", "title"])
+    
+def create_search_query(q: str):
+    query = SEARCH_CACHE.get(q)
+    if query is not None:
+        CACHE_TIMESTAMPS[q] = datetime.now()
+    else:
+        query = create_search_query(q)
+        oldest_key = None
+        if len(CACHE_TIMESTAMPS.keys()) >= CACHE_LIMIT:
+            now = datetime.now()
+            oldest_age = None
+            for key in CACHE_TIMESTAMPS.keys():
+                age = (now-CACHE_TIMESTAMPS[key]).total_seconds()
+                if age > CACHE_LIFESPAN_SECONDS:
+                    CACHE_TIMESTAMPS.pop(key)
+                    SEARCH_CACHE.pop(key)
+                elif oldest_key is None:
+                    oldest_key = key
+                    oldest_age = age
+                elif age > oldest_age:
+                    oldest_key = key
+
+        if len(CACHE_TIMESTAMPS.keys()) >= CACHE_LIMIT and oldest_key is not None:
+            SEARCH_CACHE.pop(oldest_key)
+            CACHE_TIMESTAMPS.pop(oldest_key)
+
+        SEARCH_CACHE[q] = query
+        CACHE_TIMESTAMPS[q] = datetime.now()
+
+   
+
+    return query
+
+TERM_PATTERN = re.compile(r"(?<![:\",'])\b\w+\b(?![:\",'])")
+TAG_PATTERN = re.compile(r"(?<!\w|!)tag:([\w,]+)")
+NTAG_PATTERN = re.compile(r"!tag:([\w,]+)")
+DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
+QUOTE_PATTERN = re.compile(r"'(.*?)'")
+
+UNREAD = "unread"
+READ = "read"
+TAGGED = "tagged"
+UNTAGGED = "untagged"
+IN_PROGRESS = "progress"
+SFW = "sfw"
+NSFW = "nsfw"
+
+SPECIAL_TAGS = [READ, UNREAD, TAGGED, UNTAGGED, IN_PROGRESS, NSFW, SFW]
+
+def create_search_query(q: str) -> Select[tuple[int, str]]:
+    q = q.lower()
+    terms: list[str] = [*TERM_PATTERN.findall(q), *[*DQUOTE_PATTERN.findall(q), *QUOTE_PATTERN.findall(q)]]
+    tags: list[str] = TAG_PATTERN.findall(q)
+    ntags: list[str] = NTAG_PATTERN.findall(q)
+
+    manga_query = select(distinct(Manga.id).label("id"), Manga.title)
+
+    def is_special_tag(tag):
+        return tag in SPECIAL_TAGS
+
+    def handle_special_tag(tag, positive, metadata_query: Select[tuple[int]]):
+        if tag == UNTAGGED:
+            tag = TAGGED
+            positive = not positive
+        elif tag == SFW:
+            tag = NSFW
+            positive = not positive
+        elif tag == UNREAD:
+            tag = READ
+            positive = not positive
+
+        global user_id
+        if tag == READ:
+            user_id = getUserID()
+            read_query = (
+                select(Manga.id)
+                .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
+                .where(UserMangaData.is_read)
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(read_query))
+            else:
+                filter = filter.where(~Manga.id.in_(read_query))
+            return filter
+        elif tag == TAGGED:
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .group_by(MangaContentTag.manga_id)
+                .having(func.count() > 0)
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(tag_query))
+            else:
+                filter = filter.where(~Manga.id.in_(tag_query))
+            return filter
+        elif tag == IN_PROGRESS:
+            user_id = getUserID()
+            progress_query = (
+                select(Manga.id)
+                .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
+                .where((~UserMangaData.is_read) & ((UserMangaData.current_chapter > 1) | (UserMangaData.current_page > 1)))
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(progress_query))
+            else:
+                filter = filter.where(~Manga.id.in_(progress_query))
+            return filter
+        elif tag == NSFW:
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .group_by(MangaContentTag.manga_id)
+                .join(ContentTag)
+                .having(func.count(ContentTag.nsfw) > 0)
+            )
+            filter = metadata_query
+            if positive:
+                filter = filter.where(Manga.id.in_(tag_query))
+            else:
+                filter = filter.where(~MangaContentTag.manga_id.in_(tag_query))
+            return filter
+        else:
+            pass
+
+    def replace_symbols(ls: list[str]):
+        for i in range(len(ls)):
+            ls[i] = ls[i].replace("_", " ")
+            ls[i] = ls[i].strip(", ")
+
+    def split_tags(tags: list[str], some: list[str], all: list[list[str]]):
+        for tag in tags:
+            if ',' in tag:
+                all.append(tag.split(','))
+            else:
+                some.append(tag)
+    
+    replace_symbols(terms)
+    replace_symbols(tags)
+    replace_symbols(ntags)
+
+    for term in terms:
+        manga_query = manga_query.where(Manga.title.contains(term))
+
+    if len(tags) or len(ntags):
+        manga_query = manga_query.outerjoin(MangaContentTag, Manga.id == MangaContentTag.manga_id)
+
+    if len(tags) > 0:
+        or_tags:list[str] = []
+        and_tags_list:list[list[str]] = []
+        split_tags(tags, or_tags, and_tags_list)
+
+        for or_tag in [tag for tag in or_tags]:
+            if is_special_tag(or_tag):
+                manga_query = handle_special_tag(or_tag, True, manga_query)
+                or_tags.remove(or_tag)
+
+        if len(or_tags):
+            manga_query = manga_query.where(MangaContentTag.tag.in_(or_tags))
+
+        for and_tags in and_tags_list:
+            for and_tag in [tag for tag in and_tags]:
+                if is_special_tag(and_tag):
+                    and_tags.remove(and_tag)
+                    manga_query = handle_special_tag(and_tag, True, manga_query)
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .where(MangaContentTag.tag.in_(and_tags))
+                .group_by(MangaContentTag.manga_id)
+                .having(func.count() == len(and_tags))
+            )
+            manga_query = manga_query.where(Manga.id.in_(tag_query))
+
+    if len(ntags) > 0:
+        nor_tags:list[str] = []
+        nand_tags_list:list[list[str]] = []
+        split_tags(ntags, nor_tags, nand_tags_list)
+
+        for nor_tag in [tag for tag in nor_tags]:
+            if is_special_tag(nor_tag):
+                manga_query = handle_special_tag(nor_tag, False, manga_query)
+                nor_tags.remove(nor_tag)
+
+        for nand_tags in nand_tags_list:
+            for nand_tag in [tag for tag in nand_tags]:
+                if is_special_tag(nand_tag):
+                    # nand_tags.remove(nand_tag)
+                    manga_query = handle_special_tag(nand_tags, False, manga_query)
+                else:
+                    nor_tags.append(nand_tag)
+
+        if len(nor_tags):
+            tag_query = (
+                select(MangaContentTag.manga_id)
+                .where(MangaContentTag.tag.in_(nor_tags))
+                .group_by(MangaContentTag.manga_id)
+                .having(func.count() > 0)
+            )
+            manga_query = manga_query.where(MangaContentTag.manga_id.not_in(tag_query)) # Shows Only Tagged
+
+    return manga_query
 
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
