@@ -115,23 +115,23 @@ function process_batch(data) {
                     {% endif %}
                 </div>
                 <div class="w3-large text-shadow w3-text-grey">Uploaded on {{ manga.date_uploaded|tolocaltime("%b %d %Y at %I:%M %p") }}</div>
-                <div class="w3-large text-shadow w3-text-grey">Artist: </div>
+                {# <div class="w3-large text-shadow w3-text-grey">Artist: </div>
                 <div class="w3-large text-shadow w3-text-grey">Language: </div>
-                <div class="w3-large text-shadow w3-text-grey">Categories: </div>
+                <div class="w3-large text-shadow w3-text-grey">Categories: </div> #}
                 {% if manga.chapters|length == 1 %}
                     <div class="w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
                 {% else %}
                     <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
                 {% endif %}
-                <div class="w3-large text-shadow w3-text-grey">Tags</div>
-                <div class="w3-padding">
+                <div class="w3-large text-shadow w3-text-grey">Tags:</div>
+                <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
                     <div id="tag-grid" class="tag-grid">
                         {% for json in manga.manga_metadata.tags %}
                             <div class="tag-grid-item w3-button w3-grey" onclick="search('tag:{{ json.tag|replace(' ', '_') }}')">{{ json.tag }}</div>
                         {% endfor %}
                     </div>
                 </div>
-                <div class="w3-padding" style="display: flex; gap: 6px;">
+                <div style="display: flex; gap: 6px;">
                     <button onclick="document.location = &quot;{{ url_for('manga.resume', manga_id=manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                     <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
                         <input id="manga-is-read-checkbox" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
@@ -185,16 +185,16 @@ function process_batch(data) {
                     <i class="fa-solid fa-heart fa-hover-bounce"></i>
                 </label>
             </div>
-            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Artist: </div>
+            {# <div class="w3-padding-small w3-large text-shadow w3-text-grey">Artist: </div>
             <div class="w3-padding-small w3-large text-shadow w3-text-grey">Language: </div>
-            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Categories: </div>
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Categories: </div> #}
             {% if manga.chapters|length == 1 %}
                 <div class="w3-padding-small w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
             {% else %}
                 <div class="w3-padding-small w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
             {% endif %}
-            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Tags</div>
-            <div class="w3-padding">
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Tags:</div>
+            <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
                 <div id="tag-grid" class="tag-grid">
                     {% for json in manga.manga_metadata.tags %}
                         <div class="tag-grid-item w3-button w3-grey" onclick="search('tag:{{ json.tag|replace(' ', '_') }}')">{{ json.tag }}</div>
