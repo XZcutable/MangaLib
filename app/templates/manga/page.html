@@ -44,7 +44,7 @@
             <div class="manga-dropdown w3-round-large" style="position: absolute; left: 100%; width: max-content">
                 <div id="chapter-dropdown" class="manga-dropdown-content w3-round-large w3-large">
                     {% for chapter in manga.chapters %}
-                    <a class="manga-dropdown-item" href="{{ url_for('manga.read', manga_id=manga.id, chapter_number=chapter.number, page_number=1) }}">{{ c.number }}</a>
+                    <a class="manga-dropdown-item" href="{{ url_for('manga.read', manga_id=manga.id, chapter_number=chapter.number, page_number=1) }}">{{ chapter.number }}</a>
                     {% endfor %}
                 </div>
                 <span class="no-hover">
