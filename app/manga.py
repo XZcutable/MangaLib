@@ -15,6 +15,8 @@ image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 
 bp = Blueprint('manga', __name__, url_prefix='/manga')
 
+MANGA_COUNT = 0
+
 def init_app(app: Flask):
     hide_content(app.config[VAR.HIDE_MANGA])
     hide_titles(app.config[VAR.HIDE_TITLES])
@@ -26,19 +28,19 @@ def home():
         .limit(30)
     )
     random_titles = db.session.scalars(random_query).all()
-    return render_template(HTML.HOME, titles=random_titles, HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.HOME, titles=random_titles, COUNT=MANGA_COUNT, HIDE_TITLES=HIDE_TITLES)
 
 @bp.route(ROUTE.LATEST)
 def latest_titles():
-    return render_template(HTML.INFINITE_SCROLL, sort=VAR.DESC, title="Latest", HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.INFINITE_SCROLL, sort=VAR.DESC, title="Latest", COUNT=MANGA_COUNT, HIDE_TITLES=HIDE_TITLES)
 
 @bp.route(ROUTE.ALL)
 def all_titles():
-    return render_template(HTML.INFINITE_SCROLL, sort=VAR.ASC, title="All", HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.INFINITE_SCROLL, sort=VAR.ASC, title="All", COUNT=MANGA_COUNT, HIDE_TITLES=HIDE_TITLES)
 
 @bp.route(ROUTE.HISTORY)
 def history():
-    return render_template(HTML.HISTORY, sort=VAR.DESC, title="History", HIDE_TITLES=HIDE_TITLES)
+    return render_template(HTML.HISTORY, sort=VAR.DESC, title="History", COUNT=MANGA_COUNT, HIDE_TITLES=HIDE_TITLES)
 
 @bp.route(ROUTE.FAVORITES)
 def favorites():
@@ -157,6 +159,14 @@ def fetch_page(page: Page):
 def upload():
     pass
 
+def update_manga_count():
+    global MANGA_COUNT
+
+    count = db.session.scalar(
+        select(func.count()).select_from(Manga)
+    )
+    MANGA_COUNT = count
+
 TERM_PATTERN = re.compile(r"(?<![:\",'])\b\w+\b(?![:\",'])")
 TAG_PATTERN = re.compile(r"(?<!\w|!)tag:([\w,]+)")
 NTAG_PATTERN = re.compile(r"!tag:([\w,]+)")
@@ -182,7 +192,7 @@ def search():
     count = db.session.scalar(select(func.count()).select_from(api.create_search_query(q)))
     print("COUNT:", count)
     
-    return render_template("manga/search.html", result_count=count, HIDE_TITLES=HIDE_TITLES)
+    return render_template("manga/search.html", COUNT=count, title="Results", HIDE_TITLES=HIDE_TITLES)
 
 FETCH_PAGE = fetch_page
 HIDE_MANGA = False
