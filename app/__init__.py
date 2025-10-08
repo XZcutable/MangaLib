@@ -53,10 +53,13 @@ def create_app():
     print(datetime.now(timezone.utc).strftime(format))
     print(datetime.now(timezone.utc).astimezone().strftime(format))
 
+    with app.app_context():
+        manga.update_manga_count()
+
     return app
 
 def config_overrides(app: Flask):
-    app.config['HIDE_MANGA'] = True
+    app.config['HIDE_MANGA'] = False
     app.config['HIDE_TITLES'] = False
     pass
 

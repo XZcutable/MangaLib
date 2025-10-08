@@ -1,16 +1,12 @@
 Current Project:
-Change redirects to variables with string names in code
-Add a to read list that queues manga to read and removes it on finish
 check page nav positioning w/wo chapter
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered
 Add section at bottom of pages for related manga/chapters?
 Add config to define related manga/chapters
-Add a plan to read section that removes titles after they are read
 Make infinite scroll optional and set by the user in settings and add pagation support
 Hide tags toggle
-
 
 Next Hard Tasks:
 Add pending or verified status to uploading manga option
@@ -23,27 +19,26 @@ Features needs for MVP:
 - Random and Random unread
 - search for names, tags, and special tags
 - Can edit manga names
-Add way to edit page order, and remove pages
 Add a way to combine mangas as chapters or link together?
-Add Chapters to manga info
+- Add Chapters to manga info
 - Add way to delete manga, or mark deleted
 - User History
 - Mobile experience parity
+- To read list
+- Favorites list
 
 Future Tasks:
 Right click scan and have targeted scanning
-Implement data editing
 Add a play options 1s,3s, 5s
 eventually add pdf support
-Add way to edit sql as owner
 Impelement way to sync the folder names with the title names
 Add ability to tie a network path to the local path
-
 
 Polish:
 better optmize remote connection
 make site look better
 Add a dropdown on page previews so that they would only load when pressed?
+Add way to edit page order, and remove pages
 
 Make paths relative, so data can be moved safely
 Add versioning to site

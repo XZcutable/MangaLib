@@ -11,6 +11,7 @@ from . import settings
 from .auth import owner_access, admin_access, get_role_context
 from .constants import ENDPOINT, SQL
 from . import manga
+from .manga import image_types
 from sqlalchemy import distinct, func, Select
 from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path, MangaContentTag
 
@@ -94,7 +95,7 @@ def scan_manga_path(path: str, manga: Manga = None):
         next_chapter_number = 1
         for chapter_name in chapter_names:
             chapter_path = os.path.join(path, chapter_name)
-            page_names: list[str] = lsFiles(chapter_path, filters=manga.image_types)['files']
+            page_names: list[str] = lsFiles(chapter_path, filters=image_types)['files']
             Path.sortList(page_names)
 
             if len(page_names) == 0:
