@@ -65,11 +65,11 @@
             </div>
         {% else %}
             {% if request.path == url_for('auth.register') %}
-                <span class="w3-dark-grey no-hover w3-right w3-round-large"><i class="fa-solid fa-pencil-square fa-hover-bounce"></i>&nbsp;Register</span>
+                <span class="w3-dark-grey no-hover w3-button w3-right w3-round-large"><i class="fa-solid fa-pencil-square fa-hover-bounce"></i>&nbsp;Register</span>
                 <a href="{{ url_for('auth.login') }}" class="w3-button w3-right w3-round-large"><i class="fa-solid fa-sign-in fa-hover-bounce"></i><span>&nbsp;Login</span></a>
             {% elif request.path == url_for('auth.login') %}
                 <a href="{{ url_for('auth.register') }}" class="w3-button w3-right w3-round-large"><i class="fa-solid fa-pencil-square fa-hover-bounce"></i><span>&nbsp;Register</span></a>
-                <span class="w3-dark-grey no-hover w3-right w3-round-large"><i class="fa-solid fa-sign-in fa-hover-bounce"></i>&nbsp;Login</span>
+                <span class="w3-dark-grey no-hover w3-button w3-right w3-round-large"><i class="fa-solid fa-sign-in fa-hover-bounce"></i><span>&nbsp;Login</span></span>
             {% endif %}
         {% endif %}
     </div>
