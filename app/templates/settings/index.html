@@ -108,7 +108,7 @@ input:checked + .slider:before {
     function addPathToTable(path) {
         const row_template = `
             <tr>
-                <td><button class="w3-button w3-bold w3-block w3-left-align w3-large" onclick="removePathFromTable(&quot;${path}&quot;,this.parentNode.parentNode)">${path}</button></td>
+                <td><button class="w3-button w3-bold w3-block w3-left-align w3-large" onclick="rescanPath(&quot;${path}&quot;,this.parentNode.parentNode)">${path}</button></td>
             </tr>
             `
         paths_table = document.getElementById("media-paths").innerHTML += row_template
@@ -122,6 +122,16 @@ input:checked + .slider:before {
         }).finally(() => {
             location.reload();
         });
+    }
+
+    function rescanPath(path, node) {
+        if(confirm(`Rescan '${path}'?`)) {
+            rescanSinglePath(path).finally(() => {
+                location.reload();
+            })
+        } else {
+            removePathFromTable(path, node);
+        }
     }
 
     function removePathFromTable(path, node) {
@@ -181,6 +191,26 @@ input:checked + .slider:before {
         } catch (error) {
             console.error(error.message);
             return { 'success': false, 'error': error.message }
+        }
+    }
+
+    async function rescanSinglePath(path) {
+        const url = `{{ url_for('api.scanPaths') }}`;
+        try {
+            let formData = new FormData();
+            formData.append("paths", path);
+            const response = await fetch(url, {method: "POST", body: formData});
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error(error.message);
+            return { 'success': false, 'error': error.message }
+        } finally {
+            location.reload();
         }
     }
 
@@ -364,10 +394,10 @@ input:checked + .slider:before {
                     </table>
                     <br>
                     <div>
-                        <button onclick="openFolderPicker()" class="w3-button w3-round-large w3-light-grey w3-card w3-large">
+                        <button id="folder-picker-button" onclick="openFolderPicker()" class="w3-button w3-round-large w3-light-grey w3-card w3-large">
                             Add Path
                         </button>
-                        <button onclick="rescanPaths()" class="w3-button w3-round-large w3-light-grey w3-card w3-large">
+                        <button id="scan-button" onclick="rescanPaths()" class="w3-button w3-round-large w3-light-grey w3-card w3-large">
                             Scan Paths
                         </button>
                     </div>

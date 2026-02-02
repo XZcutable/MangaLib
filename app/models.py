@@ -234,15 +234,17 @@ class Chapter(Base):
                 'manga_id': self.manga_id,
                 'title': self.title,
                 'number': self.number,
-                "pages": [page.toJson(True) for page in self.pages],
+                'page_count': len(self.pages),
+                # "pages": [page.toJson(True) for page in self.pages],
+                #  "pages": self.pages,
             }
         else:
             return {
                 'manga_id': self.manga_id,
                 'title': self.title,
                 'number': self.number,
-                "pages": [page.toJson() for page in self.pages],
-
+                # "pages": [page.toJson() for page in self.pages],
+                'page_count': len(self.pages),
                 "manga": self.manga.toJson(True),
             }
    

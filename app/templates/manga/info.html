@@ -9,10 +9,16 @@
 
 {% set selected_chapter = request.args.chapter|default(1)|int %}
 
+{% set selected_chapter = request.args.chapter|default(1)|int %}
+
 {% block script %}
 {{ super() }}
 
 <script>
+selected_chapter = {{ selected_chapter }};
+{# console.log("Chapter: {{ request.args.chapter|default(1) }}"); #}
+
+
 selected_chapter = {{ selected_chapter }};
 {# console.log("Chapter: {{ request.args.chapter|default(1) }}"); #}
 
@@ -39,6 +45,13 @@ addEventListener("load", () => {
     queue_button.checked = user_manga_data.is_queued
 
     
+
+    let queue_button = document.getElementById("manga-is-queued");
+    queue_button.checked = user_manga_data.is_queued
+    queue_button = document.getElementById("manga-is-queued-mobile");
+    queue_button.checked = user_manga_data.is_queued
+
+    
 });
 
 var finished = false;
@@ -47,13 +60,18 @@ var total_chapters = manga.chapters.length;
 async function fetchTitles(offset) {
     let chapter = manga.chapters[selected_chapter - 1];
     console.log(batch_size, offset)
+var total_chapters = manga.chapters.length;
 
-    if (offset > chapter.pages.length) {
+async function fetchTitles(offset) {
+    let chapter = manga.chapters[selected_chapter - 1];
+    console.log(batch_size, offset)
+
+    if (offset > chapter.page_count) {
         stop_loading = true;
         return {"amount": 0}
     }
 
-    let amount = Math.min(chapter.pages.length - offset, batch_size);
+    let amount = Math.min(chapter.page_count - offset, batch_size);
     if(amount == 0 || amount < batch_size) {
         stop_loading = true;
     }
@@ -63,15 +81,17 @@ async function fetchTitles(offset) {
 function process_batch(data) {
     let chapter = manga.chapters[selected_chapter - 1];
     
+    let chapter = manga.chapters[selected_chapter - 1];
+    
     if(data["amount"] > 0) {
         var grid = document.getElementById(grid_id);
         for(let page = 1; page <= data["amount"]; page++) {
-            if(data["offset"] + page <= chapter.pages.length) {
+            if(data["offset"] + page <= chapter.page_count) {
                 let page_html = createPageGridItem(manga.id, selected_chapter, data["offset"] + page);
                 grid.innerHTML += page_html;
             } 
             {# else {
-                let chapter_number = page - manga.chapters[0].pages.length;
+                let chapter_number = page - manga.chapters[0].page_count;
                 if (chapter_number < manga.chapters.length) {
                     let chapter = manga.chapters[chapter_number]
                     let page_html = createChapterGridItem(manga.id, chapter_number + 1, chapter.title);
@@ -99,7 +119,10 @@ function process_batch(data) {
         <div class="w3-hide-small w3-padding" style="height: 50vh; display: flex;">
             <div class="w3-round-large" style="height: 100%; min-width: 40%; text-align: center;">
                 <img class="w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
+            <div class="w3-round-large" style="height: 100%; min-width: 40%; text-align: center;">
+                <img class="w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
             </div>
+            {# Desktop #}
             {# Desktop #}
             <div class="w3-padding" style="flex-grow: 1;">
                 <div class="" style="display: flex;">
@@ -116,13 +139,18 @@ function process_batch(data) {
                 </div>
                 <div class="w3-large text-shadow w3-text-grey">Uploaded on {{ manga.date_uploaded|tolocaltime("%b %d %Y at %I:%M %p") }}</div>
                 {# <div class="w3-large text-shadow w3-text-grey">Artist: </div>
+                <div class="w3-large text-shadow w3-text-grey">Uploaded on {{ manga.date_uploaded|tolocaltime("%b %d %Y at %I:%M %p") }}</div>
+                {# <div class="w3-large text-shadow w3-text-grey">Artist: </div>
                 <div class="w3-large text-shadow w3-text-grey">Language: </div>
                 <div class="w3-large text-shadow w3-text-grey">Categories: </div> #}
+                <div class="w3-large text-shadow w3-text-grey">Categories: </div> #}
                 {% if manga.chapters|length == 1 %}
-                    <div class="w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
+                    <div class="w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].page_count }}</div>
                 {% else %}
                     <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
                 {% endif %}
+                <div class="w3-large text-shadow w3-text-grey">Tags:</div>
+                <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
                 <div class="w3-large text-shadow w3-text-grey">Tags:</div>
                 <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
                     <div id="tag-grid" class="tag-grid">
@@ -131,6 +159,8 @@ function process_batch(data) {
                         {% endfor %}
                     </div>
                 </div>
+                <div style="display: flex; gap: 6px;">
+                    <button onclick="document.location = &quot;{{ url_for('manga.resume', manga_id=manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                 <div style="display: flex; gap: 6px;">
                     <button onclick="document.location = &quot;{{ url_for('manga.resume', manga_id=manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                     <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox">
@@ -147,10 +177,15 @@ function process_batch(data) {
                         <input id="manga-is-queued" name="is-queued" type="checkbox" onchange="updateMangaQueueStatus(this.checked)">
                         <i class="fa-solid fa-bookmark fa-hover-bounce"></i>
                     </label>
+                    <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-queued">
+                        <input id="manga-is-queued" name="is-queued" type="checkbox" onchange="updateMangaQueueStatus(this.checked)">
+                        <i class="fa-solid fa-bookmark fa-hover-bounce"></i>
+                    </label>
                 </div>
             </div>
         </div>
 
+        {# Mobile #}
         {# Mobile #}
         <div class="w3-hide-large w3-hide-medium w3-round-large" style="min-height: 50vh; display: flex; flex-direction: column;">
             {% if isAdmin %}
@@ -159,6 +194,7 @@ function process_batch(data) {
             </div>
             {% endif %}
             <div class="w3-round-large" style="height: 40vh; width: 100%; text-align: center; margin-top: 10px;">
+                <img class="w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
                 <img class="w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
             </div>
             <div class="w3-padding-small w3-xlarge text-shadow w3-text-light-grey" style="flex-grow: 1;">
@@ -169,6 +205,7 @@ function process_batch(data) {
                 {% endif %}
             </div>
             <div class="w3-padding" style="display: flex; gap: 6px;">
+                <button onclick="document.location = &quot;{{ url_for('manga.resume', manga_id= manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                 <button onclick="document.location = &quot;{{ url_for('manga.resume', manga_id= manga.id) }}&quot;" class="w3-button w3-round-large" style="background-color: #f1f1f1;">Resume</button>
                 <label class="manga-status toggle-checkbox w3-button w3-round-large" for="manga-is-read-checkbox-mobile">
                     <input id="manga-is-read-checkbox-mobile" name="is-read" type="checkbox" onchange="updateMangaReadStatus(this.checked)">
@@ -184,15 +221,23 @@ function process_batch(data) {
                     <input id="manga-is-queued-mobile" name="is-queued" type="checkbox" onchange="updateMangaQueueStatus(this.checked)">
                     <i class="fa-solid fa-bookmark fa-hover-bounce"></i>
                 </label>
+                <label class="fav-icon toggle-checkbox w3-button w3-round-large" for="manga-is-queued-mobile">
+                    <input id="manga-is-queued-mobile" name="is-queued" type="checkbox" onchange="updateMangaQueueStatus(this.checked)">
+                    <i class="fa-solid fa-bookmark fa-hover-bounce"></i>
+                </label>
             </div>
+            {# <div class="w3-padding-small w3-large text-shadow w3-text-grey">Artist: </div>
             {# <div class="w3-padding-small w3-large text-shadow w3-text-grey">Artist: </div>
             <div class="w3-padding-small w3-large text-shadow w3-text-grey">Language: </div>
             <div class="w3-padding-small w3-large text-shadow w3-text-grey">Categories: </div> #}
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Categories: </div> #}
             {% if manga.chapters|length == 1 %}
-                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].pages|length }}</div>
+                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].page_count }}</div>
             {% else %}
                 <div class="w3-padding-small w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
             {% endif %}
+            <div class="w3-padding-small w3-large text-shadow w3-text-grey">Tags:</div>
+            <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
             <div class="w3-padding-small w3-large text-shadow w3-text-grey">Tags:</div>
             <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
                 <div id="tag-grid" class="tag-grid">
@@ -202,6 +247,23 @@ function process_batch(data) {
                 </div>
             </div>
         </div>
+        
+        {# TODO Make the selected chapter function and ties it to a query parameter or # #}
+        {% if manga.chapters|length > 1 %}
+        <div class="w3-padding">
+            <div class="w3-dropdown-hover" style="min-width: 50%;">
+                <button class="hover-dropdown-button w3-button w3-light-gray">Chapter {{ selected_chapter }}</button>
+                <div class="w3-dropdown-content w3-bar-block">
+                    {% for chapter in manga.chapters %}
+                        {% if selected_chapter != chapter.number %}
+                        <a class="w3-button w3-block" href="?chapter={{chapter.number}}">Chapter {{chapter.number}}</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         
         {# TODO Make the selected chapter function and ties it to a query parameter or # #}
         {% if manga.chapters|length > 1 %}

@@ -16,7 +16,7 @@ class ENDPOINT:
     MANGA_RESUME = "manga.resume"
     MANGA_READ = "manga.read"
     MANGA_INFO = "manga.info"
-    HOME = "home"
+    HOME = "manga.home"
     AUTH_LOGIN = "auth.login"
     AUTH_LOGOUT = "auth.logout"
     AUTH_REGISTER = "auth.register"
