@@ -1,14 +1,10 @@
 from flask import Flask
 from jinja2 import filters 
-from jinja2 import filters 
 
-from . import api, auth, models, settings
-from . import manga
 from . import api, auth, models, settings
 from . import manga
 
 import tomllib
-from datetime import datetime, timezone
 from datetime import datetime, timezone
 
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -27,9 +23,7 @@ def create_app():
 
     config_overrides(app)
     filters.FILTERS[tolocaltime.__name__] = tolocaltime
-    filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
-    api.init_app(app)
     api.init_app(app)
     manga.init_app(app)
     models.init_app(app)
@@ -41,8 +35,6 @@ def create_app():
     app.register_blueprint(settings.bp)
     app.register_blueprint(api.bp)
 
-    app.add_url_rule('/manga/manga-image', endpoint='manga_image')
-    app.add_url_rule('/manga', endpoint='manga')
     app.add_url_rule('/manga/manga-image', endpoint='manga_image')
     app.add_url_rule('/manga', endpoint='manga')
     app.add_url_rule('/all', endpoint='manga.all')
@@ -64,30 +56,12 @@ def create_app():
     with app.app_context():
         manga.update_manga_count()
 
-    @app.route('/')
-    def index():
-        return manga.home()
-    
-    app.add_url_rule('/', endpoint='manga.home')
-
-    format="%b %d %Y at %I:%M %p"
-    print(datetime.now(timezone.utc).strftime(format))
-    print(datetime.now(timezone.utc).astimezone().strftime(format))
-
-    with app.app_context():
-        manga.update_manga_count()
-
     return app
 
 def config_overrides(app: Flask):
     # app.config['HIDE_MANGA'] = True
     # app.config['HIDE_TITLES'] = False
     pass
-
-def tolocaltime(utc_time: datetime, format="%d/%m/%Y, %H:%M:%S"):
-    if type(utc_time) == str:
-        utc_time = datetime.fromisoformat(utc_time)
-    return utc_time.astimezone().strftime(format)
 
 def tolocaltime(utc_time: datetime, format="%d/%m/%Y, %H:%M:%S"):
     if type(utc_time) == str:

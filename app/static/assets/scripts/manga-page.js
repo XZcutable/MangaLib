@@ -191,7 +191,6 @@ function touchCancel(event) {
 function home() {
     navigating = true;
     document.location = `${MANGA_URL}/${manga.id}`;
-    document.location = `${MANGA_URL}/${manga.id}`;
 }
 
 function nextPage() {
@@ -199,7 +198,6 @@ function nextPage() {
     if(page.number + 1 <= chapter.page_count) {
         window.location = `${MANGA_URL}/${manga.id}/${chapter.number}/${page.number + 1}`
     } else if(chapter.number + 1 <= manga.chapters.length) {
-        window.location = `${MANGA_URL}/${manga.id}/${chapter.number + 1}/${1}`
         window.location = `${MANGA_URL}/${manga.id}/${chapter.number + 1}/${1}`
     } else {
         home();
@@ -209,7 +207,6 @@ function nextPage() {
 function prevPage() {
     navigating = true;
     if(page.number - 1 >= 1) {
-        window.location = `${MANGA_URL}/${manga.id}/${chapter.number}/${page.number - 1}`
         window.location = `${MANGA_URL}/${manga.id}/${chapter.number}/${page.number - 1}`
     } else if(chapter.number - 1 >= 1) {
         let new_chapter = chapter.number - 1;

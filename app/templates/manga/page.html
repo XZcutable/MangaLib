@@ -30,9 +30,6 @@
         <div class="" style="right: 50%; position: relative;">
             <i class="w3-button w3-round-large w3-circle fa-solid fa-info" style="position: absolute; right: 100%; width: fit-content;" onclick="home()"></i>
             <i class="w3-button w3-round-large fa-solid fa-left-long" onclick="prevPage()" style="width: fit-content;"></i>
-        <div class="" style="right: 50%; position: relative;">
-            <i class="w3-button w3-round-large w3-circle fa-solid fa-info" style="position: absolute; right: 100%; width: fit-content;" onclick="home()"></i>
-            <i class="w3-button w3-round-large fa-solid fa-left-long" onclick="prevPage()" style="width: fit-content;"></i>
             <div class="manga-dropdown w3-round-large">
                 <div id="page-dropdown" class="manga-dropdown-content w3-round-large w3-large">
                     {% for page in range(chapter.page_count) %}
@@ -44,13 +41,10 @@
                 </span>
             </div>
             <i class="w3-button w3-round-large fa-solid fa-right-long" style="width: fit-content;" onclick="nextPage()"></i>
-            <i class="w3-button w3-round-large fa-solid fa-right-long" style="width: fit-content;" onclick="nextPage()"></i>
 
             {% if manga.chapters|length > 1 %}
             <div class="manga-dropdown w3-round-large" style="position: absolute; left: 100%; width: max-content">
                 <div id="chapter-dropdown" class="manga-dropdown-content w3-round-large w3-large">
-                    {% for chapter in manga.chapters %}
-                    <a class="manga-dropdown-item" href="{{ url_for('manga.read', manga_id=manga.id, chapter_number=chapter.number, page_number=1) }}">{{ chapter.number }}</a>
                     {% for chapter in manga.chapters %}
                     <a class="manga-dropdown-item" href="{{ url_for('manga.read', manga_id=manga.id, chapter_number=chapter.number, page_number=1) }}">{{ chapter.number }}</a>
                     {% endfor %}
@@ -59,7 +53,6 @@
                     Chapter {{ chapter.number }}
                 </span>
             </div>
-            {% endif %}
             {% endif %}
         </div>
     </div>
