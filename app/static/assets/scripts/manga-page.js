@@ -197,7 +197,7 @@ function nextPage() {
     navigating = true;
     if(page.number + 1 <= chapter.page_count) {
         window.location = `${MANGA_URL}/${manga.id}/${chapter.number}/${page.number + 1}`
-    } else if(chapter.number + 1 <= manga.chapters.length) {
+    } else if(chapter.number + 1 <= manga.total_chapters) {
         window.location = `${MANGA_URL}/${manga.id}/${chapter.number + 1}/${1}`
     } else {
         home();
@@ -210,7 +210,7 @@ function prevPage() {
         window.location = `${MANGA_URL}/${manga.id}/${chapter.number}/${page.number - 1}`
     } else if(chapter.number - 1 >= 1) {
         let new_chapter = chapter.number - 1;
-        window.location = `${MANGA_URL}/${manga.id}/${new_chapter}/${manga.chapters[new_chapter - 1].page_count}`
+        window.location = `${MANGA_URL}/${manga.id}/${new_chapter}/last`
     } else {
         home();
     }

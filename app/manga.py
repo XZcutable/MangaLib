@@ -100,11 +100,8 @@ def resume(manga_id: int, chapter_number: int=0):
     return redirect(url_for(ENDPOINT.MANGA_READ, **progress_data))
 
 @bp.route('/<int:manga_id>/<int:page_number>')
-@bp.route('/<int:manga_id>/<int:chapter_number>/<int:page_number>')
-def read(manga_id: int, page_number=0, chapter_number=1):
-    if page_number <= 0:
-        return info(manga_id=manga_id)
-    
+@bp.route('/<int:manga_id>/<int:chapter_number>/<page_number>')
+def read(manga_id: int, page_number=0, chapter_number=1):  
     manga: Manga | None = Manga.fromID(manga_id)
     if manga is None:
         return redirect(url_for(ENDPOINT.HOME))
@@ -113,6 +110,13 @@ def read(manga_id: int, page_number=0, chapter_number=1):
     if chapter is None:
         return redirect(f"{url_for(ENDPOINT.MANGA_INFO, manga_id=manga_id)}")
     
+    if page_number == "last":
+        return redirect(f"{url_for(ENDPOINT.MANGA_READ, manga_id=manga_id, chapter_number=chapter_number, page_number=len(chapter.pages))}")
+    elif type(page_number) == str and str.isdigit(page_number):
+        page_number = int(page_number)
+    if page_number <= 0:
+        return info(manga_id=manga_id)
+        
     page: Page | None = Page.fromChapter(chapter, page_number)
     if page is None:
         return redirect(f"{url_for(ENDPOINT.MANGA_INFO, manga_id=manga_id)}")
