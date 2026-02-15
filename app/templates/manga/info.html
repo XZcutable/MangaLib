@@ -7,13 +7,10 @@
     {% endif %}
 {% endblock %}
 
-{% set selected_chapter = request.args.chapter|default(1)|int %}
-
 {% block script %}
 {{ super() }}
 
 <script>
-selected_chapter = {{ selected_chapter }};
 {# console.log("Chapter: {{ request.args.chapter|default(1) }}"); #}
 
 
@@ -42,10 +39,9 @@ addEventListener("load", () => {
 });
 
 var finished = false;
-var total_chapters = manga.chapters.length;
+var total_chapters = manga.total_chapters;
 
 async function fetchTitles(offset) {
-    let chapter = manga.chapters[selected_chapter - 1];
     console.log(batch_size, offset)
 
     if (offset > chapter.page_count) {
@@ -61,23 +57,13 @@ async function fetchTitles(offset) {
 }
 
 function process_batch(data) {
-    let chapter = manga.chapters[selected_chapter - 1];
-    
     if(data["amount"] > 0) {
         var grid = document.getElementById(grid_id);
         for(let page = 1; page <= data["amount"]; page++) {
             if(data["offset"] + page <= chapter.page_count) {
-                let page_html = createPageGridItem(manga.id, selected_chapter, data["offset"] + page);
+                let page_html = createPageGridItem(manga.id, chapter.number, data["offset"] + page);
                 grid.innerHTML += page_html;
             } 
-            {# else {
-                let chapter_number = page - manga.chapters[0].page_count;
-                if (chapter_number < manga.chapters.length) {
-                    let chapter = manga.chapters[chapter_number]
-                    let page_html = createChapterGridItem(manga.id, chapter_number + 1, chapter.title);
-                    grid.innerHTML += page_html;
-                }
-            } #}
         }
         clean_up(small_dealy, true, data["amount"]);
     } else {
@@ -118,10 +104,10 @@ function process_batch(data) {
                 {# <div class="w3-large text-shadow w3-text-grey">Artist: </div>
                 <div class="w3-large text-shadow w3-text-grey">Language: </div>
                 <div class="w3-large text-shadow w3-text-grey">Categories: </div> #}
-                {% if manga.chapters|length == 1 %}
-                    <div class="w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].page_count }}</div>
+                {% if manga.total_chapters == 1 %}
+                    <div class="w3-large text-shadow w3-text-grey">Pages: {{ chapter.page_count }}</div>
                 {% else %}
-                    <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
+                    <div class="w3-large text-shadow w3-text-grey">Chapters: {{ manga.total_chapters }}</div>
                 {% endif %}
                 <div class="w3-large text-shadow w3-text-grey">Tags:</div>
                 <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
@@ -188,10 +174,10 @@ function process_batch(data) {
             {# <div class="w3-padding-small w3-large text-shadow w3-text-grey">Artist: </div>
             <div class="w3-padding-small w3-large text-shadow w3-text-grey">Language: </div>
             <div class="w3-padding-small w3-large text-shadow w3-text-grey">Categories: </div> #}
-            {% if manga.chapters|length == 1 %}
-                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Pages: {{ manga.chapters[0].page_count }}</div>
+            {% if manga.total_chapters == 1 %}
+                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Pages: {{ chapter.page_count }}</div>
             {% else %}
-                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Chapters: {{ manga.chapters|length }}</div>
+                <div class="w3-padding-small w3-large text-shadow w3-text-grey">Chapters: {{ manga.total_chapters }}</div>
             {% endif %}
             <div class="w3-padding-small w3-large text-shadow w3-text-grey">Tags:</div>
             <div style="padding-bottom: 5px; margin-bottom: 10px; border-bottom: 2px #12121250 solid;">
@@ -204,14 +190,14 @@ function process_batch(data) {
         </div>
         
         {# TODO Make the selected chapter function and ties it to a query parameter or # #}
-        {% if manga.chapters|length > 1 %}
+        {% if manga.total_chapters > 1 %}
         <div class="w3-padding">
             <div class="w3-dropdown-hover" style="min-width: 50%;">
-                <button class="hover-dropdown-button w3-button w3-light-gray">Chapter {{ selected_chapter }}</button>
+                <button class="hover-dropdown-button w3-button w3-light-gray">Chapter {{ chapter.number }}</button>
                 <div class="w3-dropdown-content w3-bar-block">
-                    {% for chapter in manga.chapters %}
-                        {% if selected_chapter != chapter.number %}
-                        <a class="w3-button w3-block" href="?chapter={{chapter.number}}">Chapter {{chapter.number}}</a>
+                    {% for chapter_number in range(1, manga.total_chapters+1) %}
+                        {% if chapter.number != chapter_number %}
+                        <a class="w3-button w3-block" href="?chapter={{chapter_number}}">Chapter {{chapter_number}}</a>
                         {% endif %}
                     {% endfor %}
                 </div>

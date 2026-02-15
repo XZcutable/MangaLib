@@ -11,7 +11,6 @@ Bugs:
 * Mobile, swiping on top bar will scroll page
 Sizing in private mode seems slighly off
 On mobile, you can slide the screen by swiping on the top bar
-* manga with a lot of chapters seems to occasionally crash the program. To look into.
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered

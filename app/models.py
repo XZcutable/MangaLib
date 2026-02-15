@@ -183,26 +183,15 @@ class Manga(Base):
     def __repr__(self):
         return f"<Manga({self.id=}, {self.title=}, {self.chapters=}, {self.manga_metadata=})>"
     
-    def toJson(self, shallow_copy=False):
-        if shallow_copy:
-            return {
-                "id": self.id,
-                "title": self.title,
-                "chapters": [chapter.toJson(True) for chapter in self.chapters],
-                "manga_metadata": self.manga_metadata.toJson(),
-                # TODO Add this to the model so i don't have to do this
-                "original_title": self.original_title,
-                "date_uploaded": self.date_uploaded,
-            }
-        else:
-            return {
-                "id": self.id,
-                "title": self.title,
-                "original_title": self.original_title,
-                "chapters": [chapter.toJson() for chapter in self.chapters],
-                "manga_metadata": self.manga_metadata.toJson(),
-                "date_uploaded": self.date_uploaded,
-            }
+    def toJson(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "original_title": self.original_title,
+            "total_chapters": len(self.chapters),
+            "manga_metadata": self.manga_metadata.toJson(),
+            "date_uploaded": self.date_uploaded,
+        }
 
     def fromID(id: int) -> Optional["Manga"]:
         return Manga.query.get({"id": id})
@@ -227,25 +216,13 @@ class Chapter(Base):
     def __repr__(self):
         return f"<Chapter({self.manga_id=}, {self.title=}, {self.number=}, {self.pages=})"
     
-    def toJson(self, shallow_copy=False):
-        if shallow_copy:
-            return {
-                'manga_id': self.manga_id,
-                'title': self.title,
-                'number': self.number,
-                'page_count': len(self.pages),
-                # "pages": [page.toJson(True) for page in self.pages],
-                #  "pages": self.pages,
-            }
-        else:
-            return {
-                'manga_id': self.manga_id,
-                'title': self.title,
-                'number': self.number,
-                # "pages": [page.toJson() for page in self.pages],
-                'page_count': len(self.pages),
-                "manga": self.manga.toJson(True),
-            }
+    def toJson(self):
+        return {
+            'manga_id': self.manga_id,
+            'title': self.title,
+            'number': self.number,
+            'page_count': len(self.pages),
+        }
    
     def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
          return db.session.get(Chapter, {"manga_id": manga.id, "number": number})
@@ -277,24 +254,16 @@ class Page(Base):
     def __repr__(self):
         return f"<Page({self.number=}, {self.file_name=}, {self.manga_id=}, {self.chapter_number=})>"
     
-    def toJson(self, shallow_copy=False):
-        if shallow_copy:
-                return {
-                "number": self.number,
-                "file_name": self.file_name,
-                "manga_id": self.manga_id,
-                "chapter_number": self.chapter_number,
-            }
-        else:
-            return {
-                "number": self.number,
-                "file_name": self.file_name,
-                "manga_id": self.manga_id,
-                "chapter_number": self.chapter_number,
+    def toJson(self):
+        return {
+            "number": self.number,
+            "file_name": self.file_name,
+            "manga_id": self.manga_id,
+            "chapter_number": self.chapter_number,
 
-                "manga": self.manga.toJson(True),
-                "chapter": self.chapter.toJson(True),
-            }
+            "manga": self.manga.id,
+            "chapter": self.chapter.number,
+        }
     
     def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
         return db.session.get(Page, {"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})

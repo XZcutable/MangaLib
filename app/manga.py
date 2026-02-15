@@ -75,8 +75,13 @@ def info(manga_id: int = None):
         return redirect(url_for(ENDPOINT.HOME))
     
     user_manga_data: UserMangaData = UserMangaData.getOrCreate(api.getUserID(), manga)
+    chapter = request.args.get('chapter')
+    if chapter is None or not str.isdigit(chapter) or int(chapter) < 1:
+        chapter = manga.chapters[0]
+    else:
+        chapter = manga.chapters[int(chapter)-1]
 
-    return render_template(HTML.INFO, manga=manga.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
+    return render_template(HTML.INFO, manga=manga.toJson(), chapter=chapter.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
 @bp.route("/resume/<int:manga_id>")
 @bp.route("/resume/<int:manga_id>/<int:chapter_number>")
