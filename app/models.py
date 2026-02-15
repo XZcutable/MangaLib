@@ -43,14 +43,13 @@ def init_db():
 class Path(db.Model):
     path: Mapped[str_pk]
 
-    def sortList(path_list: list[str]):
-        path_list.sort(key=lambda path: Path.alphanum_key(os.path.splitext(path)[0]))
+    def sortList(path_list: list[str], isDirs=False):
+        if isDirs:
+            path_list.sort(key=lambda path: Path.alphanum_key(str.casefold(path)))
+        else:
+            path_list.sort(key=lambda path: Path.alphanum_key(os.path.splitext(str.casefold(path))[0]))
 
-    convert = lambda text: int(text) if text.isdigit() else text.lower()
-    alphanum_key = lambda key: [Path.convert(c) for c in re.split('([0-9]+)', key)]
-
-    def natural_sort(path_list: list[str]): 
-        return path_list.sort(key=Path.alphanum_key)
+    alphanum_key = lambda key: [c for c in re.split('([0-9]+)', str.casefold(key))]
 
 # Username, passwords, preferences
 class User(Base):

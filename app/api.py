@@ -82,16 +82,15 @@ def rescan():
 
 def scan_manga_path(path: str, manga: Manga = None):
     if manga is not None and path != manga.path:
-            print(f"Manga Path mismatch: got {path}, expected {manga.path}")
-            return (False, f"Manga Path mismatch: got {path}, expected {manga.path}")
+        print(f"Manga Path mismatch: got {path}, expected {manga.path}")
+        return (False, f"Manga Path mismatch: got {path}, expected {manga.path}")
     else:
         manga_name = os.path.split(path)[1]
         manga = Manga.getOrCreate(title=manga_name, manga_path=path)
         manga.chapters = []
 
         chapter_names: list[str] = lsDirs(path)['folders']
-        Path.sortList(chapter_names)
-        chapter_names.insert(0, path)
+        Path.sortList(chapter_names, isDirs=True)
         next_chapter_number = 1
         for chapter_name in chapter_names:
             chapter_path = os.path.join(path, chapter_name)
@@ -115,11 +114,7 @@ def scan_manga_path(path: str, manga: Manga = None):
             manga.date_uploaded = getDatetimeISONow()
             db.session.add(manga)
         
-        # relative_path = os.path.splitdrive(manga.path)[1]
-
-        manga.relative_path
-        
-        print(f"Manga ({manga.id}, {manga.title}), updated with {len(manga.chapters)} chapter(s)")
+        # print(f"Manga ({manga.id}, {manga.title}), updated with {len(manga.chapters)} chapter(s)")
         return (True, None)
 
 @bp.route('/add-path')

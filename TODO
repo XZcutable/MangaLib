@@ -1,4 +1,9 @@
-Current Project:
+ Current Project:
+1. Separate paths from Manga
+ - Paths will be locations manga is stored in. If a location is found, that will be cached. If a cached location is found, that will be checked first.
+   If the cache fails, then it will check all known locations and cache a hit, otherwise it will be a fail.
+
+
 Change redirects to variables with string names in code
 Improve performance of scanning
 
@@ -6,6 +11,7 @@ Bugs:
 * Mobile, swiping on top bar will scroll page
 Sizing in private mode seems slighly off
 On mobile, you can slide the screen by swiping on the top bar
+* manga with a lot of chapters seems to occasionally crash the program. To look into.
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered
