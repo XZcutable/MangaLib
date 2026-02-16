@@ -2,15 +2,14 @@
 1. Separate paths from Manga
  - Paths will be locations manga is stored in. If a location is found, that will be cached. If a cached location is found, that will be checked first.
    If the cache fails, then it will check all known locations and cache a hit, otherwise it will be a fail.
+2. Directory handling. Have a limit of how many directories are show in the popup. Search?
 
 
 Change redirects to variables with string names in code
 Improve performance of scanning
 
 Bugs:
-* Mobile, swiping on top bar will scroll page
-Sizing in private mode seems slighly off
-On mobile, you can slide the screen by swiping on the top bar
+- Unknown
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered
@@ -30,7 +29,6 @@ Features needs for MVP:
 - Random and Random unread
 - search for names, tags, and special tags
 - Can edit manga names
-Add a way to combine mangas as chapters or link together?
 - Add Chapters to manga info
 - Add way to delete manga, or mark deleted
 - User History
@@ -47,8 +45,6 @@ Add cbz support? Or make chapters cbz
 
 Polish:
 make site look better
-Add a dropdown on page previews so that they would only load when pressed?
-Add way to edit page order, and remove pages
 
 Make paths relative, so data can be moved safely
 Add versioning to site
