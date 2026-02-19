@@ -9,9 +9,10 @@ from .constants import VAR, HTML, ROUTE, ENDPOINT
 
 from sqlalchemy import func, select, exc
 
-import os, re
+import os, re, zipfile
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
+archive_types = ('.cbz', '.zip', '.pdf')
 
 bp = Blueprint('manga', __name__, url_prefix='/manga')
 
@@ -155,16 +156,30 @@ def image(manga_id=None, page_number=None, chapter_number=1):
     return FETCH_PAGE(page)
 
 def fetch_page(page: Page):
-    img_path = os.path.join(page.chapter.path, page.file_name)
-    # print(img_path, os.path.exists(img_path))
-    if not os.path.exists(img_path):
-        return IMAGE_404()
-    
-    ext = os.path.splitext(page.file_name)[1]
-    response = send_from_directory(page.chapter.path, page.file_name, download_name=f"{page.number}{ext}", max_age=10*24*60*60)
-    if response.status_code == 304:
-        response.status_code = 200
-    return response
+    if page.chapter.is_archive():
+        if page.chapter.archive_type == ".zip" or page.chapter.archive_type == ".cbz":
+            # TODO Add try catch
+            with zipfile.ZipFile(page.chapter.path, "r") as zip_file:
+                image_data = zip_file.open(page.file_name)
+                image_ext = os.path.splitext(page.file_name)[1]
+                response = send_file(image_data, page.file_name, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
+                
+            if response.status_code == 304:
+                response.status_code = 200
+            return response
+        else:
+            return IMAGE_404()
+    else:
+        img_path = os.path.join(page.chapter.path, page.file_name)
+        # print(img_path, os.path.exists(img_path))
+        if not os.path.exists(img_path):
+            return IMAGE_404()
+        
+        ext = os.path.splitext(page.file_name)[1]
+        response = send_from_directory(page.chapter.path, page.file_name, download_name=f"{page.number}{ext}", max_age=10*24*60*60)
+        if response.status_code == 304:
+            response.status_code = 200
+        return response
 
 
 @bp.route('/upload', methods=('GET', 'POST'))

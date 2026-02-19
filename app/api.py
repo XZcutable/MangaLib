@@ -11,7 +11,7 @@ from . import settings
 from .auth import owner_access, admin_access, get_role_context
 from .constants import ENDPOINT, SQL
 from . import manga
-from .manga import image_types
+from .manga import image_types, archive_types
 from sqlalchemy import distinct, func, Select
 from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path, MangaContentTag
 
@@ -96,21 +96,35 @@ def scan_manga_path(path: str, manga: Manga = None):
         next_chapter_number = 1
         for chapter_name in chapter_names:
             chapter_path = os.path.join(path, chapter_name)
+            archives: list[str] = lsFiles(chapter_path, filters=archive_types)['files']
+            Path.sortList(archives)
+
             page_names: list[str] = lsFiles(chapter_path, filters=image_types)['files']
             Path.sortList(page_names)
 
-            if len(page_names) == 0:
-                continue
+            if len(archives) > 0:
+                for archive in archives:
+                    archive_path = os.path.join(chapter_path, archive)
+                    archive_name, archive_ext = os.path.splitext(archive)
+                    chapter: Chapter = Chapter.create(chapter_path=archive_path, number=next_chapter_number, title=archive_name, archive_type=archive_ext)
+                    Chapter.from_archive(chapter, archive_path=archive_path, archive_ext=archive_ext)
 
-            chapter: Chapter = Chapter.create(chapter_path=chapter_path, number=next_chapter_number, title=chapter_name)
-            next_chapter_number += 1
+                    if len(chapter.pages) <= 0:
+                        continue
+                    else:
+                        next_chapter_number += 1
+                        manga.chapters.append(chapter)
+            
+            if len(page_names) > 0:
+                chapter: Chapter = Chapter.create(chapter_path=chapter_path, number=next_chapter_number, title=chapter_name)
+                next_chapter_number += 1
 
-            next_page_number = 1
-            for page_name in page_names:
-                page: Page = Page.create(file_name=page_name, number=next_page_number)
-                next_page_number += 1
-                chapter.pages.append(page)
-            manga.chapters.append(chapter)
+                next_page_number = 1
+                for page_name in page_names:
+                    page: Page = Page.create(file_name=page_name, number=next_page_number)
+                    next_page_number += 1
+                    chapter.pages.append(page)
+                manga.chapters.append(chapter)
         
         if manga.new:
             manga.date_uploaded = getDatetimeISONow()

@@ -12,7 +12,11 @@ from datetime import datetime, timezone
 
 from app.enum import Access
 
-import os, re
+import os, re, zipfile
+
+# TODO Issue importing these from Manga, maybe import from here instead?
+image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
+archive_types = ('.cbz', '.zip', '.pdf')
 
 class BaseModel(DeclarativeBase, MappedAsDataclass):
     def __getitem__(self, key):
@@ -204,11 +208,15 @@ class Chapter(Base):
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
     number:Mapped[int_pk]
     path: Mapped[str]
+    archive_type: Mapped[str] = mapped_column(default=None)
 
     title:Mapped[Optional[str]] = mapped_column(default="")
     manga:Mapped["Manga"] = relationship(default=None, back_populates="chapters")
 
     pages:Mapped[List["Page"]] = relationship(default_factory=list, cascade="all, delete-orphan", back_populates="chapter")
+
+    def is_archive(self):
+        return self.archive_type is not None 
 
     def getPage(self, number: int) -> Optional["Page"]:
         return Page.fromChapter(self, number)
@@ -227,10 +235,33 @@ class Chapter(Base):
     def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
          return db.session.get(Chapter, {"manga_id": manga.id, "number": number})
     
-    def create(chapter_path: str, number: int, title: str) -> "Chapter":
-        chapter = Chapter(number=number, path=chapter_path)
+    def create(chapter_path: str, number: int, title: str, archive_type: str = None) -> "Chapter":
+        chapter = Chapter(number=number, path=chapter_path, archive_type=archive_type)
         chapter.title = title
         return chapter
+    
+    def from_archive(chapter: "Chapter", archive_path: str, archive_ext: str):
+        files = []
+        if archive_ext == '.cbz' or archive_ext == '.zip':
+            with zipfile.ZipFile(archive_path, 'r') as zip_file:
+                for entry in zip_file.filelist:
+                    if entry.is_dir():
+                        pass # TODO Handle directories
+                    else:
+                        entry_ext = os.path.splitext(entry.filename)[1]
+                        if entry_ext in image_types:
+                            files.append(entry.filename)
+                
+                Path.sortList(files)
+                next_page_number = 1
+                for file in files:
+                    page: Page = Page.create(file_name=file, number=next_page_number)
+                    next_page_number += 1
+                    chapter.pages.append(page)
+        else:
+            print(f"{archive_ext} is not yet supported.")
+
+        return len(files)
     
 class Page(Base):
     __tablename__ = "page"
