@@ -7,7 +7,7 @@ from .models import db, Manga, Chapter, Page, UserMangaData
 from .auth import get_role_context
 from .constants import VAR, HTML, ROUTE, ENDPOINT
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, exc
 
 import os, re
 
@@ -74,14 +74,17 @@ def info(manga_id: int = None):
     if manga is None:
         return redirect(url_for(ENDPOINT.HOME))
     
-    user_manga_data: UserMangaData = UserMangaData.getOrCreate(api.getUserID(), manga)
-    chapter = request.args.get('chapter')
-    if chapter is None or not str.isdigit(chapter) or int(chapter) < 1:
-        chapter = manga.chapters[0]
-    else:
-        chapter = manga.chapters[int(chapter)-1]
+    if len(manga.chapters) > 0:
+        user_manga_data: UserMangaData = UserMangaData.getOrCreate(api.getUserID(), manga)
+        chapter = request.args.get('chapter')
+        if chapter is None or not str.isdigit(chapter) or int(chapter) < 1:
+            chapter = manga.chapters[0]
+        else:
+            chapter = manga.chapters[int(chapter)-1]
 
-    return render_template(HTML.INFO, manga=manga.toJson(), chapter=chapter.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
+        return render_template(HTML.INFO, manga=manga.toJson(), chapter=chapter.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
+    else:
+        return render_template(HTML.INFO, manga=manga.toJson(), chapter={}, user_manga_data={}, HIDE_TITLES=HIDE_TITLES, **get_role_context())
 
 @bp.route("/resume/<int:manga_id>")
 @bp.route("/resume/<int:manga_id>/<int:chapter_number>")
@@ -171,10 +174,13 @@ def upload():
 def update_manga_count():
     global MANGA_COUNT
 
-    count = db.session.scalar(
-        select(func.count()).select_from(Manga)
-    )
-    MANGA_COUNT = count
+    try:
+        count = db.session.scalar(
+            select(func.count()).select_from(Manga)
+        )
+        MANGA_COUNT = count
+    except exc.OperationalError:
+        MANGA_COUNT = 0
 
 TERM_PATTERN = re.compile(r"(?<![:\",'])\b\w+\b(?![:\",'])")
 TAG_PATTERN = re.compile(r"(?<!\w|!)tag:([\w,]+)")

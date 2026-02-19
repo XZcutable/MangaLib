@@ -58,7 +58,7 @@ def scanPaths():
     
     db.session.commit()
     manga.update_manga_count()
-    flash("Scanning", 'info')
+    flash("Path scanned", 'success')
     return {'result': 'success'}
 
 @owner_access
@@ -91,6 +91,8 @@ def scan_manga_path(path: str, manga: Manga = None):
 
         chapter_names: list[str] = lsDirs(path)['folders']
         Path.sortList(chapter_names, isDirs=True)
+        chapter_names.insert(0, path) # Used to include files in the root directory
+
         next_chapter_number = 1
         for chapter_name in chapter_names:
             chapter_path = os.path.join(path, chapter_name)
