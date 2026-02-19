@@ -6,12 +6,17 @@ from . import manga
 
 import tomllib
 from datetime import datetime, timezone
+import sys
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 BEHIND_PROXY = True
 
+config_path = None
+
 def create_app():
+    global config_path
+    
     app = Flask(__name__, instance_relative_config=True)
 
     if BEHIND_PROXY:
@@ -19,7 +24,11 @@ def create_app():
             app.wsgi_app, x_for=1, x_port=1, x_host=1, x_prefix=1
         )
 
-    app.config.from_file(f'{app.root_path}/config.toml', load=tomllib.load, text=False)
+    config_path = f'{app.root_path}/config.toml'
+    parse_args()
+    print(config_path)
+
+    app.config.from_file(config_path, load=tomllib.load, text=False)
 
     config_overrides(app)
     filters.FILTERS[tolocaltime.__name__] = tolocaltime
@@ -58,6 +67,7 @@ def create_app():
 
     return app
 
+
 def config_overrides(app: Flask):
     # app.config['HIDE_MANGA'] = True
     # app.config['HIDE_TITLES'] = False
@@ -67,3 +77,21 @@ def tolocaltime(utc_time: datetime, format="%d/%m/%Y, %H:%M:%S"):
     if type(utc_time) == str:
         utc_time = datetime.fromisoformat(utc_time)
     return utc_time.astimezone().strftime(format)
+
+def parse_args():
+    global config_path
+    args = sys.argv[1:]
+    print(args)
+
+    index = 0
+    for arg in args:
+        if arg.lower().startswith("--config"):
+            temp = arg.split("=")
+            if len(temp) == 1:
+                index += 1
+                path = args[index]
+            else:
+                path = temp[1]
+            config_path = path
+
+        index += 1

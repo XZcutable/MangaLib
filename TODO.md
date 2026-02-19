@@ -3,13 +3,14 @@
  - Paths will be locations manga is stored in. If a location is found, that will be cached. If a cached location is found, that will be checked first.
    If the cache fails, then it will check all known locations and cache a hit, otherwise it will be a fail.
 2. Directory handling. Have a limit of how many directories are show in the popup. Search?
-
+3. Create a python code wrapper that can take command line args and run approiately. Will search for different configs and ask for user selection.
+4. Create a new onboarding process
 
 Change redirects to variables with string names in code
 Improve performance of scanning
 
 Bugs:
-- Unknown
+- Updated ReadME with correct commands
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered
@@ -35,12 +36,15 @@ Features needs for MVP:
 - Mobile experience parity
 - To read list
 - Favorites list
+- Add cbz support
 
 Future Tasks:
 Add a play options 1s,3s, 5s
 eventually add pdf support
 Impelement way to sync the folder names with the title names
-Add cbz support? Or make chapters cbz
+Improve onboarding process
+Documentation
+
 
 
 Polish:
