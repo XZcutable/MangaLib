@@ -162,7 +162,7 @@ def fetch_page(page: Page):
             with zipfile.ZipFile(page.chapter.path, "r") as zip_file:
                 image_data = zip_file.open(page.file_name)
                 image_ext = os.path.splitext(page.file_name)[1]
-                response = send_file(image_data, page.file_name, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
+                response = send_file(image_data, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
                 
             if response.status_code == 304:
                 response.status_code = 200

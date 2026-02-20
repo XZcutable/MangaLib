@@ -244,9 +244,10 @@ class Chapter(Base):
         files = []
         if archive_ext == '.cbz' or archive_ext == '.zip':
             with zipfile.ZipFile(archive_path, 'r') as zip_file:
-                for entry in zip_file.filelist:
+                # iterates through all files and folders. treating all as one chapter but is more of a volume
+                for entry in zip_file.infolist():
                     if entry.is_dir():
-                        pass # TODO Handle directories
+                        pass
                     else:
                         entry_ext = os.path.splitext(entry.filename)[1]
                         if entry_ext in image_types:

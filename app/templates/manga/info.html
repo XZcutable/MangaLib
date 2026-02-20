@@ -84,7 +84,7 @@ function process_batch(data) {
     <div class="manga-grid-container w3-round-large" style="margin-top: 10px;">
         <div class="w3-hide-small w3-padding" style="height: 50vh; display: flex;">
             <div class="w3-round-large" style="height: 100%; min-width: 40%; text-align: center;">
-                <img class="w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
+                <img class="no-hover w3-image w3-round-large" src="{{ url_for('manga.image', manga_id=manga.id, page_number=1) }}" alt="Thumbnail" style="height: 100%; max-width: 100%;">
             </div>
             {# Desktop #}
             <div class="w3-padding" style="flex-grow: 1;">
