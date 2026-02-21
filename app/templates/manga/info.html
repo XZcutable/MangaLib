@@ -18,6 +18,10 @@ addEventListener("load", () => {
     let read_button = document.getElementById("manga-is-read-checkbox");
     read_button.checked = user_manga_data.is_read;
 
+    if(!user_manga_data.is_read && user_manga_data.current_page > 1) {
+        read_button.classList.add("in-progress")
+    }
+
     read_button = document.getElementById("manga-is-read-checkbox-mobile");
     read_button.checked = user_manga_data.is_read;
 
