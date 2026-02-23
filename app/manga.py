@@ -54,7 +54,10 @@ def queued():
 @bp.route(ROUTE.RANDOM)
 def random_manga():
     random_id = db.session.scalar(select(Manga.id).order_by(func.random()))
-    return redirect(f"{url_for(ENDPOINT.MANGA_RESUME, manga_id=random_id)}")
+    if random_id is None:
+        return redirect(url_for(ENDPOINT.HOME))
+    else:
+        return redirect(f"{url_for(ENDPOINT.MANGA_RESUME, manga_id=random_id)}")
 
 @bp.route(ROUTE.RANDOM_UNREAD)
 def random_unread():

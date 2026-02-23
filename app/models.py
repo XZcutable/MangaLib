@@ -3,7 +3,6 @@ from typing_extensions import Annotated
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-import click
 
 from sqlalchemy import ForeignKey, ForeignKeyConstraint, select
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, Mapped, mapped_column, relationship
@@ -11,6 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, Mapped, mapped_co
 from datetime import datetime, timezone
 
 from app.enum import Access
+from .constants import ENV
 
 import os, re, zipfile
 
@@ -32,17 +32,26 @@ unique_str = Annotated[str, mapped_column(unique=True)]
 manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"))]
 
 def init_app(app: Flask):
+    database_path: str = app.config.get('DATABASE_PATH', ENV.DEFAULT_DATABASE_PATH)
+    database_name: str = app.config.get('DATABASE_NAME', ENV.DEFAULT_DATABASE_NAME)
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{app.config.get('DATABASE_PATH', '')}/database.db"
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{database_path}/{database_name}"
         app.config["SQLALCHEMY_ECHO"] = False
-
     db.init_app(app)
-    app.cli.add_command(init_db)
 
-@click.command('init-db')
-def init_db():
-    click.echo('Initializing database')
-    db.create_all()
+    cur_dir = os.getcwd()
+    os.chdir(app.instance_path)
+    if not os.path.exists(f"{database_path}/{database_name}"):
+        print(f"Database not found: {database_path}/{database_name}")
+        print("Creating the database...")
+        os.chdir(cur_dir)
+        with app.app_context():
+            db.create_all()
+        os.chdir(app.instance_path)
+        if not os.path.exists(f"{database_path}/{database_name}"):
+            print("Unable to make database")
+            exit()
+    os.chdir(cur_dir)
 
 class Path(db.Model):
     path: Mapped[str_pk]
@@ -58,17 +67,21 @@ class Path(db.Model):
 # Username, passwords, preferences
 class User(Base):
     __tablename__ = "user"
-    id:Mapped[int_pk] = mapped_column(unique=True)
+    id:Mapped[int_pk] = mapped_column(unique=True, init=False)
     username: Mapped[unique_str]
     password: Mapped[str]
 
-    email: Mapped[Optional[str]]
     approved: Mapped[bool] = mapped_column(default=False)
     role: Mapped[str] = mapped_column(default=Access.USER.toString())
     date_created: Mapped[str] = mapped_column(default=None)
+    email: Mapped[Optional[str]] = mapped_column(default=None)
 
     def __repr__(self):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
+    
+    def create(username: str, password_hash: str) -> "User":
+        user = User(username=username, password=password_hash, date_created=str(datetime.now(timezone.utc)))
+        return user
     
 class UserMangaData(Base):
     user_id:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))

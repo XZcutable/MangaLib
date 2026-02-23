@@ -12,7 +12,7 @@ public_access = [ENDPOINT.AUTH_LOGIN, ENDPOINT.AUTH_REGISTER, ENDPOINT.AUTH_LOGO
 
 import re, functools, click
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 valid_password_regex = r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&\.,*-_()]).{6,20}$"
 valid_password_pattern = re.compile(valid_password_regex)
@@ -22,14 +22,48 @@ def init_app(app: Flask):
     app.cli.add_command(change_user_role)
     app.cli.add_command(change_user_password)
 
-@bp.before_app_request
+def onboarding():
+    global before_request
+    if g.requires_clearance:
+        if request.path.startswith('/static'):
+            g.requires_clearance = False
+            return
+    
+    if request.path != url_for(ENDPOINT.AUTH_REGISTER):
+        if get_owner() is None:
+            return redirect(url_for(ENDPOINT.AUTH_REGISTER))
+        else:
+            before_request = load_logged_in_user
+            return load_logged_in_user()
+
+before_request = onboarding
+
 def load_logged_in_user():
+    if g.requires_clearance:
+        if request.path.startswith('/static'):
+            g.requires_clearance = False
+            return
+        elif request.path in [url_for(endpoint) for endpoint in public_access]:
+            g.requires_clearance = False
+            return
+        
+    if g.user is None:
+        if session.get('logged_out') is not None:
+            session.clear()
+        else:
+            flash("Account Needed", 'error')
+        session["requested_url"] = request.base_url
+        print(session["requested_url"])
+        return redirect(url_for(ENDPOINT.AUTH_LOGIN))
+    
+@bp.before_app_request
+def before_app_request():
     user_id = session.get('user_id')
 
     if user_id is None:
         g.user = None
     elif session.get('user') is None:
-        session["user"] = User.query.get({"id": user_id})
+        session["user"] = User.query.get({"id": user_id}) # replace
         g.user = session["user"]
     else:
         g.user = session["user"]
@@ -40,23 +74,8 @@ def load_logged_in_user():
 
     if g.get("requires_clearance") is None:
         g.requires_clearance = True
-    
-    if g.requires_clearance:
-        if request.path.startswith('/static'):
-            g.requires_clearance = False
-            return
-        elif request.path in [url_for(endpoint) for endpoint in public_access]:
-            g.requires_clearance = False
-            return
 
-    if g.user is None:
-        if session.get('logged_out') is not None:
-            session.clear()
-        else:
-            flash("Account Needed", 'error')
-        session["requested_url"] = request.base_url
-        print(session["requested_url"])
-        return redirect(url_for(ENDPOINT.AUTH_LOGIN))
+    return before_request()
 
 @bp.route(ROUTE.CHANGE_PASSWORD, methods=('POST',))
 def changePassword():
@@ -99,11 +118,22 @@ def changeUsername():
 
     return redirect(request.referrer)
 
+
 @bp.route(ROUTE.REGISTER, methods=('GET', 'POST'))
 def register():
+    registrationOpen = None
+    auto_approve = None
     if g.user is not None:
-        return redirect(url_for('manga.home'))
-    
+        user_role = get_user_role()
+        if user_role < Access.ADMIN:
+            return redirect(url_for('manga.home'))
+        else:
+            registrationOpen = True
+            auto_approve = True
+    else:
+        registrationOpen = current_app.config['ALLOW_NEW_USERS']
+        auto_approve = current_app.config['AUTO_APPROVE_NEW_USERS']
+
     username, password = '', ''
     error = None
 
@@ -117,39 +147,57 @@ def register():
             error = 'Password is required'
         else:
             print("Creating user")
-            user = User(username=username, password=generate_password_hash(password))
-            exisiting_user = User.query.filter_by(username=username).first()
-            if exisiting_user:
-                error = f"User {username} is already registered"
-            else:
-                db.session.add(user)
-                user = User.query.filter_by(username=username).first()
 
-                if user.id == 1:
-                    user.role = Access.OWNER.toString()
-                    user.approved = True
-                    flash("Registration Successfull", 'success')
-                elif current_app.config['ALLOW_NEW_USERS']:
-                    if current_app.config['AUTO_APPROVE_NEW_USERS']:
+            find_user = (
+                select(User)
+                .where(User.username == username)
+            )
+            exisiting_user = db.session.scalar(find_user)
+            if exisiting_user is not None:
+                error = f"User {username} is already registered"
+                flash(error, "error")
+            else:
+                
+                owner = get_owner()
+                if owner is None:
+                    registrationOpen = True
+                
+                if registrationOpen:
+                    db.session.begin_nested()
+                    user = User.create(username=username, password_hash=generate_password_hash(password))
+                    db.session.add(user)
+                    db.session.commit()
+
+                    db.session.begin_nested()
+                    user = db.session.scalar(find_user)
+
+                    if user.id == 1:
+                        user.role = Access.OWNER.toString()
+                        user.approved = True
+                        flash("Created Owner Account", 'success')
+                    elif auto_approve:
                         user.approved = True
                         flash("Registration Successfull", 'success')
                     else:
                         flash('Successfully registered, please wait to be approved', 'success')
+                    db.session.commit()
                 else:
                     error = 'Registration is closed'
+                    flash(error, "error")
+
             if error is None:
-                db.session.commit()
                 return redirect(url_for(ENDPOINT.AUTH_LOGIN, last_username=username))
             else:
-                db.session.rollback()
+                return redirect(url_for(ENDPOINT.AUTH_REGISTER, last_username=username))
         
         if error is not None:
-            flash(error, 'error')
             return render_template('auth/register.html', last_username=username, last_password=password)
     else:
-        owner = User.query.filter_by(id=1).first()
-        registrationOpen = owner is None or current_app.config['ALLOW_NEW_USERS']
-        return render_template('auth/register.html', registrationOpen=registrationOpen)
+        owner = get_owner()
+        if owner is None:
+            return render_template('auth/register.html', registrationOpen=True, registration_info="Create Owner Account")
+        else:
+            return render_template('auth/register.html', registrationOpen=registrationOpen, registration_info="Register New User")
 
 @bp.route(ROUTE.LOGIN, methods=('GET', 'POST'))
 def login():
@@ -191,8 +239,11 @@ def logout():
     flash("Successfully Logged Out", 'info')
     return redirect(url_for('manga.home'))
 
+def get_user_role() -> Access:
+    return Access.fromString(g.user['role'])
+
 def get_role_context():
-    user_role = Access.fromString(g.user['role'])
+    user_role = get_user_role()
     context = {
         "isOwner": user_role == Access.OWNER,
         "isAdmin": user_role >= Access.ADMIN,
@@ -241,6 +292,17 @@ def moderator_access(view):
         return view(**kwargs)
     
     return wrapped_view
+
+select_owner = (
+    select(User)
+    .where(User.id == 1)
+)
+def get_owner() -> User:
+    if db.session is None:
+        return None
+    
+    owner: User = db.session.scalar(select_owner)
+    return owner
 
 @click.command("register-user")
 @click.option("-u", "--username")

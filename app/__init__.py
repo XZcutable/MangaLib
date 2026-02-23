@@ -1,6 +1,7 @@
 from flask import Flask
 from jinja2 import filters 
 
+from .constants import ENV
 from . import api, auth, models, settings
 from . import manga
 
@@ -24,19 +25,39 @@ def create_app():
             app.wsgi_app, x_for=1, x_port=1, x_host=1, x_prefix=1
         )
 
-    config_path = f'{app.root_path}/config.toml'
-    parse_args()
-    print(config_path)
 
-    app.config.from_file(config_path, load=tomllib.load, text=False)
+    config_path = f'{app.root_path}/{ENV.CONFIG_NAME}'
+    config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False, silent=True)
 
-    config_overrides(app)
+    if not config_loaded:
+        print(f"Config does not exist. Creating at {config_path}")
+        with open(config_path, "w") as config:
+            config.write(ENV.DEFAULT_CONFIG)
+        
+        should_exit = None
+        while should_exit is None:
+            should_exit = input("A default config was created. Would you like to edit the config? (y/n): ")
+            if should_exit.lower() == "y":
+                should_exit = True
+            elif should_exit.lower() == "n":
+                should_exit = False
+            else:
+                should_exit = None
+        
+        if should_exit:
+            exit()
+
+        config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False)
+        # parse_args()
+        # print(config_path)
+        config_overrides(app)
+
     filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
-    api.init_app(app)
-    manga.init_app(app)
     models.init_app(app)
     auth.init_app(app)
+    api.init_app(app)
+    manga.init_app(app)
     settings.init_app(app)
 
     app.register_blueprint(auth.bp)

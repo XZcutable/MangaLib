@@ -357,6 +357,9 @@ input:checked + .slider:before {
             <div id="admin-settings" class="settings-content">
                 <div class="no-hover w3-xxlarge"><u>Admin Settings</u></div>
                 <div class="w3-padding">
+                    <button onclick='location.href = "{{ url_for("auth.register") }}"' class="w3-button w3-round-large w3-light-grey w3-card w3-large">Register User</button>
+                </div>
+                <div class="w3-padding">
                     <div class="w3-xlarge no-hover"><b>Tags</b></div>
                     <div id="tag-grid" class="tag-grid">
                     </div>
