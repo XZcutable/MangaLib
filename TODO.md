@@ -12,6 +12,9 @@ Improve performance of scanning
 
 Bugs:
 - Updated ReadME with correct commands
+- Improve performance of folder picker when there is a lot of folders in a directory
+- Better indication of the scanning process.
+- Servername doesnt seemed to be honored
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered

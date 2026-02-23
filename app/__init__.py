@@ -116,3 +116,5 @@ def parse_args():
             config_path = path
 
         index += 1
+
+app = create_app()

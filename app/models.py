@@ -39,6 +39,9 @@ def init_app(app: Flask):
         app.config["SQLALCHEMY_ECHO"] = False
     db.init_app(app)
 
+    if not os.path.isdir(app.instance_path):
+        os.mkdir(app.instance_path)
+        
     cur_dir = os.getcwd()
     os.chdir(app.instance_path)
     if not os.path.exists(f"{database_path}/{database_name}"):
