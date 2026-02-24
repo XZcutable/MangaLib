@@ -3,6 +3,7 @@
  - Paths will be locations manga is stored in. If a location is found, that will be cached. If a cached location is found, that will be checked first.
    If the cache fails, then it will check all known locations and cache a hit, otherwise it will be a fail.
 2. Directory handling. Have a limit of how many directories are show in the popup. Search?
+3. Seach based on archive type
 
 Change redirects to variables with string names in code
 Improve performance of scanning
