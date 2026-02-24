@@ -51,7 +51,10 @@ def scanPaths():
     print(f"Need to scan {len(paths)} paths")
     db.session.begin_nested()
     for path in paths:
-        manga_folders = lsDirs(path)['folders']
+        manga_folders: list = lsDirs(path)['folders']
+        stray_archives: list = lsFiles(path, filters=archive_types)
+        scan_archive(path, stray_archives["files"])
+        # manga_folders.insert(0, path) # to include stray cbz or pdf files. Will also catch images
         for manga_folder in manga_folders:
             manga_path = os.path.join(path, manga_folder)
             scan_manga_path(manga_path)
@@ -60,6 +63,31 @@ def scanPaths():
     manga.update_manga_count()
     flash("Path scanned", 'success')
     return {'result': 'success'}
+
+def scan_archive(parent_dir: str, archives: list[str]):
+    db.session.begin_nested()
+    for archive in archives:
+        archive_path = os.path.join(parent_dir, archive)
+        archive_name, archive_ext = os.path.splitext(archive)
+
+        print("Scanning:", archive)
+        manga = Manga.getOrCreate(title=archive_name, manga_path=archive_path)
+        manga.chapters = []
+        
+        chapter: Chapter = Chapter.create(chapter_path=archive_path, number=1, title=archive_name, archive_type=archive_ext)
+        Chapter.from_archive(chapter, archive_path=archive_path, archive_ext=archive_ext)
+
+        if len(chapter.pages) <= 0:
+            continue
+        else:
+            manga.chapters.append(chapter)
+
+        if manga.new:
+            manga.date_uploaded = getDatetimeISONow()
+            db.session.add(manga)
+
+    db.session.commit()
+
 
 @owner_access
 @bp.route('/scan-manga')
