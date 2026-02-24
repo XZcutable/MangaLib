@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from .enum import Access
 from .constants import ENV
 
-import os, re, zipfile
+import os, re, zipfile, fitz, pymupdf
 
 # TODO Issue importing these from Manga, maybe import from here instead?
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
@@ -272,6 +272,21 @@ class Chapter(Base):
                     page: Page = Page.create(file_name=file, number=next_page_number)
                     next_page_number += 1
                     chapter.pages.append(page)
+        elif archive_ext == '.pdf':
+            pdf = pymupdf.open(archive_path)
+            for page_index in range(len(pdf)):
+                page = pdf.load_page(page_index)
+                image_list = [xref[0] for xref in page.get_images(full=True)]
+
+                for xref in image_list:
+                    files.append(xref)
+
+            files.sort()
+            next_page_number = 1
+            for xref in files:
+                page: Page = Page.create(file_name=f"{xref}", number=next_page_number)
+                next_page_number += 1
+                chapter.pages.append(page)
         else:
             print(f"{archive_ext} is not yet supported.")
 

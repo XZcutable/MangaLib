@@ -9,7 +9,7 @@ from .constants import VAR, HTML, ROUTE, ENDPOINT
 
 from sqlalchemy import func, select, exc
 
-import os, re, zipfile
+import os, re, zipfile, pymupdf, io
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 archive_types = ('.cbz', '.zip', '.pdf')
@@ -166,6 +166,16 @@ def fetch_page(page: Page):
                 image_data = zip_file.open(page.file_name)
                 image_ext = os.path.splitext(page.file_name)[1]
                 response = send_file(image_data, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
+                
+            if response.status_code == 304:
+                response.status_code = 200
+            return response
+        elif page.chapter.archive_type == ".pdf":
+            pdf = pymupdf.open(page.chapter.path)
+            base_image = pdf.extract_image(int(page.file_name))
+            image_data = io.BytesIO(base_image["image"])
+            image_ext = base_image["ext"]
+            response = send_file(image_data, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
                 
             if response.status_code == 304:
                 response.status_code = 200

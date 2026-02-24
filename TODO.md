@@ -3,14 +3,11 @@
  - Paths will be locations manga is stored in. If a location is found, that will be cached. If a cached location is found, that will be checked first.
    If the cache fails, then it will check all known locations and cache a hit, otherwise it will be a fail.
 2. Directory handling. Have a limit of how many directories are show in the popup. Search?
-3. Create a python code wrapper that can take command line args and run approiately. Will search for different configs and ask for user selection.
-6. Add pdf support
 
 Change redirects to variables with string names in code
 Improve performance of scanning
 
 Bugs:
-- Updated ReadME with correct commands
 - Improve performance of folder picker when there is a lot of folders in a directory
 - Better indication of the scanning process.
 - Servername doesnt seemed to be honored
@@ -45,10 +42,6 @@ Future Tasks:
 Add a play options 1s,3s, 5s
 eventually add pdf support
 Impelement way to sync the folder names with the title names
-Improve onboarding process
-Documentation
-
-
 
 Polish:
 make site look better
