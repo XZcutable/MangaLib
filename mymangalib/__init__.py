@@ -30,6 +30,7 @@ def create_app(test_config=None):
             config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False)
 
     os.makedirs(app.instance_path, exist_ok=True)
+    create_filters()
 
     models.init_app(app)
     auth.init_app(app)
