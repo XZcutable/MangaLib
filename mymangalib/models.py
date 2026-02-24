@@ -62,7 +62,8 @@ class Path(db.Model):
         else:
             path_list.sort(key=lambda path: Path.alphanum_key(os.path.splitext(str.casefold(path))[0]))
 
-    alphanum_key = lambda key: [c for c in re.split('([0-9]+)', str.casefold(key))]
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [Path.convert(c) for c in re.split('([0-9]+)', str.casefold(key))]
 
 # Username, passwords, preferences
 class User(Base):
@@ -281,7 +282,6 @@ class Chapter(Base):
                 for xref in image_list:
                     files.append(xref)
 
-            files.sort()
             next_page_number = 1
             for xref in files:
                 page: Page = Page.create(file_name=f"{xref}", number=next_page_number)
