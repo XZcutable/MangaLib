@@ -4,7 +4,6 @@
    If the cache fails, then it will check all known locations and cache a hit, otherwise it will be a fail.
 2. Directory handling. Have a limit of how many directories are show in the popup. Search?
 3. Create a python code wrapper that can take command line args and run approiately. Will search for different configs and ask for user selection.
-4. Create a new onboarding process
 6. Add pdf support
 
 Change redirects to variables with string names in code

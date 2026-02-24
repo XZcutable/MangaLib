@@ -9,7 +9,7 @@ from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, Mapped, mapped_co
 
 from datetime import datetime, timezone
 
-from app.enum import Access
+from .enum import Access
 from .constants import ENV
 
 import os, re, zipfile
@@ -38,9 +38,6 @@ def init_app(app: Flask):
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{database_path}/{database_name}"
         app.config["SQLALCHEMY_ECHO"] = False
     db.init_app(app)
-
-    if not os.path.isdir(app.instance_path):
-        os.mkdir(app.instance_path)
         
     cur_dir = os.getcwd()
     os.chdir(app.instance_path)
@@ -224,7 +221,7 @@ class Chapter(Base):
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
     number:Mapped[int_pk]
     path: Mapped[str]
-    archive_type: Mapped[str] = mapped_column(default=None)
+    archive_type: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
 
     title:Mapped[Optional[str]] = mapped_column(default="")
     manga:Mapped["Manga"] = relationship(default=None, back_populates="chapters")

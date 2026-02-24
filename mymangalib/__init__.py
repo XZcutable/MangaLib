@@ -5,19 +5,14 @@ from .constants import ENV
 from . import api, auth, models, settings
 from . import manga
 
-import tomllib
+import os, tomllib
 from datetime import datetime, timezone
-import sys
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 BEHIND_PROXY = True
 
-config_path = None
-
-def create_app():
-    global config_path
-    
+def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
 
     if BEHIND_PROXY:
@@ -25,34 +20,16 @@ def create_app():
             app.wsgi_app, x_for=1, x_port=1, x_host=1, x_prefix=1
         )
 
-
     config_path = f'{app.root_path}/{ENV.CONFIG_NAME}'
-    config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False, silent=True)
+    if test_config is not None:
+            config_loaded = app.config.from_file(test_config, load=tomllib.load, text=False)
+    else:
+        config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False, silent=True)
+        if not config_loaded:
+            create_default_config(config_path)
+            config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False)
 
-    if not config_loaded:
-        print(f"Config does not exist. Creating at {config_path}")
-        with open(config_path, "w") as config:
-            config.write(ENV.DEFAULT_CONFIG)
-        
-        should_exit = None
-        while should_exit is None:
-            should_exit = input("A default config was created. Would you like to edit the config? (y/n): ")
-            if should_exit.lower() == "y":
-                should_exit = True
-            elif should_exit.lower() == "n":
-                should_exit = False
-            else:
-                should_exit = None
-        
-        if should_exit:
-            exit()
-
-        config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False)
-        # parse_args()
-        # print(config_path)
-        config_overrides(app)
-
-    filters.FILTERS[tolocaltime.__name__] = tolocaltime
+    os.makedirs(app.instance_path, exist_ok=True)
 
     models.init_app(app)
     auth.init_app(app)
@@ -88,33 +65,30 @@ def create_app():
 
     return app
 
+def create_filters():
+    def tolocaltime(utc_time: datetime, format="%d/%m/%Y, %H:%M:%S"):
+        if type(utc_time) == str:
+            utc_time = datetime.fromisoformat(utc_time)
+        return utc_time.astimezone().strftime(format)
 
-def config_overrides(app: Flask):
-    # app.config['HIDE_MANGA'] = True
-    # app.config['HIDE_TITLES'] = False
-    pass
+    filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
-def tolocaltime(utc_time: datetime, format="%d/%m/%Y, %H:%M:%S"):
-    if type(utc_time) == str:
-        utc_time = datetime.fromisoformat(utc_time)
-    return utc_time.astimezone().strftime(format)
-
-def parse_args():
-    global config_path
-    args = sys.argv[1:]
-    print(args)
-
-    index = 0
-    for arg in args:
-        if arg.lower().startswith("--config"):
-            temp = arg.split("=")
-            if len(temp) == 1:
-                index += 1
-                path = args[index]
-            else:
-                path = temp[1]
-            config_path = path
-
-        index += 1
+def create_default_config(config_path: str):
+    print(f"Config does not exist. Creating at {config_path}")
+    with open(config_path, "w") as config:
+        config.write(ENV.DEFAULT_CONFIG)
+    
+    should_exit = None
+    while should_exit is None:
+        should_exit = input("A default config was created. Would you like to edit the config? (y/n): ")
+        if should_exit.lower() == "y":
+            should_exit = True
+        elif should_exit.lower() == "n":
+            should_exit = False
+        else:
+            should_exit = None
+    
+    if should_exit:
+        exit()
 
 app = create_app()

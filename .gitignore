@@ -1,5 +1,4 @@
 .venv/
-.deploy/
 
 *.pyc
 __pycache__/
