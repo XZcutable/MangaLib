@@ -66,5 +66,10 @@ THe structure for Manga is very easy. It starts with a folder in one of the path
 ## Technical Requirements ##
 This project aims to be as effcient and demand little of the host machine. It was developed and ran on a Raspberry Pi5 running Debian 12. That Pi5 was also hosting a Nginx server, a proxy, and HomeAssisant and suffered no performance issues. The application is constantly stress tested and performed smoothly with over a 1000 titles with 76,000 pages hosted on the device itself, external harddrive and remote network location. Python 3.11.2 was used when testing the application.
 
-
-
+## Implemented Features ##
+- CBZ and ['.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif'] support
+- User creation and login
+- Manga progress
+- Manga Tags
+- Random Titles on homepage, Latest, All, Radmon and Unread
+- Search title, tags and status (Needs doucmentation)
