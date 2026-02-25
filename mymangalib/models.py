@@ -32,26 +32,21 @@ unique_str = Annotated[str, mapped_column(unique=True)]
 manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"))]
 
 def init_app(app: Flask):
-    database_path: str = app.config.get('DATABASE_PATH', ENV.DEFAULT_DATABASE_PATH)
-    database_name: str = app.config.get('DATABASE_NAME', ENV.DEFAULT_DATABASE_NAME)
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{database_path}/{database_name}"
-        app.config["SQLALCHEMY_ECHO"] = False
+        if app.config.get('DATABASE_PATH', None) is None:
+            app.config['DATABASE_PATH'] = f"{app.instance_path}/{ENV.DEFAULT_DATABASE}"
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{app.config['DATABASE_PATH']}"
+
     db.init_app(app)
         
-    cur_dir = os.getcwd()
-    os.chdir(app.instance_path)
-    if not os.path.exists(f"{database_path}/{database_name}"):
-        print(f"Database not found: {database_path}/{database_name}")
+    if not os.path.exists(app.config['DATABASE_PATH']):
+        print(f"Database not found: {app.config['DATABASE_PATH']}")
         print("Creating the database...")
-        os.chdir(cur_dir)
         with app.app_context():
             db.create_all()
-        os.chdir(app.instance_path)
-        if not os.path.exists(f"{database_path}/{database_name}"):
+        if not os.path.exists(app.config['DATABASE_PATH']):
             print("Unable to make database")
             exit()
-    os.chdir(cur_dir)
 
 class Path(db.Model):
     path: Mapped[str_pk]

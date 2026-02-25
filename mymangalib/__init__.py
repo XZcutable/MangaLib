@@ -10,26 +10,26 @@ from datetime import datetime, timezone
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-BEHIND_PROXY = True
-
-def create_app(test_config=None):
+def create_app(config_file=None):
     app = Flask(__name__, instance_relative_config=True)
+    ENV.APP_ROOT_PATH = app.root_path
+    ENV.APP_INSTANCE_PATH = app.instance_path
+    os.makedirs(app.instance_path, exist_ok=True)
 
-    if BEHIND_PROXY:
-        app.wsgi_app = ProxyFix(
-            app.wsgi_app, x_for=1, x_port=1, x_host=1, x_prefix=1
-        )
-
-    config_path = f'{app.root_path}/{ENV.CONFIG_NAME}'
-    if test_config is not None:
-            config_loaded = app.config.from_file(test_config, load=tomllib.load, text=False)
-    else:
+    if config_file is None:
+        config_path = f'{app.instance_path}/{ENV.CONFIG_NAME}'
         config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False, silent=True)
         if not config_loaded:
             create_default_config(config_path)
             config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False)
+    else:
+        config_loaded = app.config.from_file(config_file, load=tomllib.load, text=False)
 
-    os.makedirs(app.instance_path, exist_ok=True)
+    if app.config["BEHIND_PROXY"]:
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app, x_for=1, x_port=1, x_host=1, x_prefix=1
+        )
+
     create_filters()
 
     models.init_app(app)
@@ -91,5 +91,3 @@ def create_default_config(config_path: str):
     
     if should_exit:
         exit()
-
-app = create_app()

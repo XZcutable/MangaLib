@@ -38,24 +38,24 @@ class VAR:
     DESC = "desc"
 
 class ENV:
+    APP_ROOT_PATH = None
+    APP_INSTANCE_PATH = None
+
     CONFIG_NAME = "config.toml"
+    DEFAULT_DATABASE = "database.db"
+
     DEFAULT_CONFIG = """\
-SECRET_KEY="REPLACE ME"
-SERVER_NAME="0.0.0.0:6883"
+SECRET_KEY='REPLACE ME'
+DATABASE_FILE='database.db'
+BEHIND_PROXY=false
+
 ALLOW_NEW_USERS=false
 AUTO_APPROVE_NEW_USERS=false
-
-DATABASE_PATH='.'
-
 HIDE_MANGA=false
 HIDE_TITLES=false
 
 FETCH_BATCH_SIZE=30
 """
-    DEFAULT_DATABASE_NAME = "database.db"
-    # This would be the instance folder
-    DEFAULT_DATABASE_PATH = "."
-
 from sqlalchemy import asc, desc
 class SQL:
     ASC = asc

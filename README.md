@@ -20,12 +20,19 @@ It is assumed the venv was created in the root directory of the project.
 
 Depending on your needs, the command may be different.
 
-To deploy, you'd follow the same steps except for the last one. You'd need to choose a [WSGI Server](https://flask.palletsprojects.com/en/stable/deploying/). The ones I tested are [Gunicorn](https://flask.palletsprojects.com/en/stable/deploying/gunicorn/) and [Waitress](https://flask.palletsprojects.com/en/stable/deploying/waitress/).
+To deploy, you'd follow the same steps except for the last one. You'd need to choose a [WSGI Server](https://flask.palletsprojects.com/en/stable/deploying/). The ones I tested are [Gunicorn](https://flask.palletsprojects.com/en/stable/deploying/gunicorn/) and [Waitress](https://flask.palletsprojects.com/en/stable/deploying/waitress/). But I find I perfer Gunicorn because it supports passing a string on startup, but waitress works if you don't need that.
 
 The links explain how to install the server and application. But boils down to: <br>
 > pip install \<server\>
 <br>
  pip install -e .
+
+Deployment commands would look something like:
+> <b>Waitress:</b> <br>
+waitress-serve --host=0.0.0.0 --port=5000 --call mymangalib:create_app
+
+> <b>Gunicorn:</b> <br>
+gunicorn -w 2 --bind=0.0.0.0:5000 'mymangalib:create_app()'
 
 And then running the server with something like (for Linux): <br>
 `(waitress-serve --host=0.0.0.0 --port=5000 mymangalib:app > /dev/null 2>&1 &)`
