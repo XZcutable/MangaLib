@@ -3,7 +3,7 @@ name = "mymangalib"
 version = "1.0.0"
 description = "Host and view your Manga locally"
 dependencies = [
-    "flask", "Flask-SQLAlchemy"
+    "flask", "Flask-SQLAlchemy", "PyMuPDF"
 ]
 
 [build-system]
