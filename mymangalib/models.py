@@ -35,6 +35,7 @@ def init_app(app: Flask):
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
         if app.config.get('DATABASE_PATH', None) is None:
             app.config['DATABASE_PATH'] = f"{app.instance_path}/{ENV.DEFAULT_DATABASE}"
+        print(f"Loaded Database at {app.config['DATABASE_PATH']}")
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{app.config['DATABASE_PATH']}"
 
     db.init_app(app)

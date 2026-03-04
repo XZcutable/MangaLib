@@ -10,20 +10,33 @@ from datetime import datetime, timezone
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+def get(app: Flask, key: str, default_value=None):
+    return app.config.get(key, default_value)
+
 def create_app(config_file=None):
     app = Flask(__name__, instance_relative_config=True)
-    ENV.APP_ROOT_PATH = app.root_path
-    ENV.APP_INSTANCE_PATH = app.instance_path
+
+    app.config.from_prefixed_env()
+
     os.makedirs(app.instance_path, exist_ok=True)
 
+    print(f"Instance path is at {app.instance_path}")
+
     if config_file is None:
-        config_path = f'{app.instance_path}/{ENV.CONFIG_NAME}'
+        config_path = get(app, "CONFIG_PATH", f'{app.instance_path}/{ENV.CONFIG_NAME}')
         config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False, silent=True)
         if not config_loaded:
-            create_default_config(config_path)
-            config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False)
+            if get(app, "CREATE_MISSING_CONFIG", True):
+                create_default_config(config_path, get(app, "PROMPT_ON_CONFIG_CREATE", False))
+                config_loaded = app.config.from_file(config_path, load=tomllib.load, text=False)
+            else:
+                print(f"Config does not exist at {config_path}")
+                exit()
     else:
         config_loaded = app.config.from_file(config_file, load=tomllib.load, text=False)
+
+    # ENV has priority
+    app.config.from_prefixed_env()
 
     if app.config["BEHIND_PROXY"]:
         app.wsgi_app = ProxyFix(
@@ -74,20 +87,21 @@ def create_filters():
 
     filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
-def create_default_config(config_path: str):
+def create_default_config(config_path: str, prompt_when_created):
     print(f"Config does not exist. Creating at {config_path}")
     with open(config_path, "w") as config:
         config.write(ENV.DEFAULT_CONFIG)
     
-    should_exit = None
-    while should_exit is None:
-        should_exit = input("A default config was created. Would you like to edit the config? (y/n): ")
-        if should_exit.lower() == "y":
-            should_exit = True
-        elif should_exit.lower() == "n":
-            should_exit = False
-        else:
-            should_exit = None
-    
-    if should_exit:
-        exit()
+    if prompt_when_created:
+        should_exit = None
+        while should_exit is None:
+            should_exit = input("A default config was created. Would you like to edit the config? (y/n): ")
+            if should_exit.lower() == "y":
+                should_exit = True
+            elif should_exit.lower() == "n":
+                should_exit = False
+            else:
+                should_exit = None
+        
+        if should_exit:
+            exit()
