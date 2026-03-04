@@ -1,0 +1,6 @@
+services:
+    mangalib:
+        build: .
+        image: mangalib
+        ports:
+            - "5000:5000"

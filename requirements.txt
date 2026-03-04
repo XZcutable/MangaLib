@@ -1,0 +1,5 @@
+Flask
+Flask-SQLAlchemy
+PyMuPDF
+# gunicorn
+waitress
