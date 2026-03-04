@@ -9,9 +9,12 @@ Change redirects to variables with string names in code
 Improve performance of scanning
 
 Bugs:
+- Count seems to be getting the biggest manga id and not the actual count.
+- Above may be caused when something is deleted. Maybe need to update before redirection
+
+Improvments:
 - Improve performance of folder picker when there is a lot of folders in a directory
 - Better indication of the scanning process.
-- Servername doesnt seemed to be honored
 
 Next Task:
 Have long titles show the full title on hover and give an indication when hovered
