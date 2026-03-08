@@ -1,55 +1,26 @@
-from typing import Optional, List
-from typing_extensions import Annotated
-
-from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, select
-from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, ForeignKeyConstraint
+from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, mapped_column, Mapped, mapped_column, relationship
 
 from datetime import datetime, timezone
 
+from typing import Optional, Annotated, List
+
+import os, re
 from .enum import Access
-from .constants import ENV
-
-import os, re, zipfile, fitz, pymupdf
-
-# TODO Issue importing these from Manga, maybe import from here instead?
-image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
-archive_types = ('.cbz', '.zip', '.pdf')
-
-class BaseModel(DeclarativeBase, MappedAsDataclass):
-    def __getitem__(self, key):
-        return getattr(self, key)
-    pass
-
-db = SQLAlchemy(model_class=BaseModel)
-Base = db.Model
 
 int_pk = Annotated[int, mapped_column(primary_key=True)]
 str_pk = Annotated[str, mapped_column(primary_key=True)]
 unique_str = Annotated[str, mapped_column(unique=True)]
 manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"))]
 
-def init_app(app: Flask):
-    if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
-        if app.config.get('DATABASE_PATH', None) is None:
-            app.config['DATABASE_PATH'] = f"{app.instance_path}/{ENV.DEFAULT_DATABASE}"
-        print(f"Loaded Database at {app.config['DATABASE_PATH']}")
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{app.config['DATABASE_PATH']}"
+class BaseModel(DeclarativeBase, MappedAsDataclass):
+    def __getitem__(self, key):
+        return getattr(self, key)
+    
+db_engine = SQLAlchemy(model_class=BaseModel)
 
-    db.init_app(app)
-        
-    if not os.path.exists(app.config['DATABASE_PATH']):
-        print(f"Database not found: {app.config['DATABASE_PATH']}")
-        print("Creating the database...")
-        with app.app_context():
-            db.create_all()
-        if not os.path.exists(app.config['DATABASE_PATH']):
-            print("Unable to make database")
-            exit()
-
-class Path(db.Model):
+class Path(db_engine.Model):
     path: Mapped[str_pk]
 
     def sortList(path_list: list[str], isDirs=False):
@@ -62,7 +33,7 @@ class Path(db.Model):
     alphanum_key = lambda key: [Path.convert(c) for c in re.split('([0-9]+)', str.casefold(key))]
 
 # Username, passwords, preferences
-class User(Base):
+class User(db_engine.Model):
     __tablename__ = "user"
     id:Mapped[int_pk] = mapped_column(unique=True, init=False)
     username: Mapped[unique_str]
@@ -80,7 +51,7 @@ class User(Base):
         user = User(username=username, password=password_hash, date_created=str(datetime.now(timezone.utc)))
         return user
     
-class UserMangaData(Base):
+class UserMangaData(db_engine.Model):
     user_id:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))
     manga_id:Mapped[manga_id_fk] = mapped_column(primary_key=True)
 
@@ -110,23 +81,12 @@ class UserMangaData(Base):
             "queued_when": self.queued_when,
             "last_seen": self.last_seen,
         }
-
-    def getOrCreate(userID: int, manga: "Manga"):
-        user_data = UserMangaData.fromUserAndManga(userID, manga)
-        if user_data is None:
-            user_data = UserMangaData(user_id=userID, manga_id=manga.id)
-            user_data.new = True
-
-        return user_data
-    
-    def fromUserAndManga(userID: int, manga: "Manga"):
-        return UserMangaData.query.get({"user_id": userID, "manga_id": manga.id })
-    
+ 
     def __repr__(self):
         return f"<UserMangaData({self.user_id=}, {self.manga_id=}, {self.current_chapter=}, {self.current_page=}, {self.is_read=}, {self.is_favorite=}, {self.last_seen=})>"
 
 
-class ContentTag(Base):
+class ContentTag(db_engine.Model):
     __tablename__ = "content_tag"
     tag:Mapped[str_pk] = mapped_column(unique=True)
     nsfw:Mapped[bool] = mapped_column(default=False)
@@ -141,12 +101,12 @@ class ContentTag(Base):
             "nsfw": self.nsfw,
         }
 
-class MangaContentTag(Base):
+class MangaContentTag(db_engine.Model):
     __tablename__ = "manga_content_tag"
     manga_id:Mapped[int_pk] = mapped_column(ForeignKey("manga_metadata.manga_id"))
     tag:Mapped[str_pk] = mapped_column(ForeignKey("content_tag.tag"))
 
-class MangaMetadata(Base):
+class MangaMetadata(db_engine.Model):
     __tablename__ = "manga_metadata"
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
 
@@ -163,7 +123,7 @@ class MangaMetadata(Base):
     def __repr__(self):
         return f"<Metadata({self.manga_id=}, {self.language=}, {self.tags=})>"
 
-class Manga(Base):
+class Manga(db_engine.Model):
     __tablename__ = "manga"
     id:Mapped[int_pk] = mapped_column(init=False, unique=True)
     title:Mapped[str]
@@ -178,24 +138,6 @@ class Manga(Base):
     relative_path:Mapped[str] = mapped_column(default="")
 
     new = False
-
-    def getChapter(self, number: int) -> Optional["Chapter"]:
-        return Chapter.fromManga(self, number)
-
-    def getOrCreate(title:str, manga_path: str) -> "Manga":
-        manga: Manga = db.session.scalar(select(Manga).where(Manga.path == manga_path))
-        if manga is None:
-            manga = Manga(title=title, path=manga_path, original_title=title, manga_metadata=MangaMetadata())
-            manga.original_title = title
-            manga.date_uploaded = str(datetime.now(timezone.utc))
-            manga.new = True
-            return manga
-        else:
-            manga.original_title = title
-            return manga  
-
-    def __repr__(self):
-        return f"<Manga({self.id=}, {self.title=}, {self.chapters=}, {self.manga_metadata=})>"
     
     def toJson(self):
         return {
@@ -207,13 +149,7 @@ class Manga(Base):
             "date_uploaded": self.date_uploaded,
         }
 
-    def fromID(id: int) -> Optional["Manga"]:
-        return Manga.query.get({"id": id})
-    
-    def fromPath(path: str):
-        return Manga.query.filter_by(path=path).one_or_none()
-
-class Chapter(Base):
+class Chapter(db_engine.Model):
     __tablename__ = "chapter"
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
     number:Mapped[int_pk]
@@ -228,9 +164,6 @@ class Chapter(Base):
     def is_archive(self):
         return self.archive_type is not None 
 
-    def getPage(self, number: int) -> Optional["Page"]:
-        return Page.fromChapter(self, number)
-
     def __repr__(self):
         return f"<Chapter({self.manga_id=}, {self.title=}, {self.number=}, {self.pages=})"
     
@@ -241,54 +174,8 @@ class Chapter(Base):
             'number': self.number,
             'page_count': len(self.pages),
         }
-   
-    def fromManga(manga: Manga, number: int) -> Optional["Chapter"]:
-         return db.session.get(Chapter, {"manga_id": manga.id, "number": number})
     
-    def create(chapter_path: str, number: int, title: str, archive_type: str = None) -> "Chapter":
-        chapter = Chapter(number=number, path=chapter_path, archive_type=archive_type)
-        chapter.title = title
-        return chapter
-    
-    def from_archive(chapter: "Chapter", archive_path: str, archive_ext: str):
-        files = []
-        if archive_ext == '.cbz' or archive_ext == '.zip':
-            with zipfile.ZipFile(archive_path, 'r') as zip_file:
-                # iterates through all files and folders. treating all as one chapter but is more of a volume
-                for entry in zip_file.infolist():
-                    if entry.is_dir():
-                        pass
-                    else:
-                        entry_ext = os.path.splitext(entry.filename)[1]
-                        if entry_ext in image_types:
-                            files.append(entry.filename)
-                
-                Path.sortList(files)
-                next_page_number = 1
-                for file in files:
-                    page: Page = Page.create(file_name=file, number=next_page_number)
-                    next_page_number += 1
-                    chapter.pages.append(page)
-        elif archive_ext == '.pdf':
-            pdf = pymupdf.open(archive_path)
-            for page_index in range(len(pdf)):
-                page = pdf.load_page(page_index)
-                image_list = [xref[0] for xref in page.get_images(full=True)]
-
-                for xref in image_list:
-                    files.append(xref)
-
-            next_page_number = 1
-            for xref in files:
-                page: Page = Page.create(file_name=f"{xref}", number=next_page_number)
-                next_page_number += 1
-                chapter.pages.append(page)
-        else:
-            print(f"{archive_ext} is not yet supported.")
-
-        return len(files)
-    
-class Page(Base):
+class Page(db_engine.Model):
     __tablename__ = "page"
     number:Mapped[int_pk]
     manga_id:Mapped[int_pk] = mapped_column(init=False)
@@ -320,13 +207,3 @@ class Page(Base):
             "manga": self.manga.id,
             "chapter": self.chapter.number,
         }
-    
-    def fromChapter(chapter: Chapter, number: int) -> Optional["Page"]:
-        return db.session.get(Page, {"number": number, "manga_id": chapter.manga_id, "chapter_number": chapter.number})
-    
-    def create(file_name: str, number: int):
-        page = Page(number=number, file_name=file_name)
-        return page
-
-class Metadata():
-    pass

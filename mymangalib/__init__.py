@@ -1,9 +1,11 @@
 from flask import Flask
-from jinja2 import filters 
+from jinja2 import filters
+
+from .blueprints import api 
 
 from .constants import ENV
-from . import api, auth, models, settings
-from . import manga
+from . import auth, settings, database
+from .blueprints import manga
 
 import os, tomllib
 from datetime import datetime, timezone
@@ -45,7 +47,8 @@ def create_app(config_file=None):
 
     create_filters()
 
-    models.init_app(app)
+    # models_old.init_app(app)
+    database.init_app(app)
     auth.init_app(app)
     api.init_app(app)
     manga.init_app(app)
@@ -75,7 +78,7 @@ def create_app(config_file=None):
     print(datetime.now(timezone.utc).astimezone().strftime(format))
 
     with app.app_context():
-        manga.update_manga_count()
+        database.db.Manga.update_manga_count()
 
     return app
 

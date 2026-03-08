@@ -3,7 +3,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .models import db, User
+from .models import db_engine, User
 from .enum import Access
 from .constants import ROUTE, ENDPOINT, VAR
 
@@ -95,7 +95,7 @@ def changePassword():
         user: User = User.query.filter_by(id = g.user['id']).first()
         if user:
             user.password = generate_password_hash(new_password)
-            db.session.commit()
+            db_engine.session.commit()
         flash("Password Updated", 'success')
     else:
         flash(error, 'error')
@@ -111,7 +111,7 @@ def changeUsername():
     if existing_user is None:
         user: User = User.query.get({"id": g.user['id']})
         user.username = new_username
-        db.session.commit()
+        db_engine.session.commit()
         flash("Changed Username", "success")
     else:
         flash("Username Already Exists", "error")
@@ -152,7 +152,7 @@ def register():
                 select(User)
                 .where(User.username == username)
             )
-            exisiting_user = db.session.scalar(find_user)
+            exisiting_user = db_engine.session.scalar(find_user)
             if exisiting_user is not None:
                 error = f"User {username} is already registered"
                 flash(error, "error")
@@ -163,13 +163,13 @@ def register():
                     registrationOpen = True
                 
                 if registrationOpen:
-                    db.session.begin_nested()
+                    db_engine.session.begin_nested()
                     user = User.create(username=username, password_hash=generate_password_hash(password))
-                    db.session.add(user)
-                    db.session.commit()
+                    db_engine.session.add(user)
+                    db_engine.session.commit()
 
-                    db.session.begin_nested()
-                    user = db.session.scalar(find_user)
+                    db_engine.session.begin_nested()
+                    user = db_engine.session.scalar(find_user)
 
                     if user.id == 1:
                         user.role = Access.OWNER.toString()
@@ -180,7 +180,7 @@ def register():
                         flash("Registration Successfull", 'success')
                     else:
                         flash('Successfully registered, please wait to be approved', 'success')
-                    db.session.commit()
+                    db_engine.session.commit()
                 else:
                     error = 'Registration is closed'
                     flash(error, "error")
@@ -298,10 +298,10 @@ select_owner = (
     .where(User.id == 1)
 )
 def get_owner() -> User:
-    if db.session is None:
+    if db_engine.session is None:
         return None
     
-    owner: User = db.session.scalar(select_owner)
+    owner: User = db_engine.session.scalar(select_owner)
     return owner
 
 @click.command("register-user")
@@ -311,20 +311,20 @@ def get_owner() -> User:
 def register_user(username, password, role):
     if User.query.filter_by(username=username).first() is None:
         user: User = User(username=username, password=generate_password_hash(password))
-        db.session.add(user)
+        db_engine.session.add(user)
         user = User.query.filter_by(username=username).first()
         if Access.OWNER == role:
             if user.id == 1:
                 user.role = Access.OWNER.toString()
                 user.approved = True
-                db.session.commit()
+                db_engine.session.commit()
                 click.echo(f"Registered user: {username}")
             else:
                 click.echo("Cannot make account Owner, only the first registered user can be the owner")
         else:
             user.role = (Access.fromString(role) or Access.USER).toString()
             user.approved = True
-            db.session.commit()
+            db_engine.session.commit()
             click.echo(f"Registered user: {username}")
     else:
         click.echo("Username is already registered")
@@ -340,13 +340,13 @@ def change_user_role(username, role):
             if user.id == 1:
                 user.role = Access.OWNER.toString()
                 click.echo(f"Success changed {username} role from '{old_role}' to '{user.role}'")
-                db.session.commit()
+                db_engine.session.commit()
             else:
                 click.echo("Cannot make account Owner, only the first registered user can be the owner")
         else:
             user.role = (Access.fromString(role) or Access.USER).toString()
             click.echo(f"Successfully changed {username} role from '{old_role}' to '{user.role}'")
-            db.session.commit()
+            db_engine.session.commit()
     else:
         click.echo("Username is not registered")
 
@@ -357,5 +357,5 @@ def change_user_password(username, password):
     user: User | None = User.query.filter_by(username=username).first()
     if user is not None:
         user.password = generate_password_hash(password)
-        db.session.commit()
+        db_engine.session.commit()
         click.echo(f"Success changed {username} password")

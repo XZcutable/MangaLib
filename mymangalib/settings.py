@@ -1,7 +1,7 @@
 from flask import (
     Blueprint, g, render_template, Flask
 )
-from .models import db, Path
+from .models import db_engine, Path
 
 from .auth import get_role_context
 
@@ -22,8 +22,8 @@ def addPath(path):
 
     if existingPath is None:
         path = Path(path=path)
-        db.session.add(path)
-        db.session.commit()
+        db_engine.session.add(path)
+        db_engine.session.commit()
         return True
     return False
 
@@ -33,5 +33,5 @@ def removePath(path):
         return False
     else:
         query.delete()
-        db.session.commit()
+        db_engine.session.commit()
         return True

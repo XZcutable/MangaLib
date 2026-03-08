@@ -7,15 +7,20 @@ from flask import (
 
 from sqlalchemy import and_, select
 
-from . import settings
-from .auth import owner_access, admin_access, get_role_context
-from .constants import ENDPOINT, SQL
+from .. import settings
+from ..auth import owner_access, admin_access, get_role_context
+from ..constants import ENDPOINT, SQL
 from . import manga
-from .manga import image_types, archive_types
 from sqlalchemy import distinct, func, Select
-from .models import db, Manga, Chapter, Page, ContentTag, UserMangaData, User, Path, MangaContentTag
+
+from ..database import db
+from ..models import Manga, Chapter, Page, ContentTag, UserMangaData, User, Path, MangaContentTag
 
 bp = Blueprint('api', __name__, url_prefix='/api')
+
+from ..server import api
+
+from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 
 FETCH_BATCH_SIZE = 30
 
@@ -48,19 +53,14 @@ def scanPaths():
             else:
                 paths = actual_paths_to_scan
 
-    print(f"Need to scan {len(paths)} paths")
+    # print(f"Need to scan {len(paths)} paths")
     db.session.begin_nested()
     for path in paths:
-        manga_folders: list = lsDirs(path)['folders']
-        stray_archives: list = lsFiles(path, filters=archive_types)
-        scan_archive(path, stray_archives["files"])
-        # manga_folders.insert(0, path) # to include stray cbz or pdf files. Will also catch images
-        for manga_folder in manga_folders:
-            manga_path = os.path.join(path, manga_folder)
-            scan_manga_path(manga_path)
+        new_manga: list[Manga] = api.scan_manga_path(path, rescan_exisitng=False)
+        db.session.add_all(new_manga)
     
     db.session.commit()
-    manga.update_manga_count()
+    db.Manga.update_manga_count()
     flash("Path scanned", 'success')
     return {'result': 'success'}
 
@@ -70,12 +70,12 @@ def scan_archive(parent_dir: str, archives: list[str]):
         archive_path = os.path.join(parent_dir, archive)
         archive_name, archive_ext = os.path.splitext(archive)
 
-        print("Scanning:", archive)
-        manga = Manga.getOrCreate(title=archive_name, manga_path=archive_path)
+        # print("Scanning:", archive)
+        manga = db.Manga.getOrCreate(title=archive_name, manga_path=archive_path)
         manga.chapters = []
         
-        chapter: Chapter = Chapter.create(chapter_path=archive_path, number=1, title=archive_name, archive_type=archive_ext)
-        Chapter.from_archive(chapter, archive_path=archive_path, archive_ext=archive_ext)
+        chapter: Chapter = db.Chapter.create(chapter_path=archive_path, number=1, title=archive_name, archive_type=archive_ext)
+        db.Chapter.from_archive(chapter, archive_path=archive_path, archive_ext=archive_ext)
 
         if len(chapter.pages) <= 0:
             continue
@@ -88,7 +88,6 @@ def scan_archive(parent_dir: str, archives: list[str]):
 
     db.session.commit()
 
-
 @owner_access
 @bp.route('/scan-manga')
 def rescan():
@@ -98,7 +97,7 @@ def rescan():
         flash(f"Manga {manga_id} not found", "error")
     else:
         db.session.begin_nested()
-        (success, error) = scan_manga_path(manga.path, manga)
+        (success, error) = api.scan_manga_path(manga.path, manga)
         if success:
             flash("Rescanned Manga", "success")
             db.session.commit()
@@ -107,59 +106,6 @@ def rescan():
             db.session.rollback()
         
     return redirect(request.referrer)
-
-def scan_manga_path(path: str, manga: Manga = None):
-    if manga is not None and path != manga.path:
-        print(f"Manga Path mismatch: got {path}, expected {manga.path}")
-        return (False, f"Manga Path mismatch: got {path}, expected {manga.path}")
-    else:
-        manga_name = os.path.split(path)[1]
-        manga = Manga.getOrCreate(title=manga_name, manga_path=path)
-        manga.chapters = []
-
-        chapter_names: list[str] = lsDirs(path)['folders']
-        Path.sortList(chapter_names, isDirs=True)
-        chapter_names.insert(0, path) # Used to include files in the root directory
-
-        next_chapter_number = 1
-        for chapter_name in chapter_names:
-            chapter_path = os.path.join(path, chapter_name)
-            archives: list[str] = lsFiles(chapter_path, filters=archive_types)['files']
-            Path.sortList(archives)
-
-            page_names: list[str] = lsFiles(chapter_path, filters=image_types)['files']
-            Path.sortList(page_names)
-
-            if len(archives) > 0:
-                for archive in archives:
-                    archive_path = os.path.join(chapter_path, archive)
-                    archive_name, archive_ext = os.path.splitext(archive)
-                    chapter: Chapter = Chapter.create(chapter_path=archive_path, number=next_chapter_number, title=archive_name, archive_type=archive_ext)
-                    Chapter.from_archive(chapter, archive_path=archive_path, archive_ext=archive_ext)
-
-                    if len(chapter.pages) <= 0:
-                        continue
-                    else:
-                        next_chapter_number += 1
-                        manga.chapters.append(chapter)
-            
-            if len(page_names) > 0:
-                chapter: Chapter = Chapter.create(chapter_path=chapter_path, number=next_chapter_number, title=chapter_name)
-                next_chapter_number += 1
-
-                next_page_number = 1
-                for page_name in page_names:
-                    page: Page = Page.create(file_name=page_name, number=next_page_number)
-                    next_page_number += 1
-                    chapter.pages.append(page)
-                manga.chapters.append(chapter)
-        
-        if manga.new:
-            manga.date_uploaded = getDatetimeISONow()
-            db.session.add(manga)
-        
-        # print(f"Manga ({manga.id}, {manga.title}), updated with {len(manga.chapters)} chapter(s)")
-        return (True, None)
 
 @bp.route('/add-path')
 @owner_access
@@ -224,44 +170,8 @@ def getPaths():
 @owner_access
 def listDirs():
     dir: str = request.args['dir']
-    return lsDirs(dir)
+    return api.lsDirs(dir)
     
-def lsDirs(dir: str | None):
-    if not dir:
-        return { 'dir': dir, 'folders': [] }
-    
-    if dir.endswith(':/..'):
-        dir = '/'
-
-    if dir.startswith('/'):
-        dir = ('/' + os.path.normpath(dir).replace('\\', '/')).replace('//', '/')
-    else:
-        dir = os.path.normpath(dir).replace('\\', '/')
-
-    if dir == '/':
-        (dir, folder) = getRootFolders()
-        return { 'dir': dir, 'folders':  folder}
-    elif os.path.isdir(dir):
-        if not dir.endswith(':/'):
-            dir += '/'
-        return { 'dir': dir, 'folders': [ path for path in os.listdir(dir) if isValidPath(dir, path) ] }
-    else:
-        return { 'dir': dir, 'folders': [] }
-    
-def lsFiles(dir: str | None, filters: tuple | None):
-    if not dir:
-        return { 'dir': dir, 'files': [] }
-    
-    dir = os.path.normpath(dir).replace('\\', '/')
-    if os.path.isfile(dir):
-        if filters is None or os.path.splitext(dir)[1] in filters:
-            return { 'dir': dir, 'files': [ dir ] }
-        else:
-            return { 'dir': dir, 'files': [] }
-            
-    elif os.path.isdir(dir):
-        return { 'dir': dir, 'files': [ file for file in os.listdir(dir) if isValidFile(dir, file, filters) ] }
-
 @bp.route('/open-dir/<int:manga_id>')
 @owner_access
 def open_manga_dir(manga_id: int):
@@ -285,23 +195,14 @@ def isDir():
 def delete_manga():
     manga_id = request.args.get("manga_id")
     if manga_id is not None:
-        manga = Manga.fromID(manga_id)
+        manga = db.Manga.fromID(manga_id)
         if manga is not None:
             db.session.delete(manga)
             db.session.commit()
+            db.Manga.update_manga_count()
             return redirect(url_for(ENDPOINT.HOME))
 
     return redirect(url_for(ENDPOINT.HOME))
-
-def getRootFolders():
-    if os.name == 'nt':
-        folders = [f'{drive}:/' for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if os.path.exists(f'{drive}:/')]
-        return ('', folders)
-    elif os.name == 'posix': 
-        folders = os.listdir('/')
-        return ('/', folders)
-    else:
-        return []
     
 def isValidPath(dir: str, path: str):
     isDir = os.path.isdir(f'{dir}/{path}/')
@@ -337,12 +238,7 @@ def fetch_history():
 
     user_id = getUserID()
     query = (
-        select(Manga.id, Manga.title)
-        .join(UserMangaData, onclause=and_(
-            UserMangaData.user_id == user_id,
-            Manga.id == UserMangaData.manga_id
-        ))
-        .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.last_seen).nulls_last())
+        QUERY_HISTORY(user_id, sort)
         .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     return execute_query(query, mappings=["id", "title"])
@@ -354,15 +250,10 @@ def fetch_favorites():
 
     user_id = getUserID()
     query = (
-        select(Manga.id, Manga.title)
-        .join(UserMangaData, onclause=and_(
-            UserMangaData.user_id == user_id,
-            UserMangaData.is_favorite,
-            Manga.id == UserMangaData.manga_id
-        ))
-        .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.favorited_when).nulls_last())
+        QUERY_FAVORITES(user_id, sort)
         .offset(offset).limit(FETCH_BATCH_SIZE)
     )
+
     return execute_query(query, mappings=["id", "title"])
 
 @bp.route("/fetch-queued")
@@ -371,17 +262,8 @@ def fetch_queued():
     offset = int(request.args.get('offset', '0'))
 
     user_id = getUserID()
-    query = (
-        select(Manga.id, Manga.title)
-        .join(UserMangaData, onclause=and_(
-            UserMangaData.user_id == user_id,
-            UserMangaData.is_queued,
-            Manga.id == UserMangaData.manga_id
-        ))
-        .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.queued_when).nulls_last())
-        .offset(offset).limit(FETCH_BATCH_SIZE)
-    )
-    return execute_query(query, mappings=["id", "title"])
+    query = QUERY_QUEUE(user_id, sort)
+    return execute_query(query.offset(offset).limit(FETCH_BATCH_SIZE), mappings=["id", "title"])
 
 CACHE_LIMIT = 30
 CACHE_LIFESPAN_SECONDS = 300
@@ -609,7 +491,7 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
 @bp.route('/edit/manga/<int:manga_id>')
 @admin_access
 def edit_manga(manga_id: int):
-    manga: Manga = Manga.fromID(manga_id)
+    manga: Manga = db.Manga.fromID(manga_id)
     if manga is None:
         return redirect(url_for(ENDPOINT.HOME))
     return render_template("manga/manga_editor.html", manga=manga.toJson(), **get_role_context())
@@ -643,7 +525,7 @@ def edit_manga_title(manga_id: int):
 
 @bp.route("/manga/info/<int:manga_id>")
 def get_manga_info(manga_id: int):
-    manga: Manga = Manga.fromID(manga_id)
+    manga: Manga = db.Manga.fromID(manga_id)
     if manga is None:
         return {}
     else:
@@ -651,11 +533,11 @@ def get_manga_info(manga_id: int):
     
 @bp.route("/chapter/info/<int:manga_id>/<int:chapter_number>")
 def get_chapter_info(manga_id: int, chapter_number):
-    manga: Manga = Manga.fromID(manga_id)
+    manga: Manga = db.Manga.fromID(manga_id)
     if manga is None:
         return {}
     else:
-        chapter: Chapter = Chapter.fromManga(manga, chapter_number)
+        chapter: Chapter = db.Chapter.fromManga(manga, chapter_number)
         if chapter is None:
             return {}
         else:
@@ -663,15 +545,15 @@ def get_chapter_info(manga_id: int, chapter_number):
         
 @bp.route("/chapter/info/<int:manga_id>/<int:chapter_number>/<int:page_number>")
 def get_page_info(manga_id: int, chapter_number: int, page_number: int):
-    manga: Manga = Manga.fromID(manga_id)
+    manga: Manga = db.Manga.fromID(manga_id)
     if manga is None:
         return {}
     else:
-        chapter: Chapter = Chapter.fromManga(manga, chapter_number)
+        chapter: Chapter = db.Chapter.fromManga(manga, chapter_number)
         if chapter is None:
             return {}
         else:
-            page: Page = Page.fromChapter(chapter, page_number)
+            page: Page = db.Page.fromChapter(chapter, page_number)
             if page is None:
                 return {}
             else:
@@ -684,7 +566,7 @@ valid_tag_pattern = re.compile(valid_tag_regex)
 def add_content_tag():
     new_tag = request.form['content-tag'].lower()
     if valid_tag_pattern.fullmatch(new_tag):
-        existing_tag: ContentTag = ContentTag.query.where(ContentTag.tag == new_tag).one_or_none()
+        existing_tag: ContentTag = ContentTag.query.where(ContentTag.tag == new_tag).one_or_none() #TODO Update
         if existing_tag is None:
             tag = ContentTag(tag=new_tag)
             db.session.add(tag)
@@ -706,7 +588,7 @@ def add_content_tag():
 def add_nsfw_tag():
     new_tag = request.form['content-tag'].lower()
     if valid_tag_pattern.fullmatch(new_tag):
-        existing_tag: ContentTag = ContentTag.query.where(ContentTag.tag == new_tag).one_or_none()
+        existing_tag: ContentTag = ContentTag.query.where(ContentTag.tag == new_tag).one_or_none() # TODO Update
         if existing_tag is None:
             tag = ContentTag(tag=new_tag, nsfw=True)
             db.session.add(tag)
@@ -754,7 +636,7 @@ def get_manga_tags(manga_id: int):
 
 @bp.route('/content-tag/set', methods=["POST"])
 def set_content_tags():
-    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
         metadata = manga.manga_metadata
         db.session.begin_nested()
@@ -769,21 +651,21 @@ def set_content_tags():
 
 @bp.route('/user/manga/data')
 def get_user_manga_data():
-    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
         return user_data.toJson()
     return Response(status=405)
 
 @bp.route('/user/manga/progress', methods=["POST"])
 def save_user_progress():
-    manga: Manga = Manga.fromID(request.form.get("manga_id", 0))
+    manga: Manga = db.Manga.fromID(request.form.get("manga_id", 0))
     if manga is not None:
-        chapter: Chapter = Chapter.fromManga(manga, request.form.get("chapter_number", 0))
+        chapter: Chapter = db.Chapter.fromManga(manga, request.form.get("chapter_number", 0))
         if chapter is not None:
-            page: Page = Page.fromChapter(chapter, request.form.get("page_number", 0))
+            page: Page = db.Page.fromChapter(chapter, request.form.get("page_number", 0))
             if page is not None:
-                user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+                user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
                 if user_data.new:
                     db.session.add(user_data)
 
@@ -802,9 +684,9 @@ def save_user_progress():
     
 @bp.route('/user/manga/read', methods=["POST"])
 def update_read_status():
-    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
         is_read = request.form.get("is_read", 'False').lower() == "true"
         reset = request.form.get("reset", 'False').lower() == "true"
         db.session.begin_nested()
@@ -822,9 +704,9 @@ def update_read_status():
 
 @bp.route('/user/manga/favorite', methods=["POST"])
 def update_fav_status():
-    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
         is_fav = request.form.get("is_fav", 'False').lower() == "true"
         db.session.begin_nested()
         if user_data.new:
@@ -841,9 +723,9 @@ def update_fav_status():
 
 @bp.route('/user/manga/queue', methods=["POST"])
 def update_queue_status():
-    manga: Manga = Manga.fromID(request.args.get("manga_id", 0))
+    manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
         is_queued = request.form.get("is_queued", 'False').lower() == "true"
         db.session.begin_nested()
         if user_data.new:
