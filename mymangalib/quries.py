@@ -46,3 +46,8 @@ def QUERY_QUEUE(user_id: int, sort: str = SQL.ASC) -> Select:
             )
         ).order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.queued_when).nulls_last())
     )
+
+
+QUERY_PATHS: Final[Select] = select(
+    Path.path
+)

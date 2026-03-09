@@ -1,10 +1,10 @@
 from flask import Flask
 from jinja2 import filters
 
-from .blueprints import api 
+from .blueprints import api, settings 
 
 from .constants import ENV
-from . import auth, settings, database
+from . import auth, database
 from .blueprints import manga
 
 import os, tomllib

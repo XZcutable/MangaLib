@@ -41,7 +41,7 @@ def all_titles():
 
 @bp.route(ROUTE.HISTORY)
 def history():
-    user_id = api.getUserID()
+    user_id = db.session.getUserID()
     query = QUERY_HISTORY(user_id)
     query = select(func.count()).select_from(query)
 
@@ -50,7 +50,7 @@ def history():
 
 @bp.route(ROUTE.FAVORITES)
 def favorites():
-    user_id = api.getUserID()
+    user_id = db.session.getUserID()
     query = QUERY_FAVORITES(user_id)
     query = select(func.count()).select_from(query)
 
@@ -59,7 +59,7 @@ def favorites():
 
 @bp.route(ROUTE.QUEUED)
 def queued():
-    user_id = api.getUserID()
+    user_id = db.session.getUserID()
     query = QUERY_QUEUE(user_id)
     query = select(func.count()).select_from(query)
 
@@ -76,7 +76,7 @@ def random_manga():
 
 @bp.route(ROUTE.RANDOM_UNREAD)
 def random_unread():
-    user_id = api.getUserID()
+    user_id = db.session.getUserID()
     random_unread_query = (
         select(Manga.id).outerjoin(UserMangaData, UserMangaData.user_id == user_id)
         .where((UserMangaData.is_read == None) | (~UserMangaData.is_read))
@@ -94,7 +94,7 @@ def info(manga_id: int = None):
         return redirect(url_for(ENDPOINT.HOME))
     
     if len(manga.chapters) > 0:
-        user_manga_data: UserMangaData = db.UserMangaData.getOrCreate(api.getUserID(), manga)
+        user_manga_data: UserMangaData = db.UserMangaData.getOrCreate(db.session.getUserID(), manga)
         chapter = request.args.get('chapter')
         if chapter is None or not str.isdigit(chapter) or int(chapter) < 1:
             chapter = manga.chapters[0]

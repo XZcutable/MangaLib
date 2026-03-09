@@ -1,11 +1,14 @@
-from ..server.settings import SUPPORTED_ARCHIVE_TYPES, SUPPORTED_IMAGE_TYPES, has_path
+from ..server.settings import has_path
 
-from ..database import db
+
+from ..database import db, SUPPORTED_IMAGE_TYPES, SUPPORTED_ARCHIVE_TYPES
 from ..models import Manga, Chapter, Page
 
 from datetime import datetime, timezone
 import os
 from ..helpers import sort_paths
+
+
 
 # Seems like Jinja datetime doesn't preserve the timezone when converting to a string so just skipping the middle man
 def getDatetimeISONow():
@@ -28,10 +31,10 @@ def isValidFile(dir: str, file: str, filters: tuple | None):
 def getRootFolders():
     if os.name == 'nt':
         folders = [f'{drive}:/' for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if os.path.exists(f'{drive}:/')]
-        return ('', folders)
+        return folders
     elif os.name == 'posix': 
         folders = os.listdir('/')
-        return ('/', folders)
+        return folders
     else:
         return []
 
@@ -48,8 +51,7 @@ def lsDirs(dir: str | None):
         dir = os.path.normpath(dir).replace('\\', '/')
 
     if dir == '/':
-        (dir, folder) = getRootFolders()
-        return { 'dir': dir, 'folders':  folder}
+        return getRootFolders()
     elif os.path.isdir(dir):
         if not dir.endswith(':/'):
             dir += '/'
@@ -97,7 +99,7 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
     manga: Manga = db.Manga.getOrCreate(title=manga_name, manga_path=manga_path)
 
     if manga.new:
-        manga.date_uploaded = getDatetimeISONow()
+        manga.date_uploaded = db.getDatetimeISONow()
     elif not rescan_exisitng:
         # print(f"Skipping '{manga_name}' as it already exits")
         return None

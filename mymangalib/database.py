@@ -5,22 +5,53 @@ from sqlalchemy.orm import scoped_session, Session
 
 from datetime import datetime, timezone
 
-from typing import Optional
+from typing import Optional, Final
 
 from .constants import ENV
 
 import os, zipfile, pymupdf
 
-from sqlalchemy import select, func, exc
+from sqlalchemy import Select, select, func, exc
 
-from .models import db_engine, Manga, Chapter, Page, MangaMetadata, UserMangaData
+from .models import db_engine, Manga, Chapter, Page, MangaMetadata, UserMangaData, User
 
 from .helpers import sort_paths
 
-from .server.settings import SUPPORTED_IMAGE_TYPES, SUPPORTED_ARCHIVE_TYPES
+SUPPORTED_IMAGE_TYPES: Final[tuple] = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
+SUPPORTED_ARCHIVE_TYPES: Final[tuple] = ('.cbz', '.zip', '.pdf')
+
+class Manga_session(scoped_session):
+    session: Session
+    def __init__(self, session: Session):
+        self.session = session
+
+    def __getattr__(self, name):
+        return getattr(self.session, name)
+
+    # This assumes that user is being set somewhere else, may need to change
+    def getCurrentUser(self) -> User:
+        from flask import g
+        return g.user
+    
+    def getUserID(self) -> int:
+        return Manga_session.getCurrentUser(self)["id"]
+    
+    # Returns the query results as a indexed tuple or a tuple with mappings. e.g. (1,2,3) vs (a=1,b=2,c=3)
+    def execute_query(self, query: Select[tuple[int, str]], mappings:list[str]=None):
+        if mappings is None:
+            return self.session.execute(query).tuples().all()
+        else:
+            return [{ mappings[i]:result[i] for i in range(len(mappings)) } for result in self.session.execute(query)]
 
 class db:
-    session: scoped_session[Session] = None
+    session: Manga_session = None
+
+    # Seems like Jinja datetime doesn't preserve the timezone when converting to a string so just skipping the middle man
+    def getDatetimeISONow():
+        return str(datetime.now(timezone.utc))
+
+    def fromDatetimeISO(iso:str):
+        return datetime.fromisoformat(iso)
 
     class Manga:
         MANGA_COUNT = 0
@@ -35,10 +66,12 @@ class db:
                 db.Manga.MANGA_COUNT = 0 
 
         def fromID(id: int) -> Optional[Manga]:
-            return Manga.query.get({"id": id})
+            return db.session.scalar(select(Manga).where(Manga.id == id))
+            # return Manga.query.get({"id": id})
     
         def fromPath(path: str):
-            return Manga.query.filter_by(path=path).one_or_none()
+            # TODO Remove?
+            return db.session.scalars(select(Manga).where(Manga.path == path)).one_or_none()
     
         def getChapter(number: int) -> Optional[Chapter]:
             return Chapter.fromManga(number)
@@ -140,4 +173,4 @@ def init_app(app: Flask):
             print("Unable to make database")
             exit()
 
-db.session = db_engine.session
+db.session = Manga_session(db_engine.session)

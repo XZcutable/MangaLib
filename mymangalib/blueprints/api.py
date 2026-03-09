@@ -7,7 +7,6 @@ from flask import (
 
 from sqlalchemy import and_, select
 
-from .. import settings
 from ..auth import owner_access, admin_access, get_role_context
 from ..constants import ENDPOINT, SQL
 from . import manga
@@ -18,7 +17,7 @@ from ..models import Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-from ..server import api
+from ..server import api, settings
 
 from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 
@@ -64,30 +63,6 @@ def scanPaths():
     flash("Path scanned", 'success')
     return {'result': 'success'}
 
-def scan_archive(parent_dir: str, archives: list[str]):
-    db.session.begin_nested()
-    for archive in archives:
-        archive_path = os.path.join(parent_dir, archive)
-        archive_name, archive_ext = os.path.splitext(archive)
-
-        # print("Scanning:", archive)
-        manga = db.Manga.getOrCreate(title=archive_name, manga_path=archive_path)
-        manga.chapters = []
-        
-        chapter: Chapter = db.Chapter.create(chapter_path=archive_path, number=1, title=archive_name, archive_type=archive_ext)
-        db.Chapter.from_archive(chapter, archive_path=archive_path, archive_ext=archive_ext)
-
-        if len(chapter.pages) <= 0:
-            continue
-        else:
-            manga.chapters.append(chapter)
-
-        if manga.new:
-            manga.date_uploaded = getDatetimeISONow()
-            db.session.add(manga)
-
-    db.session.commit()
-
 @owner_access
 @bp.route('/scan-manga')
 def rescan():
@@ -111,66 +86,49 @@ def rescan():
 @owner_access
 def addPath():
     path: str = request.args['path']
-    error = None
     result = { 'success': False }
 
-    if path is None:
-        error = "No path given"
-    else: 
-        try:
-            path = os.path.normpath(path).replace('\\', '/')
-        
-            if not os.path.isdir(path):
-                error = "Path is not a dir"
-            elif path in settings.getPaths():
-                error = "Path is already registered"
-            elif settings.addPath(path):
-                result = { 'success': True }
-                flash("Path Added", 'success')
-            else:
-                error = 'Unable to add path'
-        except Exception as e:
-            error = f'Error while adding path: {e}'
-        
-    if error is not None:
-        flash(error, 'error')
+    path = os.path.normpath(path).replace('\\', '/')
 
+    try:
+        settings.add_path(path)
+        result = { 'success': True }
+        flash("Path Added", 'success')
+    except ValueError as error:
+        flash(error, 'error')
+        
     return result
 
 @bp.route('/remove-path')
 @owner_access
 def removePath():
     path: str = request.args['path']
-    error = None
     result = { 'success': False }
+    path = os.path.normpath(path).replace('\\', '/')
 
     try:
-        path = os.path.normpath(path).replace('\\', '/')
-    
-        if settings.removePath(path):
-            result = { 'success': True }
-            # flash("Path Removed", 'success')
-        else:
-            error = 'Unable to remove path'
-    except:
-        error = 'Error while removing path'
-
-    if error is not None:
+        settings.remove_path(path)
+        result = { 'success': True }
+        flash("Path Removed", 'success')
+    except ValueError as error:
         flash(error, 'error')
+
     return result
 
 @bp.route('/get-paths')
 @owner_access
 def getPaths():
     return {
-        'paths': settings.getPaths()
+        'paths': settings.get_paths()
     }
     
 @bp.route('/list-dir')
 @owner_access
 def listDirs():
     dir: str = request.args['dir']
-    return api.lsDirs(dir)
+    if not dir.endswith("/"):
+        dir += "/"
+    return {"dir": dir, "folders": api.lsDirs(dir)}
     
 @bp.route('/open-dir/<int:manga_id>')
 @owner_access
@@ -204,20 +162,6 @@ def delete_manga():
 
     return redirect(url_for(ENDPOINT.HOME))
     
-def isValidPath(dir: str, path: str):
-    isDir = os.path.isdir(f'{dir}/{path}/')
-    return isDir and not path.startswith('.') and not path.startswith('$')
-
-def isValidFile(dir: str, file: str, filters: tuple | None):
-    if os.path.isfile(f'{dir}/{file}'):
-        if not file.startswith('.') and not file.startswith('$'):
-            if filters is None:
-                return True
-            else:
-                return os.path.splitext(file)[1] in filters
-    
-    return False
-
 @bp.route('/fetch-titles')
 def fetch_titles():
     sort = request.args.get('sort', 'asc')
@@ -229,41 +173,41 @@ def fetch_titles():
         .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     
-    return execute_query(query, mappings=["id", "title"])
+    return db.session.execute_query(query, mappings=["id", "title"])
 
 @bp.route("/fetch-history")
 def fetch_history():
     sort = request.args.get('sort', 'asc')
     offset = int(request.args.get('offset', '0'))
 
-    user_id = getUserID()
+    user_id = db.session.getUserID()
     query = (
         QUERY_HISTORY(user_id, sort)
         .offset(offset).limit(FETCH_BATCH_SIZE)
     )
-    return execute_query(query, mappings=["id", "title"])
+    return db.session.execute_query(query, mappings=["id", "title"])
 
 @bp.route("/fetch-favorites")
 def fetch_favorites():
     sort = request.args.get('sort', 'asc')
     offset = int(request.args.get('offset', '0'))
 
-    user_id = getUserID()
+    user_id = db.session.getUserID()
     query = (
         QUERY_FAVORITES(user_id, sort)
         .offset(offset).limit(FETCH_BATCH_SIZE)
     )
 
-    return execute_query(query, mappings=["id", "title"])
+    return db.session.execute_query(query, mappings=["id", "title"])
 
 @bp.route("/fetch-queued")
 def fetch_queued():
     sort = request.args.get('sort', 'asc')
     offset = int(request.args.get('offset', '0'))
 
-    user_id = getUserID()
+    user_id = db.session.getUserID()
     query = QUERY_QUEUE(user_id, sort)
-    return execute_query(query.offset(offset).limit(FETCH_BATCH_SIZE), mappings=["id", "title"])
+    return db.session.execute_query(query.offset(offset).limit(FETCH_BATCH_SIZE), mappings=["id", "title"])
 
 CACHE_LIMIT = 30
 CACHE_LIFESPAN_SECONDS = 300
@@ -284,7 +228,7 @@ def fetch_search(q: str=None):
         .offset(offset).limit(FETCH_BATCH_SIZE)
     )
     print(query)
-    return execute_query(query, mappings=["id", "title"])
+    return db.session.execute_query(query, mappings=["id", "title"])
     
 def create_search_query(q: str):
     query = SEARCH_CACHE.get(q)
@@ -334,6 +278,7 @@ NSFW = "nsfw"
 
 SPECIAL_TAGS = [READ, UNREAD, TAGGED, UNTAGGED, IN_PROGRESS, NSFW, SFW]
 
+# TODO Move this to server and fix. also support partial search terms
 def create_search_query(q: str) -> Select[tuple[int, str]]:
     q = q.lower()
     terms: list[str] = [*TERM_PATTERN.findall(q), *[*DQUOTE_PATTERN.findall(q), *QUOTE_PATTERN.findall(q)]]
@@ -358,7 +303,7 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
 
         global user_id
         if tag == READ:
-            user_id = getUserID()
+            user_id = db.session.getUserID()
             read_query = (
                 select(Manga.id)
                 .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
@@ -383,7 +328,7 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
                 filter = filter.where(~Manga.id.in_(tag_query))
             return filter
         elif tag == IN_PROGRESS:
-            user_id = getUserID()
+            user_id = db.session.getUserID()
             progress_query = (
                 select(Manga.id)
                 .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
@@ -523,6 +468,7 @@ def edit_manga_title(manga_id: int):
             return Response(status=200)
     return Response(status=403)
 
+# TODO Remove these? are we using this. Maybe the manga could stay
 @bp.route("/manga/info/<int:manga_id>")
 def get_manga_info(manga_id: int):
     manga: Manga = db.Manga.fromID(manga_id)
@@ -562,6 +508,7 @@ def get_page_info(manga_id: int, chapter_number: int, page_number: int):
 valid_tag_regex = r"^[a-z]+(\W+[a-z]*)*[a-z]$"
 valid_tag_pattern = re.compile(valid_tag_regex)
 
+#TODO Move logic to server but keep api
 @bp.route('/content-tag/add', methods=['POST'])
 def add_content_tag():
     new_tag = request.form['content-tag'].lower()
@@ -626,7 +573,7 @@ def get_content_tags():
 
 @bp.route('/content-tag/<int:manga_id>')
 def get_manga_tags(manga_id: int):
-    manga: Manga = Manga.fromID(manga_id)
+    manga: Manga = db.Manga.fromID(manga_id)
     if manga is None:
         return Response(status=403)
     
@@ -649,11 +596,12 @@ def set_content_tags():
 
     return redirect(location=request.referrer)
 
+#TODO Move logic to server
 @bp.route('/user/manga/data')
 def get_user_manga_data():
     manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(db.session.getUserID(), manga)
         return user_data.toJson()
     return Response(status=405)
 
@@ -665,13 +613,13 @@ def save_user_progress():
         if chapter is not None:
             page: Page = db.Page.fromChapter(chapter, request.form.get("page_number", 0))
             if page is not None:
-                user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
+                user_data: UserMangaData = db.UserMangaData.getOrCreate(db.session.getUserID(), manga)
                 if user_data.new:
                     db.session.add(user_data)
 
                 user_data.current_chapter = chapter.number
                 user_data.current_page = page.number
-                user_data.last_seen = getDatetimeISONow()
+                user_data.last_seen = db.getDatetimeISONow()
 
                 if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
                     user_data.is_read = True
@@ -686,7 +634,7 @@ def save_user_progress():
 def update_read_status():
     manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(db.session.getUserID(), manga)
         is_read = request.form.get("is_read", 'False').lower() == "true"
         reset = request.form.get("reset", 'False').lower() == "true"
         db.session.begin_nested()
@@ -706,14 +654,14 @@ def update_read_status():
 def update_fav_status():
     manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(db.session.getUserID(), manga)
         is_fav = request.form.get("is_fav", 'False').lower() == "true"
         db.session.begin_nested()
         if user_data.new:
             db.session.add(user_data)
         user_data.is_favorite = is_fav
         if is_fav:
-            user_data.favorited_when = getDatetimeISONow()
+            user_data.favorited_when = db.getDatetimeISONow()
         else:
             user_data.favorited_when = ""
         db.session.commit()
@@ -725,14 +673,14 @@ def update_fav_status():
 def update_queue_status():
     manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:
-        user_data: UserMangaData = db.UserMangaData.getOrCreate(getUserID(), manga)
+        user_data: UserMangaData = db.UserMangaData.getOrCreate(db.session.getUserID(), manga)
         is_queued = request.form.get("is_queued", 'False').lower() == "true"
         db.session.begin_nested()
         if user_data.new:
             db.session.add(user_data)
         user_data.is_queued = is_queued
         if is_queued:
-            user_data.queued_when = getDatetimeISONow()
+            user_data.queued_when = db.getDatetimeISONow()
         else:
             user_data.queued_when = ""
         db.session.commit()
@@ -740,22 +688,3 @@ def update_queue_status():
 
     return Response(status=405)
 
-def getCurrentUser() -> User:
-    return g.user
-
-def getUserID() -> int:
-    return getCurrentUser()["id"]
-
-# Seems like Jinja datetime doesn't preserve the timezone when converting to a string so just skipping the middle man
-def getDatetimeISONow():
-    return str(datetime.now(timezone.utc))
-
-def fromDatetimeISO(iso:str):
-    return datetime.fromisoformat(iso)
-
-from sqlalchemy import Select
-def execute_query(query: Select[tuple[int, str]], mappings:list[str]=None):
-    if mappings is None:
-        return db.session.execute(query).tuples().all()
-    else:
-        return [{ mappings[i]:result[i] for i in range(len(mappings)) } for result in db.session.execute(query)]
