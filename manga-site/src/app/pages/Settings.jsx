@@ -11,6 +11,8 @@ import { LibrarySection } from "../components/settings/LibrarySection"
 import { TagsSection } from "../components/settings/TagsSection"
 import { UsersSection } from "../components/settings/UsersSection"
 import { SettingSwitch } from "../components/settings/SettingSwitch"
+import { UpdatesSection } from "../components/settings/UpdatesSection"
+import { canSelfUpdate } from "../lib/updater"
 
 const formatDate = (value) => (value ? parseServerDate(value).toLocaleString() : "never")
 
@@ -62,6 +64,7 @@ export function Settings() {
           { id: "tags", label: "Tags" },
         ]
       : []),
+    ...(canSelfUpdate ? [{ id: "updates", label: "Updates" }] : []),
     { id: "devices", label: "Devices" },
   ]
 
@@ -160,6 +163,12 @@ export function Settings() {
             <TagsSection />
           </div>
         </>
+      )}
+
+      {canSelfUpdate && (
+        <div id="updates" className="scroll-mt-20">
+          <UpdatesSection />
+        </div>
       )}
 
       <section id="devices" className={`${s.card} scroll-mt-20`}>

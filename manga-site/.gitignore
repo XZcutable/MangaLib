@@ -42,6 +42,9 @@ coverage
 # Figma Make export archive
 project.zip
 
+# APKs built by pnpm release
+release/
+
 node_modules/
 dist/
 build/

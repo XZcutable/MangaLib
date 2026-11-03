@@ -1,8 +1,9 @@
 {
   "name": "@figma/my-make-file",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.34.3",
   "scripts": {
     "build": "vite build --config vite.figma.config.js",
     "dev": "vite --host 0.0.0.0 --config vite.figma.config.js",
@@ -10,7 +11,8 @@
     "format": "oxfmt",
     "app:sync": "pnpm build && cap sync",
     "app:android": "pnpm build && cap sync android && cap open android",
-    "app:ios": "pnpm build && cap sync ios && cap open ios"
+    "app:ios": "pnpm build && cap sync ios && cap open ios",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^7.1.0",

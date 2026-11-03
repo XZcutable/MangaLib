@@ -1,5 +1,22 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+// The app version lives in package.json ("version": "1.2.3"). The version code Android uses to
+// decide whether an APK is newer is derived from it: 1.2.3 -> 10203.
+def appVersion = new JsonSlurper().parse(file('../../package.json')).version
+def versionParts = appVersion.tokenize('.-')
+def appVersionCode = versionParts[0].toInteger() * 10000 + versionParts[1].toInteger() * 100 + versionParts[2].toInteger()
+
+// Release signing. The key must stay the same for every release, or phones can't install updates.
+// It lives outside the repo: ~/.mymangalib/release.properties (or the file named by
+// MYMANGALIB_SIGNING) with storeFile, storePassword, keyAlias and keyPassword.
+def signingFile = file(System.getenv('MYMANGALIB_SIGNING') ?: "${System.getProperty('user.home')}/.mymangalib/release.properties")
+def signing = new Properties()
+if (signingFile.exists()) {
+    signingFile.withInputStream { signing.load(it) }
+}
+
 android {
     namespace "com.mymangalib.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +24,8 @@ android {
         applicationId "com.mymangalib.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +33,21 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (signing.storeFile) {
+                storeFile file(signing.storeFile)
+                storePassword signing.storePassword
+                keyAlias signing.keyAlias
+                keyPassword signing.keyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (signing.storeFile) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

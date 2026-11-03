@@ -32,6 +32,43 @@ On first launch the app asks for the server address, for example `192.168.1.20:5
 - **Plain HTTP:** both platforms allow it for home-network servers. The Android app runs as `http://localhost`; with `https`, the WebView would upgrade image requests to HTTPS and covers and pages would fail to load. HTTPS through a reverse proxy is recommended for anything reachable from the internet.
 - **Before publishing to a store:** change `appId` in `capacitor.config.json`.
 
+## Releases and app updates
+
+Android APKs are published on [GitHub Releases](https://github.com/XZcutable/MangaLib/releases). The app checks there when it opens (at most every 6 hours, or from Settings → App updates). When it finds a newer version, it shows the release notes and does the rest after you tap **Update**:
+
+1. It downloads the APK and checks it against GitHub's checksum.
+2. It confirms the APK is signed with the same key as the installed app.
+3. It opens Android's install screen.
+
+The first update asks the user to allow "Install unknown apps" for myMangaLib.
+
+### One-time setup
+
+- **Signing key:** `~/.mymangalib/release.jks` and `~/.mymangalib/release.properties`. **Back this folder up.** Every release must be signed with this key. If it's lost, installed apps can't update and every user has to uninstall and reinstall.
+- **GitHub token:**
+  1. Create a fine-grained personal access token at github.com → Settings → Developer settings.
+  2. Give it access to `XZcutable/MangaLib` only, with **Contents: Read and write**.
+  3. Save it in `~/.mymangalib/github-token` or the `GITHUB_TOKEN` environment variable.
+
+### Publishing a release
+
+```sh
+pnpm release 1.0.0 --notes "First release"
+pnpm release 1.1.0 --notes-file notes.md
+pnpm release 1.1.0 --dry-run      # build the signed APK into release/ without publishing
+```
+
+The script does the following:
+
+1. Checks the version is higher than the one in `package.json`.
+2. Sets that version.
+3. Builds the web app and a signed release APK.
+4. Creates the GitHub release as a draft, uploads the APK, and publishes it only once the upload succeeds.
+
+Commit the `package.json` version change afterwards. Versions are `major.minor.patch`, with minor and patch up to 99; Android's version code is built from them (1.2.3 → 10203).
+
+To test an update before publishing, build with `VITE_UPDATE_URL` pointing at a copy of the GitHub release JSON. The app then checks there instead of GitHub.
+
 ## How it fits together
 
 | Path | What it does |

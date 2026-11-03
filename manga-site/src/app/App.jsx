@@ -5,6 +5,7 @@ import { Toaster } from "sonner"
 import { router } from "./routes"
 import { ThemeProvider, useTheme } from "./context/ThemeContext"
 import { AuthProvider } from "./context/AuthContext"
+import { UpdateProvider } from "./context/UpdateContext"
 
 function ThemedToaster() {
   const { theme } = useTheme()
@@ -16,8 +17,10 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
-        <ThemedToaster />
+        <UpdateProvider>
+          <RouterProvider router={router} />
+          <ThemedToaster />
+        </UpdateProvider>
       </AuthProvider>
     </ThemeProvider>
   )
