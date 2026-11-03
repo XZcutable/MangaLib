@@ -1,5 +1,5 @@
 FROM python:3.11-bookworm
-RUN apt update; apt upgrade
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /var/db
 RUN mkdir /var/manga
@@ -12,7 +12,11 @@ RUN pip install -r requirements.txt
 ENV FLASK_ENV_CONFIG=true \
 FLASK_BEHIND_PROXY=true \
 FLASK_CREATE_MISSING_CONFIG=true \
-FLASK_CONFIG_PATH="/var/config/config.toml"
+FLASK_CONFIG_PATH="/var/config/config.toml" \
+FLASK_DATABASE_PATH="/var/db/database.db"
+
+# Mount these so data survives rebuilding the container (see compose.yml)
+VOLUME ["/var/db", "/var/config"]
 
 RUN mkdir /mangalib/mymangalib
 COPY pyproject.toml pyproject.toml

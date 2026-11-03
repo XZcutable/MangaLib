@@ -26,6 +26,16 @@
 
 <body class="w3-display-container">
     <script>
+        // Use for any user or file-system text inserted into HTML strings (titles, tags, paths)
+        function escapeHtml(text) {
+            return String(text)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
         function navWithDelay(location, delay=800) {
             setTimeout(() => document.location = location, delay)
         }

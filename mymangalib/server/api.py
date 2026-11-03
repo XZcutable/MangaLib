@@ -146,6 +146,21 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
     return manga
             
 
+def rescan_manga(manga: Manga) -> tuple[bool, str | None]:
+    """Rebuilds the chapters and pages of one existing manga from its folder or archive.
+    Returns (success, error message)."""
+    manga_name = os.path.basename(os.path.normpath(manga.path))
+    if os.path.isdir(manga.path):
+        result = scan_manga(manga_path=manga.path, manga_name=manga_name, rescan_exisitng=True)
+    elif os.path.isfile(manga.path):
+        result = scan_archive_as_manga(manga.path, manga_name, rescan_exisitng=True)
+    else:
+        return (False, f"files not found at '{manga.path}'")
+
+    if result is None:
+        return (False, "no pages found")
+    return (True, None)
+
 # archives should be in the root folder to be their own chapter
 # archives in subfolders will be ignored
 def scan_manga_path(path: str, rescan_exisitng: bool = False):

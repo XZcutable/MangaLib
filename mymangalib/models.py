@@ -14,13 +14,18 @@ str_pk = Annotated[str, mapped_column(primary_key=True)]
 unique_str = Annotated[str, mapped_column(unique=True)]
 manga_id_fk = Annotated[int, mapped_column(ForeignKey("manga.id"))]
 
-class BaseModel(DeclarativeBase, MappedAsDataclass):
+class BaseModel(DeclarativeBase):
     def __getitem__(self, key):
         return getattr(self, key)
-    
+
 db_engine = SQLAlchemy(model_class=BaseModel)
 
-class Path(db_engine.Model):
+# Dataclass behaviour is added here rather than on BaseModel. Flask-SQLAlchemy copies
+# BaseModel into a new class, and SQLAlchemy 2.1+ rejects copying a class that is already a dataclass.
+class Model(MappedAsDataclass, db_engine.Model):
+    __abstract__ = True
+
+class Path(Model):
     path: Mapped[str_pk]
 
     def sortList(path_list: list[str], isDirs=False):
@@ -33,7 +38,7 @@ class Path(db_engine.Model):
     alphanum_key = lambda key: [Path.convert(c) for c in re.split('([0-9]+)', str.casefold(key))]
 
 # Username, passwords, preferences
-class User(db_engine.Model):
+class User(Model):
     __tablename__ = "user"
     id:Mapped[int_pk] = mapped_column(unique=True, init=False)
     username: Mapped[unique_str]
@@ -51,7 +56,7 @@ class User(db_engine.Model):
         user = User(username=username, password=password_hash, date_created=str(datetime.now(timezone.utc)))
         return user
     
-class UserMangaData(db_engine.Model):
+class UserMangaData(Model):
     user_id:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))
     manga_id:Mapped[manga_id_fk] = mapped_column(primary_key=True)
 
@@ -86,7 +91,7 @@ class UserMangaData(db_engine.Model):
         return f"<UserMangaData({self.user_id=}, {self.manga_id=}, {self.current_chapter=}, {self.current_page=}, {self.is_read=}, {self.is_favorite=}, {self.last_seen=})>"
 
 
-class ContentTag(db_engine.Model):
+class ContentTag(Model):
     __tablename__ = "content_tag"
     tag:Mapped[str_pk] = mapped_column(unique=True)
     nsfw:Mapped[bool] = mapped_column(default=False)
@@ -101,12 +106,12 @@ class ContentTag(db_engine.Model):
             "nsfw": self.nsfw,
         }
 
-class MangaContentTag(db_engine.Model):
+class MangaContentTag(Model):
     __tablename__ = "manga_content_tag"
     manga_id:Mapped[int_pk] = mapped_column(ForeignKey("manga_metadata.manga_id"))
     tag:Mapped[str_pk] = mapped_column(ForeignKey("content_tag.tag"))
 
-class MangaMetadata(db_engine.Model):
+class MangaMetadata(Model):
     __tablename__ = "manga_metadata"
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
 
@@ -123,7 +128,7 @@ class MangaMetadata(db_engine.Model):
     def __repr__(self):
         return f"<Metadata({self.manga_id=}, {self.language=}, {self.tags=})>"
 
-class Manga(db_engine.Model):
+class Manga(Model):
     __tablename__ = "manga"
     id:Mapped[int_pk] = mapped_column(init=False, unique=True)
     title:Mapped[str]
@@ -149,7 +154,7 @@ class Manga(db_engine.Model):
             "date_uploaded": self.date_uploaded,
         }
 
-class Chapter(db_engine.Model):
+class Chapter(Model):
     __tablename__ = "chapter"
     manga_id:Mapped[manga_id_fk] = mapped_column(init=False, primary_key=True)
     number:Mapped[int_pk]
@@ -175,7 +180,7 @@ class Chapter(db_engine.Model):
             'page_count': len(self.pages),
         }
     
-class Page(db_engine.Model):
+class Page(Model):
     __tablename__ = "page"
     number:Mapped[int_pk]
     manga_id:Mapped[int_pk] = mapped_column(init=False)

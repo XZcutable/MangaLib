@@ -43,7 +43,7 @@ def all_titles():
 def history():
     user_id = db.session.getUserID()
     query = QUERY_HISTORY(user_id)
-    query = select(func.count()).select_from(query)
+    query = select(func.count()).select_from(query.subquery())
 
     count = db.session.scalar(query)
     return render_template(HTML.HISTORY, sort=VAR.DESC, COUNT=count, title="History", HIDE_TITLES=HIDE_TITLES)
@@ -52,7 +52,7 @@ def history():
 def favorites():
     user_id = db.session.getUserID()
     query = QUERY_FAVORITES(user_id)
-    query = select(func.count()).select_from(query)
+    query = select(func.count()).select_from(query.subquery())
 
     count = db.session.scalar(query)
     return render_template(HTML.FAVORITES, sort=VAR.DESC, COUNT=count, title="Favorites", HIDE_TITLES=HIDE_TITLES)
@@ -61,7 +61,7 @@ def favorites():
 def queued():
     user_id = db.session.getUserID()
     query = QUERY_QUEUE(user_id)
-    query = select(func.count()).select_from(query)
+    query = select(func.count()).select_from(query.subquery())
 
     count = db.session.scalar(query)
     return render_template(HTML.QUEUED, sort=VAR.DESC, COUNT=count, title="To Read", HIDE_TITLES=HIDE_TITLES)
@@ -78,7 +78,8 @@ def random_manga():
 def random_unread():
     user_id = db.session.getUserID()
     random_unread_query = (
-        select(Manga.id).outerjoin(UserMangaData, UserMangaData.user_id == user_id)
+        select(Manga.id)
+        .outerjoin(UserMangaData, (UserMangaData.manga_id == Manga.id) & (UserMangaData.user_id == user_id))
         .where((UserMangaData.is_read == None) | (~UserMangaData.is_read))
         .order_by(func.random())
     )
@@ -95,11 +96,13 @@ def info(manga_id: int = None):
     
     if len(manga.chapters) > 0:
         user_manga_data: UserMangaData = db.UserMangaData.getOrCreate(db.session.getUserID(), manga)
-        chapter = request.args.get('chapter')
-        if chapter is None or not str.isdigit(chapter) or int(chapter) < 1:
+        chapter_number = request.args.get('chapter')
+        chapter = None
+        if chapter_number is not None and chapter_number.isdigit():
+            chapter = db.Chapter.fromManga(manga, int(chapter_number))
+        if chapter is None:
+            # Missing, invalid or out of range chapter shows the first chapter
             chapter = manga.chapters[0]
-        else:
-            chapter = manga.chapters[int(chapter)-1]
 
         return render_template(HTML.INFO, manga=manga.toJson(), chapter=chapter.toJson(), user_manga_data=user_manga_data.toJson(), HIDE_TITLES=HIDE_TITLES, **get_role_context())
     else:
@@ -134,7 +137,9 @@ def read(manga_id: int, page_number=0, chapter_number=1):
     
     if page_number == "last":
         return redirect(f"{url_for(ENDPOINT.MANGA_READ, manga_id=manga_id, chapter_number=chapter_number, page_number=len(chapter.pages))}")
-    elif type(page_number) == str and str.isdigit(page_number):
+    elif type(page_number) == str:
+        if not page_number.isdigit():
+            return redirect(url_for(ENDPOINT.MANGA_INFO, manga_id=manga_id))
         page_number = int(page_number)
     if page_number <= 0:
         return info(manga_id=manga_id)
@@ -175,28 +180,32 @@ def image(manga_id=None, page_number=None, chapter_number=1):
 
 def fetch_page(page: Page):
     if page.chapter.is_archive():
-        if page.chapter.archive_type == ".zip" or page.chapter.archive_type == ".cbz":
-            # TODO Add try catch
-            with zipfile.ZipFile(page.chapter.path, "r") as zip_file:
-                image_data = zip_file.open(page.file_name)
-                image_ext = os.path.splitext(page.file_name)[1]
-                response = send_file(image_data, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
-                
-            if response.status_code == 304:
-                response.status_code = 200
-            return response
-        elif page.chapter.archive_type == ".pdf":
-            pdf = pymupdf.open(page.chapter.path)
-            base_image = pdf.extract_image(int(page.file_name))
-            image_data = io.BytesIO(base_image["image"])
-            image_ext = base_image["ext"]
-            response = send_file(image_data, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
-                
-            if response.status_code == 304:
-                response.status_code = 200
-            return response
-        else:
+        # A moved, deleted or damaged archive shows the 404 image instead of an error page
+        if not os.path.isfile(page.chapter.path):
             return IMAGE_404()
+        try:
+            if page.chapter.archive_type == ".zip" or page.chapter.archive_type == ".cbz":
+                with zipfile.ZipFile(page.chapter.path, "r") as zip_file:
+                    image_data = zip_file.open(page.file_name)
+                    image_ext = os.path.splitext(page.file_name)[1]
+                    response = send_file(image_data, download_name=f"{page.number}{image_ext}", max_age=10*24*60*60)
+            elif page.chapter.archive_type == ".pdf":
+                with pymupdf.open(page.chapter.path) as pdf:
+                    base_image = pdf.extract_image(int(page.file_name))
+                if not base_image:
+                    return IMAGE_404()
+                image_data = io.BytesIO(base_image["image"])
+                image_ext = base_image["ext"] # PyMuPDF gives "png", not ".png"
+                response = send_file(image_data, download_name=f"{page.number}.{image_ext}", max_age=10*24*60*60)
+            else:
+                return IMAGE_404()
+        except (OSError, KeyError, ValueError, RuntimeError, zipfile.BadZipFile) as error:
+            print(f"Unable to read page {page.number} of '{page.chapter.path}': {error}")
+            return IMAGE_404()
+
+        if response.status_code == 304:
+            response.status_code = 200
+        return response
     else:
         img_path = os.path.join(page.chapter.path, page.file_name)
         # print(img_path, os.path.exists(img_path))
@@ -236,7 +245,7 @@ def search():
     q = request.args.get('q')
     if q is None:
         return render_template("manga/search.html", results=[])
-    count = db.session.scalar(select(func.count()).select_from(api.create_search_query(q)))
+    count = db.session.scalar(select(func.count()).select_from(api.create_search_query(q).subquery()))
     # print("COUNT:", count)
     
     return render_template("manga/search.html", COUNT=count, title="Results", HIDE_TITLES=HIDE_TITLES)

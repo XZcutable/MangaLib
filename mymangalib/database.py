@@ -135,7 +135,7 @@ class db:
 
                 next_page_number = 1
                 for xref in files:
-                    page: Page = Page.create(file_name=f"{xref}", number=next_page_number)
+                    page: Page = db.Page.create(file_name=f"{xref}", number=next_page_number)
                     next_page_number += 1
                     chapter.pages.append(page)
             else:

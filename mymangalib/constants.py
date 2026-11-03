@@ -43,10 +43,10 @@ class ENV:
 
     CONFIG_NAME = "config.toml"
     DEFAULT_DATABASE = "database.db"
+    PLACEHOLDER_SECRET_KEY = "REPLACE ME"
 
     DEFAULT_CONFIG = """\
 SECRET_KEY='REPLACE ME'
-DATABASE_FILE='database.db'
 BEHIND_PROXY=false
 
 ALLOW_NEW_USERS=false

@@ -4,3 +4,11 @@ services:
         image: mangalib
         ports:
             - "5000:5000"
+        volumes:
+            # Database and config (the config, with a random secret key, is created on first start)
+            - ./data/db:/var/db
+            - ./data/config:/var/config
+            # Your manga library. Change the left side to where your manga lives,
+            # then add /var/manga as a path in Settings > Config.
+            - ./manga:/var/manga:ro
+        restart: unless-stopped

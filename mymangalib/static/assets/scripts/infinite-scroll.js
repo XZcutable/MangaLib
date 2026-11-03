@@ -116,7 +116,7 @@ function createMangaGridItem(manga_id, title) {
         </a>
         <a href="${MANGA_URL}/${manga_id}">
             <div class="manga-card-title w3-tiny w3-text-white text-shadow">
-                ${title}
+                ${escapeHtml(title)}
             </div>
         </a>
     </div>
@@ -136,7 +136,7 @@ function createChapterGridItem(manga_id, chapter_number, title) {
         </a>
         <a href="${MANGA_URL}/${manga_id}/${chapter_number}/1">
             <div class="manga-card-title w3-tiny w3-text-white text-shadow">
-                ${title}
+                ${escapeHtml(title)}
             </div>
         </a>
     </div>

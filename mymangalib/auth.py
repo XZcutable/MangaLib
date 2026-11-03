@@ -11,6 +11,7 @@ bp = Blueprint('auth', __name__, url_prefix='')
 public_access = [ENDPOINT.AUTH_LOGIN, ENDPOINT.AUTH_REGISTER, ENDPOINT.AUTH_LOGOUT]
 
 import re, functools, click
+from flask.cli import with_appcontext
 
 from sqlalchemy import func, select
 
@@ -21,6 +22,7 @@ def init_app(app: Flask):
     app.cli.add_command(register_user)
     app.cli.add_command(change_user_role)
     app.cli.add_command(change_user_password)
+    app.cli.add_command(approve_user)
 
 def onboarding():
     global before_request
@@ -58,19 +60,19 @@ def load_logged_in_user():
     
 @bp.before_app_request
 def before_app_request():
+    # Only the user id lives in the cookie. The user is loaded fresh each request so the
+    # password hash never leaves the server and role changes apply immediately.
+    session.pop('user', None) # Clears the full user record older versions stored in the cookie
     user_id = session.get('user_id')
 
     if user_id is None:
         g.user = None
-    elif session.get('user') is None:
-        session["user"] = User.query.get({"id": user_id}) # replace
-        g.user = session["user"]
     else:
-        g.user = session["user"]
-
-    if g.user is not None and user_id != g.user['id']:
-        print("User error")
-        return redirect(url_for(ENDPOINT.AUTH_LOGOUT))
+        g.user = db_engine.session.get(User, user_id)
+        if g.user is None or not g.user.approved:
+            # Account no longer exists or is not approved
+            g.user = None
+            session.clear()
 
     if g.get("requires_clearance") is None:
         g.requires_clearance = True
@@ -218,6 +220,8 @@ def login():
             error = 'Invalid username'
         elif not check_password_hash(user.password, password):
             error = 'Incorrect password'
+        elif not user.approved:
+            error = 'Account is waiting for approval'
 
         if error is None:
             landing_page = session.get("requested_url", "/")
@@ -310,7 +314,7 @@ def get_owner() -> User:
 @click.option("-r", "--role", default="user")
 def register_user(username, password, role):
     if User.query.filter_by(username=username).first() is None:
-        user: User = User(username=username, password=generate_password_hash(password))
+        user: User = User.create(username=username, password_hash=generate_password_hash(password))
         db_engine.session.add(user)
         user = User.query.filter_by(username=username).first()
         if Access.OWNER == role:
@@ -359,3 +363,17 @@ def change_user_password(username, password):
         user.password = generate_password_hash(password)
         db_engine.session.commit()
         click.echo(f"Success changed {username} password")
+
+@click.command("approve-user")
+@click.option("-u", "--username")
+@with_appcontext
+def approve_user(username):
+    user: User | None = User.query.filter_by(username=username).first()
+    if user is None:
+        click.echo("Username is not registered")
+    elif user.approved:
+        click.echo(f"{username} is already approved")
+    else:
+        user.approved = True
+        db_engine.session.commit()
+        click.echo(f"Approved {username}")

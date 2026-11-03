@@ -13,7 +13,7 @@ It is assumed the venv was created in the root directory of the project.
 `.\.venv\Scripts\activate` on windows or `. .venv/bin/activate` for linux
 
 3\. Then you need to install Flask and Flask-SQLAlchemy, this is why a venv is recommened:
-`pip install Flask Flask-SQLAlchemy PyMuPDF`
+`pip install -r requirements.txt`
 
 4\. Finally run the server with a command like: <br>
 `flask --app mymangalib run --host=0.0.0.0`

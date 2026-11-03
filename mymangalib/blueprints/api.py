@@ -63,16 +63,16 @@ def scanPaths():
     flash("Path scanned", 'success')
     return {'result': 'success'}
 
-@owner_access
 @bp.route('/scan-manga')
+@owner_access
 def rescan():
     manga_id = request.args.get("manga_id")
-    manga: Manga = db.session.get(Manga, {"id": manga_id})
+    manga: Manga = db.Manga.fromID(manga_id)
     if manga is None:
         flash(f"Manga {manga_id} not found", "error")
     else:
         db.session.begin_nested()
-        (success, error) = api.scan_manga_path(manga.path, manga)
+        (success, error) = api.rescan_manga(manga)
         if success:
             flash("Rescanned Manga", "success")
             db.session.commit()
@@ -285,7 +285,7 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
     tags: list[str] = TAG_PATTERN.findall(q)
     ntags: list[str] = NTAG_PATTERN.findall(q)
 
-    manga_query = select(distinct(Manga.id).label("id"), Manga.title)
+    manga_query = select(Manga.id.label("id"), Manga.title).distinct()
 
     def is_special_tag(tag):
         return tag in SPECIAL_TAGS
@@ -341,17 +341,16 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
                 filter = filter.where(~Manga.id.in_(progress_query))
             return filter
         elif tag == NSFW:
-            tag_query = (
+            nsfw_query = (
                 select(MangaContentTag.manga_id)
-                .group_by(MangaContentTag.manga_id)
-                .join(ContentTag)
-                .having(func.count(ContentTag.nsfw) > 0)
+                .join(ContentTag, ContentTag.tag == MangaContentTag.tag)
+                .where(ContentTag.nsfw)
             )
             filter = metadata_query
             if positive:
-                filter = filter.where(Manga.id.in_(tag_query))
+                filter = filter.where(Manga.id.in_(nsfw_query))
             else:
-                filter = filter.where(~MangaContentTag.manga_id.in_(tag_query))
+                filter = filter.where(~Manga.id.in_(nsfw_query))
             return filter
         else:
             pass
@@ -396,13 +395,14 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
                 if is_special_tag(and_tag):
                     and_tags.remove(and_tag)
                     manga_query = handle_special_tag(and_tag, True, manga_query)
-            tag_query = (
-                select(MangaContentTag.manga_id)
-                .where(MangaContentTag.tag.in_(and_tags))
-                .group_by(MangaContentTag.manga_id)
-                .having(func.count() == len(and_tags))
-            )
-            manga_query = manga_query.where(Manga.id.in_(tag_query))
+            if len(and_tags):
+                tag_query = (
+                    select(MangaContentTag.manga_id)
+                    .where(MangaContentTag.tag.in_(and_tags))
+                    .group_by(MangaContentTag.manga_id)
+                    .having(func.count() == len(and_tags))
+                )
+                manga_query = manga_query.where(Manga.id.in_(tag_query))
 
     if len(ntags) > 0:
         nor_tags:list[str] = []
@@ -417,8 +417,7 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
         for nand_tags in nand_tags_list:
             for nand_tag in [tag for tag in nand_tags]:
                 if is_special_tag(nand_tag):
-                    # nand_tags.remove(nand_tag)
-                    manga_query = handle_special_tag(nand_tags, False, manga_query)
+                    manga_query = handle_special_tag(nand_tag, False, manga_query)
                 else:
                     nor_tags.append(nand_tag)
 
@@ -429,7 +428,7 @@ def create_search_query(q: str) -> Select[tuple[int, str]]:
                 .group_by(MangaContentTag.manga_id)
                 .having(func.count() > 0)
             )
-            manga_query = manga_query.where(MangaContentTag.manga_id.not_in(tag_query)) # Shows Only Tagged
+            manga_query = manga_query.where(Manga.id.not_in(tag_query))
 
     return manga_query
 
@@ -460,7 +459,7 @@ def edit_config():
 @bp.route("/edit/manga/title/<int:manga_id>", methods=["POST"])
 @admin_access
 def edit_manga_title(manga_id: int):
-    manga: Manga = Manga.fromID(manga_id)
+    manga: Manga = db.Manga.fromID(manga_id)
     if manga is not None:
         if request.form.get('title') is not None:
             manga.title = request.form['title']
@@ -505,11 +504,13 @@ def get_page_info(manga_id: int, chapter_number: int, page_number: int):
             else:
                 return page.toJson()
 
-valid_tag_regex = r"^[a-z]+(\W+[a-z]*)*[a-z]$"
+# Lowercase words separated by single spaces, e.g. "slice of life"
+valid_tag_regex = r"^[a-z]+( [a-z]+)*$"
 valid_tag_pattern = re.compile(valid_tag_regex)
 
 #TODO Move logic to server but keep api
 @bp.route('/content-tag/add', methods=['POST'])
+@admin_access
 def add_content_tag():
     new_tag = request.form['content-tag'].lower()
     if valid_tag_pattern.fullmatch(new_tag):
@@ -532,6 +533,7 @@ def add_content_tag():
         return redirect(location=request.referrer)
     
 @bp.route('/content-tag/add-nsfw', methods=['POST'])
+@admin_access
 def add_nsfw_tag():
     new_tag = request.form['content-tag'].lower()
     if valid_tag_pattern.fullmatch(new_tag):
@@ -554,9 +556,10 @@ def add_nsfw_tag():
         return redirect(location=request.referrer)
     
 @bp.route('/content-tag/remove', methods=['POST'])
+@admin_access
 def remove_content_tag():
     remove_tag = request.form['content-tag'].lower()
-    if valid_tag_pattern.fullmatch(remove_tag):
+    if remove_tag:
         tag = ContentTag.query.where(ContentTag.tag == remove_tag).one_or_none()
         if tag is not None:
             db.session.delete(tag)
@@ -582,6 +585,7 @@ def get_manga_tags(manga_id: int):
     return { "tags": tags }
 
 @bp.route('/content-tag/set', methods=["POST"])
+@admin_access
 def set_content_tags():
     manga: Manga = db.Manga.fromID(request.args.get("manga_id", 0))
     if manga is not None:

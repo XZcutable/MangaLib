@@ -7,7 +7,7 @@ from .constants import ENV
 from . import auth, database
 from .blueprints import manga
 
-import os, tomllib
+import os, tomllib, secrets
 from datetime import datetime, timezone
 
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -39,6 +39,8 @@ def create_app(config_file=None):
 
     # ENV has priority
     app.config.from_prefixed_env()
+
+    warn_if_placeholder_secret(app)
 
     if app.config["BEHIND_PROXY"]:
         app.wsgi_app = ProxyFix(
@@ -90,10 +92,17 @@ def create_filters():
 
     filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
+def warn_if_placeholder_secret(app: Flask):
+    secret_key = app.config.get("SECRET_KEY")
+    if not secret_key or str(secret_key).upper().startswith("REPLACE"):
+        print("WARNING: SECRET_KEY is missing or still a placeholder. Anyone who knows it can forge a login.")
+        print(f"WARNING: Set SECRET_KEY in your config to a random value, for example: {secrets.token_hex(32)}")
+
 def create_default_config(config_path: str, prompt_when_created):
     print(f"Config does not exist. Creating at {config_path}")
     with open(config_path, "w") as config:
-        config.write(ENV.DEFAULT_CONFIG)
+        # Each install gets its own random key. A shared, known key would let anyone forge a login.
+        config.write(ENV.DEFAULT_CONFIG.replace(ENV.PLACEHOLDER_SECRET_KEY, secrets.token_hex(32)))
     
     if prompt_when_created:
         should_exit = None
