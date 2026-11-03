@@ -58,8 +58,47 @@ def load_logged_in_user():
         print(session["requested_url"])
         return redirect(url_for(ENDPOINT.AUTH_LOGIN))
     
+API_V1_PREFIX = "/api/v1/"
+# Endpoints of /api/v1 that work without logging in
+API_PUBLIC_ENDPOINTS = {"api_v1.server_info", "api_v1.login", "api_v1.register"}
+# <img> tags can't send headers, so these also accept the token as ?t=
+API_IMAGE_ENDPOINTS = {"api_v1.cover", "api_v1.page_image"}
+
+def api_error(status: int, code: str, message: str):
+    return make_response({"error": {"code": code, "message": message}}, status)
+
+def load_api_user():
+    """/api/v1 uses tokens only, never the session cookie, so cookie-based CSRF doesn't apply to it."""
+    from .server import tokens
+
+    g.api_token = None
+    g.user = None
+
+    raw_token = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        raw_token = auth_header[len("Bearer "):].strip()
+    elif request.endpoint in API_IMAGE_ENDPOINTS:
+        raw_token = request.args.get("t")
+
+    token = tokens.find_token(raw_token)
+    if token is not None:
+        user = db_engine.session.get(User, token.user_id)
+        if user is not None and user.approved:
+            g.api_token = token
+            g.user = user
+
+    # Preflight requests never carry the token. flask-cors answers them.
+    if request.method == "OPTIONS" or request.endpoint in API_PUBLIC_ENDPOINTS:
+        return None
+    if g.user is None:
+        return api_error(401, "unauthorized", "Login required")
+
 @bp.before_app_request
 def before_app_request():
+    if request.path.startswith(API_V1_PREFIX):
+        return load_api_user()
+
     # Only the user id lives in the cookie. The user is loaded fresh each request so the
     # password hash never leaves the server and role changes apply immediately.
     session.pop('user', None) # Clears the full user record older versions stored in the cookie
@@ -148,44 +187,15 @@ def register():
         elif not password:
             error = 'Password is required'
         else:
-            print("Creating user")
-
-            find_user = (
-                select(User)
-                .where(User.username == username)
-            )
-            exisiting_user = db_engine.session.scalar(find_user)
-            if exisiting_user is not None:
-                error = f"User {username} is already registered"
+            user, error = register_account(username, password, registrationOpen, auto_approve)
+            if error is not None:
                 flash(error, "error")
+            elif user.role == Access.OWNER.toString():
+                flash("Created Owner Account", 'success')
+            elif user.approved:
+                flash("Registration Successfull", 'success')
             else:
-                
-                owner = get_owner()
-                if owner is None:
-                    registrationOpen = True
-                
-                if registrationOpen:
-                    db_engine.session.begin_nested()
-                    user = User.create(username=username, password_hash=generate_password_hash(password))
-                    db_engine.session.add(user)
-                    db_engine.session.commit()
-
-                    db_engine.session.begin_nested()
-                    user = db_engine.session.scalar(find_user)
-
-                    if user.id == 1:
-                        user.role = Access.OWNER.toString()
-                        user.approved = True
-                        flash("Created Owner Account", 'success')
-                    elif auto_approve:
-                        user.approved = True
-                        flash("Registration Successfull", 'success')
-                    else:
-                        flash('Successfully registered, please wait to be approved', 'success')
-                    db_engine.session.commit()
-                else:
-                    error = 'Registration is closed'
-                    flash(error, "error")
+                flash('Successfully registered, please wait to be approved', 'success')
 
             if error is None:
                 return redirect(url_for(ENDPOINT.AUTH_LOGIN, last_username=username))
@@ -201,6 +211,46 @@ def register():
         else:
             return render_template('auth/register.html', registrationOpen=registrationOpen, registration_info="Register New User")
 
+def registration_rules() -> tuple[bool, bool]:
+    """(registration open, auto approve) for the current request. Admins can always add approved users."""
+    if g.user is not None and get_user_role() >= Access.ADMIN:
+        return True, True
+    return bool(current_app.config['ALLOW_NEW_USERS']), bool(current_app.config['AUTO_APPROVE_NEW_USERS'])
+
+def register_account(username: str, password: str, registration_open: bool, auto_approve: bool) -> tuple[User | None, str | None]:
+    """Creates a user. The first account becomes the owner even when registration is closed.
+    Returns (user, None) or (None, error message)."""
+    existing_user = db_engine.session.scalar(select(User).where(func.lower(User.username) == username.lower()))
+    if existing_user is not None:
+        return None, f"User {username} is already registered"
+
+    if get_owner() is None:
+        registration_open = True
+    if not registration_open:
+        return None, 'Registration is closed'
+
+    user = User.create(username=username, password_hash=generate_password_hash(password))
+    db_engine.session.add(user)
+    db_engine.session.flush()
+
+    if user.id == 1:
+        user.role = Access.OWNER.toString()
+        user.approved = True
+    elif auto_approve:
+        user.approved = True
+    db_engine.session.commit()
+    return user, None
+
+def check_credentials(username: str, password: str) -> tuple[User | None, str | None]:
+    user: User = User.query.filter_by(username=username).first()
+    if user is None:
+        return None, 'Invalid username'
+    elif not check_password_hash(user.password, password):
+        return None, 'Incorrect password'
+    elif not user.approved:
+        return None, 'Account is waiting for approval'
+    return user, None
+
 @bp.route(ROUTE.LOGIN, methods=('GET', 'POST'))
 def login():
     print(request.referrer)
@@ -213,15 +263,7 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        error = None
-
-        user: User = User.query.filter_by(username=username).first()
-        if user is None:
-            error = 'Invalid username'
-        elif not check_password_hash(user.password, password):
-            error = 'Incorrect password'
-        elif not user.approved:
-            error = 'Account is waiting for approval'
+        user, error = check_credentials(username, password)
 
         if error is None:
             landing_page = session.get("requested_url", "/")
@@ -296,6 +338,19 @@ def moderator_access(view):
         return view(**kwargs)
     
     return wrapped_view
+
+def api_access(minimum: Access = Access.USER):
+    """JSON version of the access decorators for /api/v1: 401 when logged out, 403 when the role is too low."""
+    def decorator(view):
+        @functools.wraps(view)
+        def wrapped_view(**kwargs):
+            if g.get("user") is None:
+                return api_error(401, "unauthorized", "Login required")
+            if Access.fromString(g.user['role']) < minimum:
+                return api_error(403, "forbidden", "Your account doesn't have access to this")
+            return view(**kwargs)
+        return wrapped_view
+    return decorator
 
 select_owner = (
     select(User)

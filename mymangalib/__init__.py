@@ -1,7 +1,7 @@
 from flask import Flask
 from jinja2 import filters
 
-from .blueprints import api, settings 
+from .blueprints import api, api_v1, settings 
 
 from .constants import ENV
 from . import auth, database
@@ -53,6 +53,7 @@ def create_app(config_file=None):
     database.init_app(app)
     auth.init_app(app)
     api.init_app(app)
+    api_v1.init_app(app)
     manga.init_app(app)
     settings.init_app(app)
 
@@ -60,6 +61,7 @@ def create_app(config_file=None):
     app.register_blueprint(manga.bp)
     app.register_blueprint(settings.bp)
     app.register_blueprint(api.bp)
+    app.register_blueprint(api_v1.bp)
 
     app.add_url_rule('/manga/manga-image', endpoint='manga_image')
     app.add_url_rule('/manga', endpoint='manga')

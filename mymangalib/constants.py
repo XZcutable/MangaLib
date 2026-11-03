@@ -55,6 +55,9 @@ HIDE_MANGA=false
 HIDE_TITLES=false
 
 FETCH_BATCH_SIZE=30
+
+# Web pages allowed to call /api/v1 from a browser. capacitor://localhost is the iOS app, http://localhost the Android app.
+CORS_ORIGINS=['capacitor://localhost', 'http://localhost', 'https://localhost']
 """
 from sqlalchemy import asc, desc
 class SQL:

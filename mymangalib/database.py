@@ -153,7 +153,7 @@ class db:
             return user_data
     
         def fromUserAndManga(userID: int, manga: "Manga"):
-            return UserMangaData.query.get({"user_id": userID, "manga_id": manga.id })
+            return db_engine.session.get(UserMangaData, {"user_id": userID, "manga_id": manga.id })
 
 def init_app(app: Flask):
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
@@ -172,5 +172,9 @@ def init_app(app: Flask):
         if not os.path.exists(app.config['DATABASE_PATH']):
             print("Unable to make database")
             exit()
+    else:
+        # Adds tables introduced by newer versions (e.g. api_token). Existing tables are left untouched.
+        with app.app_context():
+            db_engine.create_all()
 
 db.session = Manga_session(db_engine.session)

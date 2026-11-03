@@ -55,7 +55,38 @@ class User(Model):
     def create(username: str, password_hash: str) -> "User":
         user = User(username=username, password=password_hash, date_created=str(datetime.now(timezone.utc)))
         return user
-    
+
+    def toJson(self):
+        role = Access.fromString(self.role)
+        return {
+            "id": self.id,
+            "username": self.username,
+            "role": str(role),
+            "approved": self.approved,
+            "is_owner": role == Access.OWNER,
+            "is_admin": role >= Access.ADMIN,
+            "is_mod": role >= Access.MODERATOR,
+        }
+
+# Login tokens for apps that can't use the browser cookie (mobile app, separate web client).
+# Only a hash is stored, so a leaked database can't be used to log in.
+class ApiToken(Model):
+    __tablename__ = "api_token"
+    id: Mapped[int_pk] = mapped_column(init=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str] = mapped_column(default="")
+    created: Mapped[Optional[str]] = mapped_column(default=None)
+    last_used: Mapped[Optional[str]] = mapped_column(default=None)
+
+    def toJson(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "created": self.created,
+            "last_used": self.last_used,
+        }
+
 class UserMangaData(Model):
     user_id:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))
     manga_id:Mapped[manga_id_fk] = mapped_column(primary_key=True)

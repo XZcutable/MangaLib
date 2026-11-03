@@ -39,6 +39,20 @@ And then running the server with something like (for Linux): <br>
 
 That will run the server in the background.
 
+# Mobile app and new front end #
+`manga-site/` holds the new front end. It runs in a browser and as an Android/iOS app. See [manga-site/README.md](manga-site/README.md).
+
+It uses the JSON API under `/api/v1`, which logs in with tokens instead of cookies:
+
+```sh
+curl -X POST http://localhost:5000/api/v1/auth/login -H "Content-Type: application/json" \
+     -d '{"username": "me", "password": "...", "device": "curl"}'
+# -> {"token": "...", "user": {...}}
+curl http://localhost:5000/api/v1/manga?list=all -H "Authorization: Bearer <token>"
+```
+
+Run the API tests with `pytest tests`.
+
 # Onboarding #
 After the server is running, going to the url will take you to the simple onbaording process of making an Owner Account. After creating the account you will be taken to the login page. The home page will be empty but will select a random amount of registered titles when avaiable.
 
