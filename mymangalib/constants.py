@@ -43,10 +43,10 @@ class ENV:
 
     CONFIG_NAME = "config.toml"
     DEFAULT_DATABASE = "database.db"
+    PLACEHOLDER_SECRET_KEY = "REPLACE ME"
 
     DEFAULT_CONFIG = """\
 SECRET_KEY='REPLACE ME'
-DATABASE_FILE='database.db'
 BEHIND_PROXY=false
 
 ALLOW_NEW_USERS=false
@@ -55,6 +55,13 @@ HIDE_MANGA=false
 HIDE_TITLES=false
 
 FETCH_BATCH_SIZE=30
+
+# Folder of the built new front end (manga-site/dist). When set, it's served at / and the
+# classic UI moves to /classic. Leave empty to keep the classic UI at /.
+FRONTEND_PATH=''
+
+# Web pages allowed to call /api/v1 from a browser. capacitor://localhost is the iOS app, http://localhost the Android app.
+CORS_ORIGINS=['capacitor://localhost', 'http://localhost', 'https://localhost']
 """
 from sqlalchemy import asc, desc
 class SQL:

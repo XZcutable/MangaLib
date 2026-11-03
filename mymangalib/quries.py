@@ -20,7 +20,10 @@ def QUERY_HISTORY(user_id: int, sort: str = SQL.ASC) -> Select:
                 UserMangaData.user_id == user_id,
                 Manga.id == UserMangaData.manga_id
             )
-        ).order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.last_seen).nulls_last())
+        )
+        # Only manga actually opened. Favoriting, queueing or marking read also creates a row but no last_seen.
+        .where(UserMangaData.last_seen.is_not(None))
+        .order_by(SQL.ORDER.get(sort, SQL.ASC)(UserMangaData.last_seen))
     )
 
 def QUERY_FAVORITES(user_id: int, sort: str = SQL.ASC) -> Select:

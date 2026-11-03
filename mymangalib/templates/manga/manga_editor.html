@@ -64,10 +64,11 @@ async function updateMangaTitle() {
     }
 
     function addTagRow(json, checked=false) {
+        const tag = escapeHtml(json.tag);
         const tag_item_template = `
-        <label class="tag-checkbox tag-grid-item" for="tag-${json.tag}-toggle">
-            <input name="${json.tag}" id="tag-${json.tag}-toggle" type="checkbox"${checked ? " checked" : ""}>
-            <span class="w3-button">${ json.tag }</span>
+        <label class="tag-checkbox tag-grid-item" for="tag-${tag}-toggle">
+            <input name="${tag}" id="tag-${tag}-toggle" type="checkbox"${checked ? " checked" : ""}>
+            <span class="w3-button">${tag}</span>
         </label>
         `;
         if(json.nsfw) {

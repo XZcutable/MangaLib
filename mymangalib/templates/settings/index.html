@@ -106,12 +106,15 @@ input:checked + .slider:before {
 
     {% if isOwner %}
     function addPathToTable(path) {
-        const row_template = `
-            <tr>
-                <td><button class="w3-button w3-bold w3-block w3-left-align w3-large" onclick="rescanPath(&quot;${path}&quot;,this.parentNode.parentNode)">${path}</button></td>
-            </tr>
-            `
-        paths_table = document.getElementById("media-paths").innerHTML += row_template
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        const button = document.createElement("button");
+        button.className = "w3-button w3-bold w3-block w3-left-align w3-large";
+        button.textContent = path;
+        button.addEventListener("click", () => rescanPath(path, row));
+        cell.appendChild(button);
+        row.appendChild(cell);
+        document.getElementById("media-paths").appendChild(row);
     }
 
     function onFolderPicked(folder) {
@@ -282,7 +285,7 @@ input:checked + .slider:before {
 <div class="main-content" style="display: inline-flex; width: 100%;">
     <div class="settings-sidebar w3-padding">
         <div class="sidebar-item w3-xlarge no-hover"><u>Settings</u></div>
-        <a class="sidebar-item w3-large w3-round-large w3-button" href="/settings">
+        <a class="sidebar-item w3-large w3-round-large w3-button" href="{{ url_for('settings.index') }}">
                 Account Settings
         </a>
         {% if isAdmin %}
@@ -333,7 +336,7 @@ input:checked + .slider:before {
             {% if isAdmin %}
             <script>
                 function addTagRow(json) {
-                    const tag_item_template = `<div class="tag-grid-item w3-button" onclick="removeTag(this, this.textContent)">${ json.tag }</div>`;
+                    const tag_item_template = `<div class="tag-grid-item w3-button" onclick="removeTag(this, this.textContent)">${ escapeHtml(json.tag) }</div>`;
 
                     if(json.nsfw) {
                         document.getElementById("nsfw-tag-grid").innerHTML += tag_item_template;
@@ -366,7 +369,7 @@ input:checked + .slider:before {
                 </div>
                 <form method="post" class="w3-padding">
                     <label for="content-tag-input">Add Tag:</label>
-                    <input id="content-tag-input" name="content-tag" type="text" placeholder="Content Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+(\W+[a-z]*)*[a-z]$"  required>
+                    <input id="content-tag-input" name="content-tag" type="text" placeholder="Content Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+( [a-z]+)*$"  required>
                     <input class="w3-padding-small" type="submit" value="Add Tag" formaction="{{ url_for('api.add_content_tag') }}">
                 </form>
                 <div class="w3-container w3-padding">
@@ -376,7 +379,7 @@ input:checked + .slider:before {
                 </div>
                 <form method="post" class="w3-padding">
                     <label for="content-tag-input-nsfw">Add Tag:</label>
-                    <input id="content-tag-nsfw-input" name="content-tag" type="text" placeholder="NSFW Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+(\W+[a-z]*)*[a-z]$"  required>
+                    <input id="content-tag-nsfw-input" name="content-tag" type="text" placeholder="NSFW Tag: Only a-z separated by spaces" info minlength="1" pattern="^[a-z]+( [a-z]+)*$"  required>
                     <input class="w3-padding-small" type="submit" value="Add Tag" formaction="{{ url_for('api.add_nsfw_tag') }}">
                 </form>
             </div>

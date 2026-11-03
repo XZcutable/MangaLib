@@ -11,11 +11,11 @@ from .constants import ENV
 
 import os, zipfile, pymupdf
 
-from sqlalchemy import Select, select, func, exc
+from sqlalchemy import Select, select, func, exc, inspect, text
 
 from .models import db_engine, Manga, Chapter, Page, MangaMetadata, UserMangaData, User
 
-from .helpers import sort_paths
+from .helpers import sort_paths, release_year_from_names
 
 SUPPORTED_IMAGE_TYPES: Final[tuple] = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 SUPPORTED_ARCHIVE_TYPES: Final[tuple] = ('.cbz', '.zip', '.pdf')
@@ -135,7 +135,7 @@ class db:
 
                 next_page_number = 1
                 for xref in files:
-                    page: Page = Page.create(file_name=f"{xref}", number=next_page_number)
+                    page: Page = db.Page.create(file_name=f"{xref}", number=next_page_number)
                     next_page_number += 1
                     chapter.pages.append(page)
             else:
@@ -153,7 +153,7 @@ class db:
             return user_data
     
         def fromUserAndManga(userID: int, manga: "Manga"):
-            return UserMangaData.query.get({"user_id": userID, "manga_id": manga.id })
+            return db_engine.session.get(UserMangaData, {"user_id": userID, "manga_id": manga.id })
 
 def init_app(app: Flask):
     if app.config.get("SQLALCHEMY_DATABASE_URI", None) is None:
@@ -172,5 +172,44 @@ def init_app(app: Flask):
         if not os.path.exists(app.config['DATABASE_PATH']):
             print("Unable to make database")
             exit()
+    else:
+        # Adds tables and columns introduced by newer versions (e.g. api_token, manga.release_year)
+        with app.app_context():
+            db_engine.create_all()
+            add_missing_columns()
+            fill_missing_release_years()
+
+def add_missing_columns():
+    """create_all() only makes missing tables. This adds new nullable columns to tables that already exist."""
+    inspector = inspect(db_engine.engine)
+    with db_engine.engine.begin() as connection:
+        for table in db_engine.metadata.sorted_tables:
+            existing = {column["name"] for column in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name not in existing and column.nullable and not column.primary_key:
+                    column_type = column.type.compile(dialect=db_engine.engine.dialect)
+                    print(f"Adding column {table.name}.{column.name}")
+                    connection.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}'))
+
+def fill_missing_release_years():
+    """Works out release years for manga scanned before they were tracked, from the names already stored."""
+    rows = db_engine.session.execute(
+        select(Manga.id, Manga.title, Manga.path, Chapter.title)
+        .outerjoin(Chapter, Chapter.manga_id == Manga.id)
+        .where(Manga.release_year.is_(None))
+    ).all()
+    names: dict[int, list[str]] = {}
+    for manga_id, title, path, chapter_title in rows:
+        names.setdefault(manga_id, [title, os.path.basename(path or "")]).append(chapter_title)
+
+    updated = 0
+    for manga_id, manga_names in names.items():
+        year = release_year_from_names(manga_names)
+        if year is not None:
+            db_engine.session.get(Manga, manga_id).release_year = year
+            updated += 1
+    if updated:
+        db_engine.session.commit()
+        print(f"Found release years for {updated} manga")
 
 db.session = Manga_session(db_engine.session)

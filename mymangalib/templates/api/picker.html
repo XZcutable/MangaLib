@@ -81,12 +81,15 @@
             //dir += '/';
         }
         
-        const row_template = `
-            <tr>
-                <td><button class="w3-button w3-bold w3-block w3-left-align w3-large" onclick="loadDir(&quot;${dir + folder}&quot;)">${name || folder}</button></td>
-            </tr>
-            `
-        document.getElementById("folder-picker-table").innerHTML += row_template
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        const button = document.createElement("button");
+        button.className = "w3-button w3-bold w3-block w3-left-align w3-large";
+        button.textContent = name || folder;
+        button.addEventListener("click", () => loadDir(dir + folder));
+        cell.appendChild(button);
+        row.appendChild(cell);
+        document.getElementById("folder-picker-table").appendChild(row);
     }
 
     async function listDir(dir) {

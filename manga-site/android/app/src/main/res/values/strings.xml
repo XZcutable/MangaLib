@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">myMangaLib</string>
+    <string name="title_activity_main">myMangaLib</string>
+    <string name="package_name">com.mymangalib.app</string>
+    <string name="custom_url_scheme">com.mymangalib.app</string>
+</resources>

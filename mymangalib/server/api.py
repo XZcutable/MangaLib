@@ -6,7 +6,7 @@ from ..models import Manga, Chapter, Page
 
 from datetime import datetime, timezone
 import os
-from ..helpers import sort_paths
+from ..helpers import sort_paths, release_year_from_names
 
 
 
@@ -93,17 +93,28 @@ def scan_archive_as_manga(archive_path: str, archive_name: str, rescan_exisitng:
     else:
         manga.chapters.append(chapter)
 
+    manga.release_year = release_year_from_names([archive_name])
+    if manga.new:
+        manga.last_updated = manga.date_uploaded
     return manga
+
+def count_chapter_entries(manga_path: str) -> int:
+    """Chapter folders and archives in a manga folder, plus 1 for images loose in the folder itself."""
+    entries = len(lsDirs(manga_path)) + len(lsFiles(manga_path, filters=SUPPORTED_ARCHIVE_TYPES) or [])
+    if lsFiles(manga_path, filters=SUPPORTED_IMAGE_TYPES):
+        entries += 1
+    return entries
 
 def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
     manga: Manga = db.Manga.getOrCreate(title=manga_name, manga_path=manga_path)
 
     if manga.new:
         manga.date_uploaded = db.getDatetimeISONow()
-    elif not rescan_exisitng:
-        # print(f"Skipping '{manga_name}' as it already exits")
+    elif not rescan_exisitng and count_chapter_entries(manga_path) <= len(manga.chapters):
+        # Nothing new on disk. Empty chapter folders are never added, so an equal or lower count means no new content.
         return None
 
+    previous_chapter_count = len(manga.chapters)
     manga.chapters = []
 
     chapter_order: list[str] = lsDirs(manga_path)
@@ -142,13 +153,35 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
 
     if len(manga.chapters) <= 0:
         return None
-    
+
+    manga.release_year = release_year_from_names([manga_name, *[chapter.title for chapter in manga.chapters]])
+    if manga.new:
+        manga.last_updated = manga.date_uploaded
+    elif len(manga.chapters) > previous_chapter_count:
+        manga.last_updated = db.getDatetimeISONow()
+
     return manga
             
 
+def rescan_manga(manga: Manga) -> tuple[bool, str | None]:
+    """Rebuilds the chapters and pages of one existing manga from its folder or archive.
+    Returns (success, error message)."""
+    manga_name = os.path.basename(os.path.normpath(manga.path))
+    if os.path.isdir(manga.path):
+        result = scan_manga(manga_path=manga.path, manga_name=manga_name, rescan_exisitng=True)
+    elif os.path.isfile(manga.path):
+        result = scan_archive_as_manga(manga.path, manga_name, rescan_exisitng=True)
+    else:
+        return (False, f"files not found at '{manga.path}'")
+
+    if result is None:
+        return (False, "no pages found")
+    return (True, None)
+
 # archives should be in the root folder to be their own chapter
 # archives in subfolders will be ignored
-def scan_manga_path(path: str, rescan_exisitng: bool = False):
+def scan_manga_path(path: str, rescan_exisitng: bool = False, updated_manga: list | None = None):
+    """Returns new manga. Existing manga that changed are appended to updated_manga when it's given."""
     print("Scanning:", path)
 
     new_manga: list[Manga] = []
@@ -168,8 +201,25 @@ def scan_manga_path(path: str, rescan_exisitng: bool = False):
 
         if manga is not None and manga.new:
             new_manga.append(manga)
+        elif manga is not None and updated_manga is not None:
+            updated_manga.append(manga)
 
     return new_manga
+
+def scan_library(paths: list[str]) -> dict:
+    """Scans library folders for new manga and new chapters, and saves the results.
+    Returns {"added": count, "updated": count}."""
+    added, updated = 0, 0
+    db.session.begin_nested()
+    for path in paths:
+        changed: list[Manga] = []
+        new_manga = scan_manga_path(path, rescan_exisitng=False, updated_manga=changed)
+        db.session.add_all(new_manga)
+        added += len(new_manga)
+        updated += len(changed)
+    db.session.commit()
+    db.Manga.update_manga_count()
+    return {"added": added, "updated": updated}
 
 def scan_path(path: str, rescan_exisitng: bool = False):
     if not has_path(path):

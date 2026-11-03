@@ -19,3 +19,10 @@ def _path_sort(path: str):
 
 def sort_paths(path_list: list[str]):
     path_list.sort(key=_path_sort)
+
+# A year in brackets, as in "Title v01 (2019) (Digital)"
+YEAR_PATTERN = re.compile(r"[\(\[]((?:19|20)\d{2})[\)\]]")
+def release_year_from_names(names) -> int | None:
+    """The earliest bracketed year in a manga's folder, file or chapter names, or None if there isn't one."""
+    years = [int(year) for name in names if name for year in YEAR_PATTERN.findall(name)]
+    return min(years) if years else None

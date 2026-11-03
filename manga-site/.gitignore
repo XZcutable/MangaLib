@@ -1,0 +1,62 @@
+# Dependencies
+node_modules
+
+# Logs
+pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist
+dist-ssr
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Local environment variables
+.env
+.env.local
+.env.*.local
+
+# Vite dev server temp files
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# TypeScript temp files
+*.tsbuildinfo
+
+# macOS / Windows / Linux system files
+Thumbs.db
+.DS_Store
+
+# Testing
+coverage
+
+# Figma Make export archive
+project.zip
+
+node_modules/
+dist/
+build/
+.cache/
+.env*
+vite.config.*.timestamp-*
+*-debug.log*
+logs/
+*.log
+.claude-replay.*
+.tmp-*
+/.figma/design-context/
+# Platform-managed agentplat state, not project source. In the
+# client-initiated single-repo workspace layout (make's `Path: "."` spec) the
+# repo root IS the workspace root, so these land inside this repo rather than
+# beside it.
+/.plugins/
+/.opencode-skills/

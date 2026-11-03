@@ -3,9 +3,12 @@ name = "mymangalib"
 version = "1.0.0"
 description = "Host and view your Manga locally"
 dependencies = [
-    "flask", "Flask-SQLAlchemy", "PyMuPDF"
+    "flask", "Flask-SQLAlchemy", "Flask-Cors", "PyMuPDF"
 ]
 
 [build-system]
 requires = ["flit_core<4"]
 build-backend = "flit_core.buildapi"
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

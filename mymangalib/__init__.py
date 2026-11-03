@@ -1,13 +1,14 @@
 from flask import Flask
 from jinja2 import filters
 
-from .blueprints import api, settings 
+from .blueprints import api, api_v1, settings 
 
 from .constants import ENV
-from . import auth, database
+from . import auth, database, frontend
+from .server import server_settings
 from .blueprints import manga
 
-import os, tomllib
+import os, tomllib, secrets
 from datetime import datetime, timezone
 
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -40,6 +41,11 @@ def create_app(config_file=None):
     # ENV has priority
     app.config.from_prefixed_env()
 
+    warn_if_placeholder_secret(app)
+
+    # Inside ProxyFix so a reverse proxy's X-Forwarded-Prefix still applies to /classic
+    frontend.install(app)
+
     if app.config["BEHIND_PROXY"]:
         app.wsgi_app = ProxyFix(
             app.wsgi_app, x_for=1, x_port=1, x_host=1, x_prefix=1
@@ -49,8 +55,10 @@ def create_app(config_file=None):
 
     # models_old.init_app(app)
     database.init_app(app)
+    server_settings.load(app)  # Saved settings override the config file before anything reads them
     auth.init_app(app)
     api.init_app(app)
+    api_v1.init_app(app)
     manga.init_app(app)
     settings.init_app(app)
 
@@ -58,6 +66,7 @@ def create_app(config_file=None):
     app.register_blueprint(manga.bp)
     app.register_blueprint(settings.bp)
     app.register_blueprint(api.bp)
+    app.register_blueprint(api_v1.bp)
 
     app.add_url_rule('/manga/manga-image', endpoint='manga_image')
     app.add_url_rule('/manga', endpoint='manga')
@@ -90,10 +99,17 @@ def create_filters():
 
     filters.FILTERS[tolocaltime.__name__] = tolocaltime
 
+def warn_if_placeholder_secret(app: Flask):
+    secret_key = app.config.get("SECRET_KEY")
+    if not secret_key or str(secret_key).upper().startswith("REPLACE"):
+        print("WARNING: SECRET_KEY is missing or still a placeholder. Anyone who knows it can forge a login.")
+        print(f"WARNING: Set SECRET_KEY in your config to a random value, for example: {secrets.token_hex(32)}")
+
 def create_default_config(config_path: str, prompt_when_created):
     print(f"Config does not exist. Creating at {config_path}")
     with open(config_path, "w") as config:
-        config.write(ENV.DEFAULT_CONFIG)
+        # Each install gets its own random key. A shared, known key would let anyone forge a login.
+        config.write(ENV.DEFAULT_CONFIG.replace(ENV.PLACEHOLDER_SECRET_KEY, secrets.token_hex(32)))
     
     if prompt_when_created:
         should_exit = None

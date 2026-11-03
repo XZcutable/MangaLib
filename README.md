@@ -13,7 +13,7 @@ It is assumed the venv was created in the root directory of the project.
 `.\.venv\Scripts\activate` on windows or `. .venv/bin/activate` for linux
 
 3\. Then you need to install Flask and Flask-SQLAlchemy, this is why a venv is recommened:
-`pip install Flask Flask-SQLAlchemy PyMuPDF`
+`pip install -r requirements.txt`
 
 4\. Finally run the server with a command like: <br>
 `flask --app mymangalib run --host=0.0.0.0`
@@ -38,6 +38,25 @@ And then running the server with something like (for Linux): <br>
 `(waitress-serve --host=0.0.0.0 --port=5000 mymangalib:app > /dev/null 2>&1 &)`
 
 That will run the server in the background.
+
+# Mobile app and new front end #
+`manga-site/` holds the new front end. It runs in a browser and as an Android/iOS app. See [manga-site/README.md](manga-site/README.md).
+
+It uses the JSON API under `/api/v1`, which logs in with tokens instead of cookies:
+
+```sh
+curl -X POST http://localhost:5000/api/v1/auth/login -H "Content-Type: application/json" \
+     -d '{"username": "me", "password": "...", "device": "curl"}'
+# -> {"token": "...", "user": {...}}
+curl http://localhost:5000/api/v1/manga?list=all -H "Authorization: Bearer <token>"
+```
+
+Run the API tests with `pytest tests`.
+
+## Serving the new interface ##
+Set `FRONTEND_PATH` in `config.toml` (or the `FLASK_FRONTEND_PATH` environment variable) to the built front end, for example `manga-site/dist` after running `pnpm build` in `manga-site/`. The server then shows the new interface at `/` and moves the classic one to `/classic/`. Leave it empty to keep the classic interface at `/`.
+
+The Docker image builds the front end and turns this on. Owners manage library folders, scanning, users and tags in the new interface under Settings; the classic interface stays available at `/classic/` in the meantime.
 
 # Onboarding #
 After the server is running, going to the url will take you to the simple onbaording process of making an Owner Account. After creating the account you will be taken to the login page. The home page will be empty but will select a random amount of registered titles when avaiable.
