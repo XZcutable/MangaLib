@@ -1,23 +1,42 @@
-import { Search, ChevronDown, Menu, Moon, Sun, X } from "lucide-react"
+import {
+  Book,
+  BookmarkCheck,
+  ChevronDown,
+  Folder,
+  Heart,
+  History,
+  House,
+  LogOut,
+  Moon,
+  Rss,
+  Search,
+  Settings,
+  Shuffle,
+  Sparkles,
+  Sun,
+  User,
+} from "lucide-react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router"
 import { useState, useRef, useEffect } from "react"
 import { useTheme } from "../context/ThemeContext"
 import { useAuth } from "../context/AuthContext"
 
+// Same icons as the classic interface. Like the classic navbar, the labels drop away on smaller
+// screens and the icons stay, so every section is one tap away instead of hidden in a menu.
 const navItems = [
-  { label: "Home", path: "/" },
-  { label: "Updated", path: "/latest" },
-  { label: "New Releases", path: "/newest" },
-  { label: "All", path: "/all" },
-  { label: "Random", path: "/random" },
-  { label: "Unread", path: "/unread" },
+  { label: "Home", path: "/", icon: House },
+  { label: "Updated", path: "/latest", icon: Rss },
+  { label: "New Releases", path: "/newest", icon: Sparkles },
+  { label: "All", path: "/all", icon: Folder },
+  { label: "Random", path: "/random", icon: Shuffle },
+  { label: "Unread", path: "/unread", icon: Book },
 ]
-const dropdownItems = [
-  { label: "Settings", path: "/settings" },
-  { label: "History", path: "/history" },
-  { label: "Favorites", path: "/favorites" },
-  { label: "To Read", path: "/bookmarks" },
-  { label: "Log Out", path: "/logout" },
+const accountItems = [
+  { label: "Settings", path: "/settings", icon: Settings },
+  { label: "Favorites", path: "/favorites", icon: Heart },
+  { label: "To Read", path: "/bookmarks", icon: BookmarkCheck },
+  { label: "History", path: "/history", icon: History },
+  { label: "Log Out", path: "/logout", icon: LogOut },
 ]
 
 function SearchBox({ className = "", autoFocus = false, onDone }) {
@@ -42,6 +61,7 @@ function SearchBox({ className = "", autoFocus = false, onDone }) {
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="Search manga..."
+        aria-label="Search manga"
         autoFocus={autoFocus}
         enterKeyHint="search"
         className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
@@ -57,47 +77,36 @@ function SearchBox({ className = "", autoFocus = false, onDone }) {
 
 export function Navbar() {
   const location = useLocation()
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isAccountOpen, setIsAccountOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const dropdownRef = useRef(null)
+  const accountRef = useRef(null)
   const { theme, toggleTheme } = useTheme()
   const { user } = useAuth()
   const dark = theme === "dark"
+  const pending = user?.pending_users ?? 0
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false)
+      if (accountRef.current && !accountRef.current.contains(event.target)) {
+        setIsAccountOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  // Close the phone menu after navigating
+  // Close the menu and search after navigating
   useEffect(() => {
-    setIsMenuOpen(false)
+    setIsAccountOpen(false)
     setIsSearchOpen(false)
   }, [location.pathname, location.search])
 
-  const linkClass = (path) =>
-    `px-3 py-2 rounded-md transition-colors ${
-      location.pathname === path
-        ? "bg-blue-600 text-white"
-        : dark
-          ? "text-gray-300 hover:bg-gray-800 hover:text-white"
-          : "text-gray-700 hover:bg-gray-100"
-    }`
-  const iconButton = `p-2 rounded-md transition-colors ${
+  const iconButton = `bounce-on-hover p-2 rounded-md transition-colors ${
     dark ? "hover:bg-gray-800 text-gray-300" : "hover:bg-gray-100 text-gray-700"
   }`
-
-  const themeButton = (
-    <button onClick={toggleTheme} className={iconButton} aria-label="Toggle theme">
-      {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-    </button>
-  )
+  const menuRow = `bounce-on-hover w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
+    dark ? "text-gray-300 hover:bg-gray-700 hover:text-white" : "text-gray-700 hover:bg-gray-100"
+  }`
 
   return (
     <nav
@@ -105,104 +114,130 @@ export function Navbar() {
         dark ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"
       } border-b sticky top-0 z-50 pt-[env(safe-area-inset-top)]`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Wide screens */}
-        <div className="hidden lg:flex items-center justify-between h-16">
-          <div className="flex items-center gap-6">
-            {navItems.map((item) => (
-              <Link key={item.path} to={item.path} className={linkClass(item.path)}>
-                {item.label}
-              </Link>
-            ))}
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 lg:h-16 gap-2">
+          {/* Sections: icon and label on wide screens, icon only below that */}
+          <div className="flex items-center gap-0.5 sm:gap-1 xl:gap-2">
+            {navItems.map(({ label, path, icon: Icon }) => {
+              const active = location.pathname === path
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  title={label}
+                  aria-label={label}
+                  aria-current={active ? "page" : undefined}
+                  className={`bounce-on-hover flex items-center gap-2 p-2 xl:px-3 rounded-md transition-colors ${
+                    active
+                      ? "bg-blue-600 text-white"
+                      : dark
+                        ? "text-gray-300 hover:bg-gray-800 hover:text-white"
+                        : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <Icon className="bounce-icon w-5 h-5 shrink-0" aria-hidden="true" />
+                  <span className="hidden xl:inline">{label}</span>
+                </Link>
+              )
+            })}
           </div>
 
-          <div className="flex items-center gap-4">
-            <SearchBox className="w-64" />
-            {themeButton}
-            <div className="relative" ref={dropdownRef}>
+          <div className="flex items-center gap-0.5 sm:gap-2">
+            <SearchBox className="hidden lg:block w-56 xl:w-64" />
+            <button
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className={`${iconButton} lg:hidden`}
+              aria-label="Search"
+              title="Search"
+              aria-expanded={isSearchOpen}
+            >
+              <Search className="bounce-icon w-5 h-5" />
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className={`${iconButton} hidden sm:block`}
+              aria-label="Toggle theme"
+              title="Toggle theme"
+            >
+              {dark ? <Sun className="bounce-icon w-5 h-5" /> : <Moon className="bounce-icon w-5 h-5" />}
+            </button>
+
+            {/* Account menu, like the classic user dropdown */}
+            <div className="relative" ref={accountRef}>
               <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                  dark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                onClick={() => setIsAccountOpen(!isAccountOpen)}
+                className={`bounce-on-hover relative flex items-center gap-1.5 p-2 sm:px-3 rounded-md transition-colors ${
+                  dark ? "text-gray-300 hover:bg-gray-800" : "text-gray-700 hover:bg-gray-100"
                 }`}
-                aria-expanded={isDropdownOpen}
+                aria-expanded={isAccountOpen}
+                aria-label={`Account: ${user?.username ?? ""}`}
+                title={user?.username}
               >
-                <span className={dark ? "text-gray-300" : "text-gray-700"}>{user?.username}</span>
+                <User className="bounce-icon w-5 h-5" aria-hidden="true" />
+                <span className="hidden sm:inline max-w-32 truncate">{user?.username}</span>
                 <ChevronDown className={`w-4 h-4 ${dark ? "text-gray-400" : "text-gray-500"}`} />
+                {pending > 0 && (
+                  <span
+                    className={`absolute top-1.5 left-6 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ${
+                      dark ? "ring-gray-900" : "ring-white"
+                    }`}
+                    aria-label="Sign-ups waiting"
+                  />
+                )}
               </button>
 
-              {isDropdownOpen && (
+              {isAccountOpen && (
                 <div
-                  className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg border py-1 ${
+                  className={`absolute right-0 mt-2 w-56 rounded-md shadow-lg border py-1 ${
                     dark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
                   }`}
                 >
-                  {dropdownItems.map((item) => (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setIsDropdownOpen(false)}
-                      className={`block px-4 py-2 transition-colors ${
-                        dark
-                          ? "text-gray-300 hover:bg-gray-700 hover:text-white"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
+                  <p className={`px-4 py-2 text-sm sm:hidden ${dark ? "text-gray-400" : "text-gray-500"}`}>
+                    Signed in as {user?.username}
+                  </p>
+                  {accountItems.map(({ label, path, icon: Icon }) => {
+                    const showCount = path === "/settings" && pending > 0
+                    return (
+                      <Link
+                        key={path}
+                        to={showCount ? "/settings#users" : path}
+                        onClick={() => setIsAccountOpen(false)}
+                        className={menuRow}
+                      >
+                        <Icon className="bounce-icon w-4 h-4 shrink-0" aria-hidden="true" />
+                        {label}
+                        {showCount && (
+                          <span
+                            className="ml-auto inline-flex min-w-5 h-5 px-1.5 items-center justify-center rounded-full bg-blue-600 text-white text-xs"
+                            aria-label={`${pending} waiting for approval`}
+                          >
+                            {pending}
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  })}
+                  {/* The theme button doesn't fit the phone bar, so it lives here on small screens */}
+                  <button onClick={toggleTheme} className={`${menuRow} sm:hidden`}>
+                    {dark ? (
+                      <Sun className="bounce-icon w-4 h-4" aria-hidden="true" />
+                    ) : (
+                      <Moon className="bounce-icon w-4 h-4" aria-hidden="true" />
+                    )}
+                    {dark ? "Light theme" : "Dark theme"}
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Phones and tablets */}
-        <div className="lg:hidden">
-          <div className="flex items-center justify-between h-14 gap-2">
-            <Link to="/" className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
-              myMangaLib
-            </Link>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className={iconButton}
-                aria-label="Search"
-                aria-expanded={isSearchOpen}
-              >
-                <Search className="w-5 h-5" />
-              </button>
-              {themeButton}
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={iconButton}
-                aria-label="Menu"
-                aria-expanded={isMenuOpen}
-              >
-                {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            </div>
+        {isSearchOpen && (
+          <div className="pb-3 lg:hidden">
+            <SearchBox autoFocus onDone={() => setIsSearchOpen(false)} />
           </div>
-
-          {isSearchOpen && (
-            <div className="pb-3">
-              <SearchBox autoFocus onDone={() => setIsSearchOpen(false)} />
-            </div>
-          )}
-
-          {isMenuOpen && (
-            <div className="pb-3 grid grid-cols-2 gap-1">
-              {[...navItems, ...dropdownItems].map((item) => (
-                <Link key={item.path} to={item.path} className={linkClass(item.path)}>
-                  {item.label}
-                </Link>
-              ))}
-              <p className={`col-span-2 px-3 pt-2 text-sm ${dark ? "text-gray-500" : "text-gray-500"}`}>
-                Signed in as {user?.username}
-              </p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </nav>
   )

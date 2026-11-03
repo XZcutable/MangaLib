@@ -1,0 +1,37 @@
+/* Touches carried over from the classic interface */
+
+/* Icons bounce once when their button is hovered (classic fa-hover-bounce) */
+@keyframes icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+  55% { transform: translateY(0); }
+  75% { transform: translateY(-1.5px); }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .bounce-on-hover:hover .bounce-icon,
+  .bounce-on-hover:focus-visible .bounce-icon {
+    animation: icon-bounce 0.7s cubic-bezier(0.28, 0.84, 0.42, 1);
+  }
+}
+
+/* Reader: a soft glow on the edge that turns the page (classic left-grad / right-grad) */
+@keyframes edge-glow {
+  0% { opacity: 0; }
+  35% { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+.edge-glow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 20%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 5;
+  animation: edge-glow 0.35s linear;
+}
+.edge-glow-left { left: 0; background-image: linear-gradient(to left, transparent, white); }
+.edge-glow-right { right: 0; background-image: linear-gradient(to right, transparent, white); }
+@media (prefers-reduced-motion: reduce) {
+  .edge-glow { animation-duration: 0.01s; }
+}

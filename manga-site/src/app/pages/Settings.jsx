@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { useNavigate } from "react-router"
+import { useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 import { useAuth } from "../context/AuthContext"
 import { useTheme } from "../context/ThemeContext"
@@ -10,6 +10,7 @@ import { AccountSection } from "../components/settings/AccountSection"
 import { LibrarySection } from "../components/settings/LibrarySection"
 import { TagsSection } from "../components/settings/TagsSection"
 import { UsersSection } from "../components/settings/UsersSection"
+import { SettingSwitch } from "../components/settings/SettingSwitch"
 
 const formatDate = (value) => (value ? parseServerDate(value).toLocaleString() : "never")
 
@@ -17,9 +18,22 @@ export function Settings() {
   const { toggleTheme } = useTheme()
   const { user, server, serverInfo, logout, changeServer } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const s = useStyles()
+
+  // Links like /settings#users (from the "waiting" badge) open at that section
+  useEffect(() => {
+    if (!location.hash) return
+    const timer = setTimeout(() => {
+      document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" })
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [location.hash])
   const [devices, setDevices] = useState(null)
   const [rightToLeft, setRightToLeft] = useState(() => getLocal("readerDirection", "ltr") === "rtl")
+  const [alwaysShowControls, setAlwaysShowControls] = useState(
+    () => getLocal("readerControls", "tap") === "always",
+  )
 
   const loadDevices = useCallback(() => {
     api
@@ -42,7 +56,12 @@ export function Settings() {
     { id: "account", label: "Account" },
     { id: "reading", label: "Reading" },
     ...(user?.is_owner ? [{ id: "library", label: "Library" }] : []),
-    ...(user?.is_admin ? [{ id: "users", label: "Users" }, { id: "tags", label: "Tags" }] : []),
+    ...(user?.is_admin
+      ? [
+          { id: "users", label: user.pending_users ? `Users (${user.pending_users} waiting)` : "Users" },
+          { id: "tags", label: "Tags" },
+        ]
+      : []),
     { id: "devices", label: "Devices" },
   ]
 
@@ -95,20 +114,36 @@ export function Settings() {
 
       <section id="reading" className={`${s.card} scroll-mt-20`}>
         <h2 className={s.heading}>Reading</h2>
-        <div className="flex flex-wrap gap-3">
-          <button className={s.button} onClick={toggleTheme}>
-            Theme: {s.dark ? "Dark" : "Light"}
-          </button>
-          <button
-            className={s.button}
-            onClick={() => {
-              setLocal("readerDirection", rightToLeft ? "ltr" : "rtl")
-              setRightToLeft(!rightToLeft)
+        <div className={`divide-y ${s.divider}`}>
+          <SettingSwitch
+            label="Dark theme"
+            description="Applies on this device."
+            checked={s.dark}
+            onChange={toggleTheme}
+          />
+          <SettingSwitch
+            label="Read right to left"
+            description="For Japanese manga: the next page is on the left, and swiping right turns forward."
+            checked={rightToLeft}
+            onChange={(value) => {
+              setLocal("readerDirection", value ? "rtl" : "ltr")
+              setRightToLeft(value)
             }}
-          >
-            Page direction: {rightToLeft ? "Right to left (manga)" : "Left to right"}
-          </button>
+          />
+          <SettingSwitch
+            label="Always show reader controls"
+            description="Keeps the page picker and buttons on screen. When off, tap the middle of a page to show them."
+            checked={alwaysShowControls}
+            onChange={(value) => {
+              setLocal("readerControls", value ? "always" : "tap")
+              setAlwaysShowControls(value)
+            }}
+          />
         </div>
+        <p className={`text-sm mt-3 ${s.muted}`}>
+          In the reader, tap or click the left or right edge, swipe, or use the arrow keys to turn
+          pages. The bottom bar jumps to any page or chapter.
+        </p>
       </section>
 
       {user?.is_owner && (
