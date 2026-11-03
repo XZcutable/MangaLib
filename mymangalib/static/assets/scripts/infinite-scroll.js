@@ -47,7 +47,9 @@ window.addEventListener('load', function() {
 
 function detect_end_of_scroll() {
     var content = document.getElementById(scroll_id);
-    if(!stop_loading && content.scrollTop >= content.scrollTopMax - scroll_detector_height && !isLoading) {
+    // scrollTopMax only exists in Firefox, so work out the furthest scroll position directly
+    const scrollTopMax = content.scrollHeight - content.clientHeight;
+    if(!stop_loading && content.scrollTop >= scrollTopMax - scroll_detector_height && !isLoading) {
         request_batch(offset);
         return true;
     } else {

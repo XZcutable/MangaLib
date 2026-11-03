@@ -14,6 +14,7 @@ from flask_cors import CORS
 
 from ..auth import API_V1_PREFIX, api_access, api_error, check_credentials, register_account, registration_rules, get_owner
 from ..database import db
+from ..enum import Access
 from ..models import Manga, ContentTag
 from ..server import library, tokens, thumbnails
 from . import manga as manga_views
@@ -42,6 +43,9 @@ def init_app(app: Flask):
         if request.path.startswith(API_V1_PREFIX):
             return api_error(error.code, error.name.lower().replace(" ", "_"), error.description)
         return error
+
+def thumbnail_cache_dir() -> str:
+    return current_app.config.get("THUMBNAIL_CACHE_PATH") or os.path.join(current_app.instance_path, "cache", "covers")
 
 def batch_size() -> int:
     return current_app.config.get("FETCH_BATCH_SIZE", 30)
@@ -116,6 +120,8 @@ def server_info():
         "needs_setup": needs_setup,
         "registration_open": needs_setup or bool(current_app.config.get("ALLOW_NEW_USERS")),
         "hide_titles": manga_views.HIDE_TITLES,
+        # Where the classic web interface is: /classic/ when this server also serves the new one
+        "classic_ui_path": current_app.config.get("CLASSIC_UI_PATH", "/"),
     }
 
 # --- Auth ---
@@ -225,6 +231,8 @@ def manga_info(manga_id: int):
             for chapter in manga.chapters
         ],
         "user": user_data.toJson(),
+        # Only the owner sees where files live on the server
+        "path": manga.path if Access.fromString(g.user.role) == Access.OWNER else None,
         "progress": library.progress_fraction(user_data, total_chapters, page_counts.get(user_data.current_chapter, 0)),
         # Where "Continue reading" should open. New readers start at the beginning.
         "resume": {
@@ -303,8 +311,7 @@ def cover(manga_id: int):
     first_chapter = manga.chapters[0].number
     if request.args.get("full") not in ("1", "true"):
         cover_page = db.Page.fromChapter(manga.chapters[0], 1)
-        cache_dir = current_app.config.get("THUMBNAIL_CACHE_PATH") or os.path.join(current_app.instance_path, "cache", "covers")
-        thumbnail = thumbnails.cover_thumbnail_path(manga, cover_page, cache_dir) if cover_page else None
+        thumbnail = thumbnails.cover_thumbnail_path(manga, cover_page, thumbnail_cache_dir()) if cover_page else None
         if thumbnail is not None:
             return send_file(thumbnail, mimetype="image/jpeg", max_age=IMAGE_MAX_AGE)
 
@@ -314,3 +321,6 @@ def cover(manga_id: int):
 @api_access()
 def page_image(manga_id: int, chapter_number: int, page_number: int):
     return manga_views.image(manga_id=manga_id, chapter_number=chapter_number, page_number=page_number)
+
+# Account, user, tag, manga and library management routes
+from . import api_v1_admin  # noqa: E402,F401

@@ -180,7 +180,8 @@ def rescan_manga(manga: Manga) -> tuple[bool, str | None]:
 
 # archives should be in the root folder to be their own chapter
 # archives in subfolders will be ignored
-def scan_manga_path(path: str, rescan_exisitng: bool = False):
+def scan_manga_path(path: str, rescan_exisitng: bool = False, updated_manga: list | None = None):
+    """Returns new manga. Existing manga that changed are appended to updated_manga when it's given."""
     print("Scanning:", path)
 
     new_manga: list[Manga] = []
@@ -200,8 +201,25 @@ def scan_manga_path(path: str, rescan_exisitng: bool = False):
 
         if manga is not None and manga.new:
             new_manga.append(manga)
+        elif manga is not None and updated_manga is not None:
+            updated_manga.append(manga)
 
     return new_manga
+
+def scan_library(paths: list[str]) -> dict:
+    """Scans library folders for new manga and new chapters, and saves the results.
+    Returns {"added": count, "updated": count}."""
+    added, updated = 0, 0
+    db.session.begin_nested()
+    for path in paths:
+        changed: list[Manga] = []
+        new_manga = scan_manga_path(path, rescan_exisitng=False, updated_manga=changed)
+        db.session.add_all(new_manga)
+        added += len(new_manga)
+        updated += len(changed)
+    db.session.commit()
+    db.Manga.update_manga_count()
+    return {"added": added, "updated": updated}
 
 def scan_path(path: str, rescan_exisitng: bool = False):
     if not has_path(path):

@@ -103,4 +103,29 @@ export const api = {
     request(`/manga/${id}/progress`, { method: "PUT", body: { chapter, page } }),
   setState: (id, state) => request(`/manga/${id}/state`, { method: "PUT", body: state }),
   tags: () => request("/tags"),
+
+  // Account
+  changePassword: (current_password, new_password) =>
+    request("/auth/password", { method: "PUT", body: { current_password, new_password } }),
+  changeUsername: (username) => request("/auth/username", { method: "PUT", body: { username } }),
+
+  // Admin
+  users: () => request("/admin/users"),
+  updateUser: (id, changes) => request(`/admin/users/${id}`, { method: "PUT", body: changes }),
+  createTag: (tag, nsfw) => request("/tags", { method: "POST", body: { tag, nsfw } }),
+  deleteTag: (tag) => request(`/tags/${encodeURIComponent(tag)}`, { method: "DELETE" }),
+  setMangaTags: (id, tags) => request(`/manga/${id}/tags`, { method: "PUT", body: { tags } }),
+  editManga: (id, changes) => request(`/manga/${id}`, { method: "PATCH", body: changes }),
+
+  // Owner
+  deleteManga: (id) => request(`/manga/${id}`, { method: "DELETE" }),
+  rescanManga: (id) => request(`/manga/${id}/rescan`, { method: "POST" }),
+  library: () => request("/library"),
+  addLibraryPath: (path) => request("/library/paths", { method: "POST", body: { path } }),
+  removeLibraryPath: (path) =>
+    request(`/library/paths${query({ path })}`, { method: "DELETE" }),
+  browseFolders: (dir) => request(`/library/browse${query({ dir })}`),
+  scanLibrary: (path) => request("/library/scan", { method: "POST", body: path ? { path } : {} }),
+  serverConfig: () => request("/server/config"),
+  updateServerConfig: (changes) => request("/server/config", { method: "PUT", body: changes }),
 }

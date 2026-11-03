@@ -5,11 +5,14 @@ import { toast } from "sonner"
 import { ImageWithFallback } from "../components/figma/ImageWithFallback"
 import { StatusMessage } from "../components/StatusMessage"
 import { useTheme } from "../context/ThemeContext"
+import { useAuth } from "../context/AuthContext"
+import { MangaManagePanel } from "../components/MangaManagePanel"
 import { api, imageUrl } from "../lib/api"
 
 export function MangaInfo() {
   const { mangaId } = useParams()
   const { theme } = useTheme()
+  const { user: account } = useAuth()
   const dark = theme === "dark"
   const [manga, setManga] = useState(null)
   const [error, setError] = useState(null)
@@ -166,6 +169,8 @@ export function MangaInfo() {
           </div>
         </div>
       </div>
+
+      {account?.is_admin && <MangaManagePanel manga={manga} onChanged={load} />}
 
       <h2 className={`mb-4 ${dark ? "text-white" : "text-gray-900"}`}>Chapters</h2>
       <ul

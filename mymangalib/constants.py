@@ -56,6 +56,10 @@ HIDE_TITLES=false
 
 FETCH_BATCH_SIZE=30
 
+# Folder of the built new front end (manga-site/dist). When set, it's served at / and the
+# classic UI moves to /classic. Leave empty to keep the classic UI at /.
+FRONTEND_PATH=''
+
 # Web pages allowed to call /api/v1 from a browser. capacitor://localhost is the iOS app, http://localhost the Android app.
 CORS_ORIGINS=['capacitor://localhost', 'http://localhost', 'https://localhost']
 """

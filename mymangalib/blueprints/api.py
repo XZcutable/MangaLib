@@ -53,14 +53,7 @@ def scanPaths():
             else:
                 paths = actual_paths_to_scan
 
-    # print(f"Need to scan {len(paths)} paths")
-    db.session.begin_nested()
-    for path in paths:
-        new_manga: list[Manga] = api.scan_manga_path(path, rescan_exisitng=False)
-        db.session.add_all(new_manga)
-    
-    db.session.commit()
-    db.Manga.update_manga_count()
+    api.scan_library(paths)
     flash("Path scanned", 'success')
     return {'result': 'success'}
 

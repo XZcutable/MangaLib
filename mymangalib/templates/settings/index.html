@@ -285,7 +285,7 @@ input:checked + .slider:before {
 <div class="main-content" style="display: inline-flex; width: 100%;">
     <div class="settings-sidebar w3-padding">
         <div class="sidebar-item w3-xlarge no-hover"><u>Settings</u></div>
-        <a class="sidebar-item w3-large w3-round-large w3-button" href="/settings">
+        <a class="sidebar-item w3-large w3-round-large w3-button" href="{{ url_for('settings.index') }}">
                 Account Settings
         </a>
         {% if isAdmin %}

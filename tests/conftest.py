@@ -38,6 +38,9 @@ def make_library(root: str):
 
 @pytest.fixture
 def app(tmp_path):
+    yield make_app(tmp_path)
+
+def make_app(tmp_path, extra_config: str = ""):
     library_path = tmp_path / "library"
     make_library(str(library_path))
 
@@ -51,14 +54,14 @@ HIDE_MANGA=false
 HIDE_TITLES=false
 FETCH_BATCH_SIZE=30
 DATABASE_PATH="{(tmp_path / 'test.db').as_posix()}"
+{extra_config}
 """)
     app = create_app(str(config_path))
     app.config["TESTING"] = True
     app.config["THUMBNAIL_CACHE_PATH"] = str(tmp_path / "covers")
     app.config["TEST_LIBRARY"] = library_path.as_posix()
     scan(app, app.config["TEST_LIBRARY"])
-
-    yield app
+    return app
 
 @pytest.fixture
 def client(app):

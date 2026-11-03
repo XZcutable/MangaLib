@@ -139,6 +139,7 @@ export function AuthProvider({ children }) {
         register,
         logout,
         changeServer,
+        setUser,
         retry: restore,
         refreshServerInfo,
       }}

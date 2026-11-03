@@ -31,7 +31,8 @@ def onboarding():
             g.requires_clearance = False
             return
     
-    if request.path != url_for(ENDPOINT.AUTH_REGISTER):
+    # Compared by endpoint, not path, so it still matches when the app is mounted under a prefix like /classic
+    if request.endpoint != ENDPOINT.AUTH_REGISTER:
         if get_owner() is None:
             return redirect(url_for(ENDPOINT.AUTH_REGISTER))
         else:
@@ -45,7 +46,7 @@ def load_logged_in_user():
         if request.path.startswith('/static'):
             g.requires_clearance = False
             return
-        elif request.path in [url_for(endpoint) for endpoint in public_access]:
+        elif request.endpoint in public_access:
             g.requires_clearance = False
             return
         

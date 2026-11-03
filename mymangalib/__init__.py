@@ -4,7 +4,7 @@ from jinja2 import filters
 from .blueprints import api, api_v1, settings 
 
 from .constants import ENV
-from . import auth, database
+from . import auth, database, frontend
 from .blueprints import manga
 
 import os, tomllib, secrets
@@ -41,6 +41,9 @@ def create_app(config_file=None):
     app.config.from_prefixed_env()
 
     warn_if_placeholder_secret(app)
+
+    # Inside ProxyFix so a reverse proxy's X-Forwarded-Prefix still applies to /classic
+    frontend.install(app)
 
     if app.config["BEHIND_PROXY"]:
         app.wsgi_app = ProxyFix(
