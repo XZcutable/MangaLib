@@ -12,11 +12,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from ..auth import api_access, api_error, valid_password_pattern
 from ..database import db
 from ..enum import Access
-from ..models import ContentTag, Manga, User
-from ..server import api as scanner, settings as library_settings, tokens
-from . import manga as manga_views
+from ..models import ContentTag, Manga, User, UserMangaData
+from ..server import api as scanner, settings as library_settings, tokens, server_settings
 from .api import valid_tag_pattern
-from .api_v1 import bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
+from .api_v1 import account_json, bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
 
 def normalize_path(path: str) -> str:
     return os.path.normpath(path).replace("\\", "/")
@@ -60,7 +59,7 @@ def change_username():
         return api_error(409, "username_taken", "That username is taken")
     g.user.username = username
     db.session.commit()
-    return {"user": g.user.toJson()}
+    return {"user": account_json(g.user)}
 
 # --- Users (admin) ---
 
@@ -72,6 +71,25 @@ def user_admin_json(user: User) -> dict:
 def list_users():
     users = db.session.scalars(select(User).order_by(User.approved, User.id)).all()
     return {"users": [user_admin_json(user) for user in users]}
+
+@bp.route("/admin/users/<int:user_id>", methods=["DELETE"])
+@api_access(Access.ADMIN)
+def delete_user(user_id: int):
+    """Removes an account with its reading history and logins. Used to reject sign-ups."""
+    user = db.session.get(User, user_id)
+    if user is None:
+        return api_error(404, "not_found", "User not found")
+    if user.id == g.user.id or Access.fromString(user.role) == Access.OWNER:
+        return api_error(403, "forbidden", "That account can't be deleted")
+    if user.approved and Access.fromString(g.user.role) != Access.OWNER:
+        return api_error(403, "forbidden", "Only the owner can delete approved accounts")
+
+    for token in tokens.user_tokens(user.id):
+        db.session.delete(token)
+    db.session.query(UserMangaData).filter(UserMangaData.user_id == user.id).delete()
+    db.session.delete(user)
+    db.session.commit()
+    return {"success": True}
 
 @bp.route("/admin/users/<int:user_id>", methods=["PUT"])
 @api_access(Access.ADMIN)
@@ -269,22 +287,20 @@ def scan():
         paths = [path]
     return scanner.scan_library(paths)
 
-# --- Server display settings (owner) ---
+# --- Server settings (owner) ---
 
 @bp.route("/server/config")
 @api_access(Access.OWNER)
 def get_config():
-    return {"hide_manga": manga_views.HIDE_MANGA, "hide_titles": manga_views.HIDE_TITLES}
+    return server_settings.as_json()
 
 @bp.route("/server/config", methods=["PUT"])
 @api_access(Access.OWNER)
 def update_config():
-    """Same switches as the classic settings page. They last until the server restarts;
-    HIDE_MANGA and HIDE_TITLES in config.toml set the starting values."""
+    """Any of allow_new_users, auto_approve_new_users, hide_manga, hide_titles. Saved, so they survive restarts."""
     body = json_body()
-    hide_manga, hide_titles = optional_bool(body, "hide_manga"), optional_bool(body, "hide_titles")
-    if hide_manga is not None:
-        manga_views.hide_content(hide_manga)
-    if hide_titles is not None:
-        manga_views.hide_titles(hide_titles)
+    for key, name in server_settings.EDITABLE.items():
+        value = optional_bool(body, name)
+        if value is not None:
+            server_settings.set(key, value)
     return get_config()

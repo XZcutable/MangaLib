@@ -17,7 +17,7 @@ from ..models import Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-from ..server import api, settings, library
+from ..server import api, settings, library, server_settings
 
 from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 from ..server.search import create_search_query
@@ -202,11 +202,12 @@ def edit_manga(manga_id: int):
 @owner_access
 def edit_config():
     if request.method == 'POST':
+        # Saved, so they survive restarts and match the new interface
         if request.form.get("hide-manga"):
-            manga.hide_content(request.form["hide-manga"].lower() != 'false')
+            server_settings.set("HIDE_MANGA", request.form["hide-manga"].lower() != 'false')
         
         if request.form.get("hide-titles"):
-            manga.hide_titles(request.form["hide-titles"].lower() != 'false')
+            server_settings.set("HIDE_TITLES", request.form["hide-titles"].lower() != 'false')
         return Response(status=200)
     else:
         return {

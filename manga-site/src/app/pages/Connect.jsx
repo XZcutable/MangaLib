@@ -29,7 +29,10 @@ export function Connect() {
   }, [info?.needs_setup])
 
   if (auth.status === "ready") {
-    return <Navigate to={location.state?.from ?? "/"} replace />
+    // Never send someone back to the log-out page, which would log them out again
+    const from = location.state?.from
+    const target = from && !from.startsWith("/logout") && !from.startsWith("/connect") ? from : "/"
+    return <Navigate to={target} replace />
   }
 
   const run = async (action) => {

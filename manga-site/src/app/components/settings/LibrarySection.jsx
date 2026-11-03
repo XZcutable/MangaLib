@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext"
 import { useStyles } from "../../hooks/useStyles"
 import { api } from "../../lib/api"
 import { FolderPicker } from "./FolderPicker"
+import { SettingSwitch } from "./SettingSwitch"
 
 const scanSummary = ({ added, updated }) =>
   added || updated
@@ -127,18 +128,20 @@ export function LibrarySection() {
       {config && (
         <div className="mt-6">
           <h3 className={s.subheading}>Display</h3>
-          <div className="flex flex-wrap gap-2">
-            <button className={s.chip(config.hide_manga)} onClick={() => toggle("hide_manga")}>
-              Hide all pages and covers
-            </button>
-            <button className={s.chip(config.hide_titles)} onClick={() => toggle("hide_titles")}>
-              Hide titles in grids
-            </button>
+          <div className={`divide-y ${s.divider}`}>
+            <SettingSwitch
+              label="Hide pages and covers"
+              description="Shows a placeholder instead of every image, for everyone on this server."
+              checked={config.hide_manga}
+              onChange={() => toggle("hide_manga")}
+            />
+            <SettingSwitch
+              label="Hide titles in grids"
+              description="Lists show covers only, for everyone on this server."
+              checked={config.hide_titles}
+              onChange={() => toggle("hide_titles")}
+            />
           </div>
-          <p className={`text-xs mt-2 ${s.muted}`}>
-            For everyone, until the server restarts. Set HIDE_MANGA and HIDE_TITLES in config.toml to
-            keep them on.
-          </p>
         </div>
       )}
 

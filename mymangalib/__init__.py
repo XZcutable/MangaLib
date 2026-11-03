@@ -5,6 +5,7 @@ from .blueprints import api, api_v1, settings
 
 from .constants import ENV
 from . import auth, database, frontend
+from .server import server_settings
 from .blueprints import manga
 
 import os, tomllib, secrets
@@ -54,6 +55,7 @@ def create_app(config_file=None):
 
     # models_old.init_app(app)
     database.init_app(app)
+    server_settings.load(app)  # Saved settings override the config file before anything reads them
     auth.init_app(app)
     api.init_app(app)
     api_v1.init_app(app)

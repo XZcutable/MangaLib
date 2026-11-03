@@ -9,13 +9,13 @@ from importlib import metadata
 
 from flask import Flask, Blueprint, request, g, current_app, url_for, abort, send_file
 from werkzeug.exceptions import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from flask_cors import CORS
 
 from ..auth import API_V1_PREFIX, api_access, api_error, check_credentials, register_account, registration_rules, get_owner
 from ..database import db
 from ..enum import Access
-from ..models import Manga, ContentTag
+from ..models import Manga, ContentTag, User
 from ..server import library, tokens, thumbnails
 from . import manga as manga_views
 
@@ -104,6 +104,13 @@ def paged_response(query, offset: int, limit: int) -> dict:
         "next_offset": next_offset if next_offset < total else None,
     }
 
+def account_json(user: User) -> dict:
+    """The logged-in user. Admins also get how many sign-ups are waiting, for the badge in the app."""
+    data = user.toJson()
+    if data["is_admin"]:
+        data["pending_users"] = db.session.scalar(select(func.count()).select_from(User).where(~User.approved))
+    return data
+
 # --- Server ---
 
 @bp.route("/server/info")
@@ -141,7 +148,7 @@ def login():
         return api_error(401, "invalid_credentials", "Incorrect username or password")
 
     token = tokens.create_token(user, str(body.get("device") or request.user_agent.string or ""))
-    return {"token": token, "user": user.toJson()}
+    return {"token": token, "user": account_json(user)}
 
 @bp.route("/auth/register", methods=["POST"])
 def register():
@@ -168,7 +175,7 @@ def logout():
 @bp.route("/auth/me")
 @api_access()
 def me():
-    return {"user": g.user.toJson()}
+    return {"user": account_json(g.user)}
 
 @bp.route("/auth/tokens")
 @api_access()

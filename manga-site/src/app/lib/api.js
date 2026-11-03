@@ -112,6 +112,7 @@ export const api = {
   // Admin
   users: () => request("/admin/users"),
   updateUser: (id, changes) => request(`/admin/users/${id}`, { method: "PUT", body: changes }),
+  deleteUser: (id) => request(`/admin/users/${id}`, { method: "DELETE" }),
   createTag: (tag, nsfw) => request("/tags", { method: "POST", body: { tag, nsfw } }),
   deleteTag: (tag) => request(`/tags/${encodeURIComponent(tag)}`, { method: "DELETE" }),
   setMangaTags: (id, tags) => request(`/manga/${id}/tags`, { method: "PUT", body: { tags } }),

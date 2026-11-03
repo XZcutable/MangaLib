@@ -68,6 +68,12 @@ class User(Model):
             "is_mod": role >= Access.MODERATOR,
         }
 
+# Settings changed from the web interface. They override config.toml, which only sets the starting values.
+class ServerSetting(Model):
+    __tablename__ = "server_setting"
+    key: Mapped[str_pk]
+    value: Mapped[str]
+
 # Login tokens for apps that can't use the browser cookie (mobile app, separate web client).
 # Only a hash is stored, so a leaked database can't be used to log in.
 class ApiToken(Model):

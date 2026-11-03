@@ -18,6 +18,9 @@ export function AuthProvider({ children }) {
   const [server, setServerState] = useState("")
   const [serverInfo, setServerInfo] = useState(null)
   const [user, setUser] = useState(null)
+  // True after the user logs out themselves. The login screen then starts fresh at home
+  // instead of returning to the page they logged out from.
+  const [loggedOutOnPurpose, setLoggedOutOnPurpose] = useState(false)
 
   const clearToken = useCallback(async () => {
     configure({ token: null })
@@ -92,6 +95,7 @@ export function AuthProvider({ children }) {
     configure({ token: result.token })
     await setItem(TOKEN_KEY, result.token)
     setUser(result.user)
+    setLoggedOutOnPurpose(false)
     setStatus("ready")
   }, [])
 
@@ -109,6 +113,7 @@ export function AuthProvider({ children }) {
       // Already invalid or offline. Forget it locally either way.
     }
     await clearToken()
+    setLoggedOutOnPurpose(true)
     setStatus("logged-out")
   }, [clearToken])
 
@@ -122,6 +127,28 @@ export function AuthProvider({ children }) {
     setStatus(isNative ? "needs-server" : "logged-out")
   }, [logout])
 
+  // Updates the account, including the admin's count of sign-ups waiting for approval
+  const refreshUser = useCallback(async () => {
+    try {
+      const { user } = await api.me()
+      setUser(user)
+    } catch {
+      // Offline or logged out; the request handler deals with 401
+    }
+  }, [])
+
+  // Admins see new sign-ups while the app is open and when they come back to it
+  useEffect(() => {
+    if (status !== "ready" || !user?.is_admin) return
+    const refresh = () => document.visibilityState === "visible" && refreshUser()
+    const timer = setInterval(refresh, 30_000)
+    document.addEventListener("visibilitychange", refresh)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener("visibilitychange", refresh)
+    }
+  }, [status, user?.is_admin, refreshUser])
+
   const refreshServerInfo = useCallback(
     () => api.serverInfo().then((info) => (setServerInfo(info), info)),
     [],
@@ -131,6 +158,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         status,
+        loggedOutOnPurpose,
         server,
         serverInfo,
         user,
@@ -140,6 +168,7 @@ export function AuthProvider({ children }) {
         logout,
         changeServer,
         setUser,
+        refreshUser,
         retry: restore,
         refreshServerInfo,
       }}

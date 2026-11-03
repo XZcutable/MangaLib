@@ -148,7 +148,58 @@ def test_library_paths_browse_and_scan(app, client, auth, tmp_path):
 
 def test_server_config_toggles(client, auth):
     assert client.put("/api/v1/server/config", headers=auth, json={"hide_titles": True}).get_json() == {
-        "hide_manga": False, "hide_titles": True,
+        "allow_new_users": False, "auto_approve_new_users": False, "hide_manga": False, "hide_titles": True,
     }
     assert client.get("/api/v1/server/info").get_json()["hide_titles"] is True
+    client.put("/api/v1/server/config", headers=auth, json={"hide_titles": False})
+
+def test_owner_opens_registration_and_admins_see_waiting_users(client, auth):
+    anonymous = client.application.test_client()
+    assert client.get("/api/v1/server/info").get_json()["registration_open"] is False
+    assert anonymous.post("/api/v1/auth/register", json={"username": "early", "password": PASSWORD}).status_code == 403
+
+    client.put("/api/v1/server/config", headers=auth, json={"allow_new_users": True})
+    assert client.get("/api/v1/server/info").get_json()["registration_open"] is True
+    signup = anonymous.post("/api/v1/auth/register", json={"username": "waiting", "password": PASSWORD})
+    assert signup.status_code == 201 and signup.get_json()["user"]["approved"] is False
+
+    assert client.get("/api/v1/auth/me", headers=auth).get_json()["user"]["pending_users"] == 1
+    assert login(client, "owner").get_json()["user"]["pending_users"] == 1
+
+    client.put("/api/v1/server/config", headers=auth, json={"auto_approve_new_users": True})
+    instant = anonymous.post("/api/v1/auth/register", json={"username": "instant", "password": PASSWORD})
+    assert instant.get_json()["user"]["approved"] is True
+
+def test_normal_users_dont_get_a_pending_count(client, reader):
+    assert "pending_users" not in client.get("/api/v1/auth/me", headers=reader["headers"]).get_json()["user"]
+
+def test_settings_survive_a_restart(app, client, auth, tmp_path):
+    client.put("/api/v1/server/config", headers=auth, json={"allow_new_users": True, "hide_titles": True})
+    from mymangalib import create_app
+    restarted = create_app(str(tmp_path / "config.toml"))
+    info = restarted.test_client().get("/api/v1/server/info").get_json()
+    assert info["registration_open"] is True and info["hide_titles"] is True
+    # Put the module-level switch back for the other tests
+    client.put("/api/v1/server/config", headers=auth, json={"hide_titles": False})
+
+def test_admins_reject_signups_by_deleting_them(app, client, auth, reader):
+    app.config["ALLOW_NEW_USERS"] = True
+    client.application.test_client().post("/api/v1/auth/register", json={"username": "spam", "password": PASSWORD})
+    users = client.get("/api/v1/admin/users", headers=auth).get_json()["users"]
+    spam = next(u for u in users if u["username"] == "spam")
+
+    client.put(f"/api/v1/admin/users/{reader['id']}", headers=auth, json={"role": "admin"})
+    # An admin can reject a sign-up but not delete an approved member
+    assert client.delete(f"/api/v1/admin/users/{spam['id']}", headers=reader["headers"]).status_code == 200
+    assert client.delete("/api/v1/admin/users/1", headers=reader["headers"]).status_code == 403
+    assert login(client, "spam").status_code == 401
+
+    # The owner can remove members, which signs them out
+    assert client.delete(f"/api/v1/admin/users/{reader['id']}", headers=auth).status_code == 200
+    assert client.get("/api/v1/auth/me", headers=reader["headers"]).status_code == 401
+
+def test_classic_ui_switch_is_saved_too(app, client, auth, tmp_path):
+    client.post("/login", data={"username": "owner", "password": PASSWORD})
+    client.post("/api/settings/config", data={"hide-titles": "true"})
+    assert client.get("/api/v1/server/config", headers=auth).get_json()["hide_titles"] is True
     client.put("/api/v1/server/config", headers=auth, json={"hide_titles": False})
