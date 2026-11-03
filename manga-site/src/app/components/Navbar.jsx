@@ -6,7 +6,8 @@ import { useAuth } from "../context/AuthContext"
 
 const navItems = [
   { label: "Home", path: "/" },
-  { label: "Latest", path: "/latest" },
+  { label: "Updated", path: "/latest" },
+  { label: "New Releases", path: "/newest" },
   { label: "All", path: "/all" },
   { label: "Random", path: "/random" },
   { label: "Unread", path: "/unread" },

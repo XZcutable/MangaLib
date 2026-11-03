@@ -9,10 +9,11 @@ from ..constants import SQL
 from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 from .search import create_search_query
 
-# "latest" is "all" newest first. History, favorites and queued default to most recent first.
+# "updated": most recently given new chapters or added. "newest": most recent release year first,
+# manga without a year last. History, favorites and queued default to most recent first.
 # "random" ignores sort and paging gives a new shuffle each time. "unread" is everything the user hasn't finished.
-LISTS = ("all", "latest", "history", "favorites", "queued", "unread", "random")
-DEFAULT_SORT = {"all": "asc", "latest": "desc", "history": "desc", "favorites": "desc", "queued": "desc", "unread": "asc", "random": "asc"}
+LISTS = ("all", "updated", "newest", "history", "favorites", "queued", "unread", "random")
+DEFAULT_SORT = {"all": "asc", "updated": "desc", "newest": "desc", "history": "desc", "favorites": "desc", "queued": "desc", "unread": "asc", "random": "asc"}
 
 def list_query(list_name: str, user_id: int, sort: Optional[str] = None) -> Select:
     """Returns a (id, title) query for one of LISTS. Raises ValueError for an unknown list."""
@@ -20,8 +21,17 @@ def list_query(list_name: str, user_id: int, sort: Optional[str] = None) -> Sele
         raise ValueError(f"Unknown list '{list_name}'")
     sort = sort if sort in SQL.ORDER else DEFAULT_SORT[list_name]
 
-    if list_name in ("all", "latest"):
+    if list_name == "all":
         return select(Manga.id, Manga.title).order_by(SQL.ORDER[sort](Manga.id))
+    elif list_name == "updated":
+        # Manga scanned before updates were tracked count from when they were added
+        updated = func.coalesce(Manga.last_updated, Manga.date_uploaded)
+        return select(Manga.id, Manga.title).order_by(SQL.ORDER[sort](updated), SQL.ORDER[sort](Manga.id))
+    elif list_name == "newest":
+        return (
+            select(Manga.id, Manga.title)
+            .order_by(SQL.ORDER[sort](Manga.release_year).nulls_last(), SQL.ORDER[sort](Manga.id))
+        )
     elif list_name == "random":
         return select(Manga.id, Manga.title).order_by(func.random())
     elif list_name == "unread":
@@ -92,7 +102,22 @@ def reading_state(user_id: int, manga_ids: list[int]) -> dict[int, dict]:
         .group_by(UserMangaData.manga_id)
     ).all())
 
-    states = {manga_id: {"total_chapters": chapter_counts.get(manga_id, 0), "user": None} for manga_id in manga_ids}
+    details = {
+        manga_id: (release_year, last_updated or date_uploaded)
+        for manga_id, release_year, last_updated, date_uploaded in db.session.execute(
+            select(Manga.id, Manga.release_year, Manga.last_updated, Manga.date_uploaded).where(Manga.id.in_(manga_ids))
+        ).all()
+    }
+
+    states = {
+        manga_id: {
+            "total_chapters": chapter_counts.get(manga_id, 0),
+            "release_year": details.get(manga_id, (None, None))[0],
+            "last_updated": details.get(manga_id, (None, None))[1],
+            "user": None,
+        }
+        for manga_id in manga_ids
+    }
     for row in user_rows:
         states[row.manga_id]["user"] = row.toJson()
         states[row.manga_id]["progress"] = progress_fraction(

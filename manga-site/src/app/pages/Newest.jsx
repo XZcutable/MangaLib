@@ -1,5 +1,12 @@
-import { Navigate } from "react-router"
-// The server has no release dates, so "newest" and "latest" are the same list
+import { ListPage } from "../components/ListPage"
+
+// Series by release year. The year comes from file names like "v01 (2019)".
 export function Newest() {
-  return <Navigate to="/latest" replace />
+  return (
+    <ListPage
+      title="New Releases"
+      description="Series that came out most recently. Release years are read from file names; series without one are listed last."
+      list="newest"
+    />
+  )
 }

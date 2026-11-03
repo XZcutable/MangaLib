@@ -92,6 +92,7 @@ export function MangaInfo() {
             {manga.title}
           </h1>
           <p className={`mb-4 ${muted}`}>
+            {manga.release_year && `${manga.release_year} • `}
             {manga.total_chapters} {manga.total_chapters === 1 ? "chapter" : "chapters"}
             {manga.progress > 0 &&
               ` • ${manga.progress < 0.01 ? "<1" : Math.round(manga.progress * 100)}% read`}

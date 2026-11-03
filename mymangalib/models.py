@@ -172,6 +172,10 @@ class Manga(Model):
 
     date_uploaded:Mapped[str] = mapped_column(default=None)
     relative_path:Mapped[str] = mapped_column(default="")
+    # Earliest year found in the file names, e.g. "v01 (2019)". None when the names have no year.
+    release_year:Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
+    # When chapters were last added. None for manga scanned before this was tracked, which use date_uploaded.
+    last_updated:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
 
     new = False
     
@@ -183,6 +187,8 @@ class Manga(Model):
             "total_chapters": len(self.chapters),
             "manga_metadata": self.manga_metadata.toJson(),
             "date_uploaded": self.date_uploaded,
+            "release_year": self.release_year,
+            "last_updated": self.last_updated or self.date_uploaded,
         }
 
 class Chapter(Model):

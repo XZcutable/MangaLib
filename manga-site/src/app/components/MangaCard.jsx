@@ -1,11 +1,12 @@
 import { Link } from "react-router"
 import { BookCheck, Heart } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 import { useTheme } from "../context/ThemeContext"
 import { useAuth } from "../context/AuthContext"
-import { imageUrl } from "../lib/api"
+import { imageUrl, parseServerDate } from "../lib/api"
 
-export function MangaCard({ manga, showProgress = false }) {
+export function MangaCard({ manga, showProgress = false, showUpdated = false }) {
   const { theme } = useTheme()
   const { serverInfo } = useAuth()
   const user = manga.user
@@ -66,8 +67,14 @@ export function MangaCard({ manga, showProgress = false }) {
         <div
           className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}
         >
+          {manga.release_year && `${manga.release_year} • `}
           {manga.total_chapters} {manga.total_chapters === 1 ? "chapter" : "chapters"}
         </div>
+        {showUpdated && manga.last_updated && (
+          <div className="text-xs text-blue-500">
+            Updated {formatDistanceToNow(parseServerDate(manga.last_updated), { addSuffix: true })}
+          </div>
+        )}
       </div>
     </Link>
   )

@@ -11,14 +11,24 @@ PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4
 
 PASSWORD = "Passw0rd!"
 
+def add_volume(root: str, manga: str, file_name: str, pages: int = 3):
+    with zipfile.ZipFile(os.path.join(root, manga, file_name), "w") as archive:
+        for page in range(1, pages + 1):
+            archive.writestr(f"page{page:03}.png", PNG)
+
+def scan(app, library_path: str):
+    with app.app_context():
+        for manga in server_api.scan_manga_path(library_path):
+            db.session.add(manga)
+        db.session.commit()
+
 def make_library(root: str):
-    """Alpha: a folder of two .cbz volumes with 3 pages each. Beta: a folder chapter of 2 images."""
+    """Alpha: a folder of two .cbz volumes from 2019 and 2020 with 3 pages each.
+    Beta: a folder chapter of 2 images with no year in its names."""
     alpha = os.path.join(root, "Alpha")
     os.makedirs(alpha)
     for volume in (1, 2):
-        with zipfile.ZipFile(os.path.join(alpha, f"Alpha v0{volume}.cbz"), "w") as archive:
-            for page in (1, 2, 3):
-                archive.writestr(f"page{page:03}.png", PNG)
+        add_volume(root, "Alpha", f"Alpha v0{volume} ({2018 + volume}) (Digital).cbz")
 
     beta_chapter = os.path.join(root, "Beta", "Chapter 1")
     os.makedirs(beta_chapter)
@@ -45,11 +55,8 @@ DATABASE_PATH="{(tmp_path / 'test.db').as_posix()}"
     app = create_app(str(config_path))
     app.config["TESTING"] = True
     app.config["THUMBNAIL_CACHE_PATH"] = str(tmp_path / "covers")
-
-    with app.app_context():
-        for manga in server_api.scan_manga_path(library_path.as_posix()):
-            db.session.add(manga)
-        db.session.commit()
+    app.config["TEST_LIBRARY"] = library_path.as_posix()
+    scan(app, app.config["TEST_LIBRARY"])
 
     yield app
 

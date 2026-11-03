@@ -1,4 +1,10 @@
-from conftest import PNG, PASSWORD, register, login
+import time
+
+from sqlalchemy import text
+
+from conftest import PNG, PASSWORD, register, login, add_volume, scan
+from mymangalib.database import db, add_missing_columns, fill_missing_release_years
+from mymangalib.models import Manga
 
 def manga_id_by_title(client, auth, title):
     items = client.get("/api/v1/manga?list=all", headers=auth).get_json()["items"]
@@ -84,10 +90,46 @@ def test_list_shape_and_paging(client, auth):
     assert body["items"][0]["title"] == "Beta"
     assert body["next_offset"] is None
 
-    latest = client.get("/api/v1/manga?list=latest", headers=auth).get_json()["items"]
-    assert [item["title"] for item in latest] == ["Beta", "Alpha"]
+    assert item["release_year"] == 2019
 
     assert client.get("/api/v1/manga?list=bogus", headers=auth).status_code == 400
+
+def titles(client, auth, list_name):
+    return [item["title"] for item in client.get(f"/api/v1/manga?list={list_name}", headers=auth).get_json()["items"]]
+
+def test_newest_sorts_by_release_year_with_unknown_last(client, auth):
+    assert titles(client, auth, "newest") == ["Alpha", "Beta"]
+    assert titles(client, auth, "newest&sort=asc") == ["Alpha", "Beta"]
+
+def test_new_volume_moves_manga_to_top_of_updated(app, client, auth):
+    assert titles(client, auth, "updated") == ["Beta", "Alpha"]  # Beta was scanned after Alpha
+
+    time.sleep(0.01)
+    add_volume(app.config["TEST_LIBRARY"], "Alpha", "Alpha v03 (2021) (Digital).cbz")
+    scan(app, app.config["TEST_LIBRARY"])
+
+    assert titles(client, auth, "updated") == ["Alpha", "Beta"]
+    alpha = manga_id_by_title(client, auth, "Alpha")
+    info = client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()
+    assert len(info["chapters"]) == 3
+    assert info["release_year"] == 2019
+
+def test_scan_without_new_content_changes_nothing(app, client, auth):
+    alpha = manga_id_by_title(client, auth, "Alpha")
+    before = client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()["last_updated"]
+    scan(app, app.config["TEST_LIBRARY"])
+    assert client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()["last_updated"] == before
+
+def test_upgrading_an_old_database_adds_columns_and_years(app):
+    with app.app_context():
+        with db.session.get_bind().begin() as connection:
+            connection.execute(text('ALTER TABLE manga DROP COLUMN release_year'))
+            connection.execute(text('ALTER TABLE manga DROP COLUMN last_updated'))
+        db.session.remove()
+        add_missing_columns()
+        fill_missing_release_years()
+        alpha = db.session.scalar(Manga.query.filter_by(title="Alpha").statement)
+        assert alpha.release_year == 2019 and alpha.last_updated is None
 
 def test_unread_and_random_lists(client, auth):
     alpha = manga_id_by_title(client, auth, "Alpha")

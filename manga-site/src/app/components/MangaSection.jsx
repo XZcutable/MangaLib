@@ -8,9 +8,11 @@ import { useTheme } from "../context/ThemeContext"
 // an empty message and, with `infinite`, more results as you scroll.
 export function MangaSection({
   title,
+  description,
   list,
   manga,
   showProgress = false,
+  showUpdated = false,
   infinite = false,
   emptyMessage = "Nothing here yet.",
   seeAllPath,
@@ -35,7 +37,7 @@ export function MangaSection({
 
   return (
     <section className="mb-12">
-      <div className="flex items-baseline justify-between gap-4 mb-6">
+      <div className={`flex items-baseline justify-between gap-4 ${description ? "mb-1" : "mb-6"}`}>
         <h2 className={theme === "dark" ? "text-white" : "text-gray-900"}>
           {title}
           {list?.total > 0 && infinite && (
@@ -55,6 +57,11 @@ export function MangaSection({
         )}
       </div>
 
+      {description && (
+        <p className={`text-sm mb-6 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+          {description}
+        </p>
+      )}
       {list?.error && items.length === 0 ? (
         <StatusMessage message={list.error.message} onRetry={list.reload} />
       ) : isEmpty ? (
@@ -62,7 +69,12 @@ export function MangaSection({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
           {items.map((item) => (
-            <MangaCard key={item.id} manga={item} showProgress={showProgress} />
+            <MangaCard
+              key={item.id}
+              manga={item}
+              showProgress={showProgress}
+              showUpdated={showUpdated}
+            />
           ))}
           {list?.loading &&
             Array.from({ length: items.length ? 5 : 10 }, (_, index) => (

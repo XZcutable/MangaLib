@@ -86,6 +86,8 @@ def paged_response(query, offset: int, limit: int) -> dict:
             "title": row["title"],
             "cover_url": cover_url(row["id"]),
             "total_chapters": state.get("total_chapters", 0),
+            "release_year": state.get("release_year"),
+            "last_updated": state.get("last_updated"),
             "progress": state.get("progress", 0.0),
             "user": state.get("user"),
         })

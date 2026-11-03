@@ -57,6 +57,13 @@ async function request(path, { method = "GET", body, signal, server } = {}) {
   return data
 }
 
+// The server stores dates like "2026-11-02 22:31:00.123456+00:00". Safari can't parse the space or
+// microseconds, so convert to standard ISO first.
+export function parseServerDate(value) {
+  if (!value) return null
+  return new Date(value.replace(" ", "T").replace(/(\.\d{3})\d+/, "$1"))
+}
+
 // Image URLs from the API are paths. <img> can't send headers, so the token goes in the query.
 export function imageUrl(path) {
   if (!path) return ""
