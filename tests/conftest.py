@@ -44,8 +44,7 @@ def make_app(tmp_path, extra_config: str = ""):
     library_path = tmp_path / "library"
     make_library(str(library_path))
 
-    config_path = tmp_path / "config.toml"
-    config_path.write_text(f"""
+    defaults = f"""
 SECRET_KEY="test-secret"
 BEHIND_PROXY=false
 ALLOW_NEW_USERS=false
@@ -54,8 +53,12 @@ HIDE_MANGA=false
 HIDE_TITLES=false
 FETCH_BATCH_SIZE=30
 DATABASE_PATH="{(tmp_path / 'test.db').as_posix()}"
-{extra_config}
-""")
+"""
+    # A key in extra_config replaces its default (TOML doesn't allow a key twice)
+    overridden = {line.split("=", 1)[0].strip() for line in extra_config.splitlines() if "=" in line}
+    kept = [line for line in defaults.splitlines() if line.split("=", 1)[0].strip() not in overridden]
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("\n".join(kept) + f"\n{extra_config}\n")
     app = create_app(str(config_path))
     app.config["TESTING"] = True
     app.config["THUMBNAIL_CACHE_PATH"] = str(tmp_path / "covers")

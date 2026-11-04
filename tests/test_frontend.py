@@ -2,16 +2,18 @@ import pytest
 
 from conftest import PASSWORD, make_app, register
 
-INDEX = "<!doctype html><title>myMangaLib app</title>"
+INDEX = '<!doctype html><html><head><base href="/" /><title>myMangaLib app</title></head></html>'
 
-@pytest.fixture
-def client(tmp_path):
+def frontend_app(tmp_path, extra_config: str = ""):
     dist = tmp_path / "dist"
     (dist / "assets").mkdir(parents=True)
     (dist / "index.html").write_text(INDEX)
     (dist / "assets" / "index-abc123.js").write_text("console.log('app')")
-    app = make_app(tmp_path, f'FRONTEND_PATH="{dist.as_posix()}"')
-    return app.test_client()
+    return make_app(tmp_path, f'FRONTEND_PATH="{dist.as_posix()}"\n{extra_config}')
+
+@pytest.fixture
+def client(tmp_path):
+    return frontend_app(tmp_path).test_client()
 
 @pytest.mark.parametrize("path", ["/", "/latest", "/manga/1", "/read/1/1/1", "/settings", "/connect"])
 def test_app_pages_get_the_front_end(client, path):
@@ -51,3 +53,37 @@ def test_classic_redirects_stay_under_classic(client):
     response = client.get("/classic/manga/all")
     assert response.status_code == 302
     assert "/classic/" in response.headers["Location"]
+
+# --- Under a sub-path behind a reverse proxy (https://example.com/manga/) ---
+
+def check_sub_path(client, prefix: str, headers: dict):
+    """The new UI, its files, the API, image URLs and the classic UI all work below the prefix."""
+    page = client.get(f"{prefix}/read/1/1/1", headers=headers).get_data(as_text=True)
+    assert '<base href="/manga/" />' in page and page.count("<base") == 1
+    assert client.get(f"{prefix}/assets/index-abc123.js", headers=headers).status_code == 200
+
+    register(client, "owner")
+    token = client.post(f"{prefix}/api/v1/auth/login", headers=headers,
+                        json={"username": "owner", "password": PASSWORD}).get_json()["token"]
+    auth = {**headers, "Authorization": f"Bearer {token}"}
+    cover_url = client.get(f"{prefix}/api/v1/manga?list=all", headers=auth).get_json()["items"][0]["cover_url"]
+    # Relative to the server's base: the app adds https://example.com/manga in front
+    assert cover_url.startswith("/api/v1/")
+    assert client.get(f"{prefix}{cover_url}", headers=auth).status_code == 200
+
+    classic = client.get(f"{prefix}/classic/login", headers=headers).get_data(as_text=True)
+    assert 'href="/manga/classic/static/assets/css/style.css"' in classic
+    assert client.get(f"{prefix}/classic/static/assets/css/style.css", headers=headers).status_code == 200
+
+def test_url_prefix_for_a_proxy_that_keeps_the_path(tmp_path):
+    client = frontend_app(tmp_path, "URL_PREFIX='/manga/'").test_client()
+    check_sub_path(client, "/manga", {})
+    # Still reachable directly at the root, e.g. from the local network
+    assert '<base href="/" />' in client.get("/").get_data(as_text=True)
+
+def test_forwarded_prefix_for_a_proxy_that_removes_the_path(tmp_path):
+    client = frontend_app(tmp_path, "BEHIND_PROXY=true").test_client()
+    check_sub_path(client, "", {"X-Forwarded-Prefix": "/manga"})
+
+def test_at_the_root_the_base_is_slash(client):
+    assert client.get("/settings").get_data(as_text=True) == INDEX

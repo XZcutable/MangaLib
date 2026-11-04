@@ -2,8 +2,8 @@
 {% block title %}Settings{% endblock %}
 
 {% block style %}
-<link rel="stylesheet" href="/static/assets/css/styles/settings.css">
-<link rel="stylesheet" href="/static/assets/css/styles/manga-style.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='assets/css/styles/settings.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='assets/css/styles/manga-style.css') }}">
 
 <style>
 .selected {

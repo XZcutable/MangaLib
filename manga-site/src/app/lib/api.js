@@ -1,6 +1,10 @@
 // Client for the myMangaLib /api/v1 JSON API.
 // serverUrl "" means the same origin, used by the web build and the Vite dev proxy.
+// API paths (including the cover_url / image_url the server returns) are relative to the server's base.
 
+import { BASE_PATH } from "./base"
+
+// "" = the server this page came from, at the path it's served at (BASE_PATH)
 let serverUrl = ""
 let token = null
 let onUnauthorized = () => {}
@@ -36,7 +40,7 @@ async function request(path, { method = "GET", body, signal, server } = {}) {
 
   let response
   try {
-    response = await fetch(`${server ?? serverUrl}/api/v1${path}`, {
+    response = await fetch(`${serverBase(server ?? serverUrl)}/api/v1${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -72,7 +76,12 @@ export function parseServerDate(value) {
 export function imageUrl(path) {
   if (!path) return ""
   const separator = path.includes("?") ? "&" : "?"
-  return `${serverUrl}${path}${token ? `${separator}t=${encodeURIComponent(token)}` : ""}`
+  return `${serverBase()}${path}${token ? `${separator}t=${encodeURIComponent(token)}` : ""}`
+}
+
+// Where the server's paths start: the saved server address, or this site's own base path
+export function serverBase(server = serverUrl) {
+  return server || BASE_PATH
 }
 
 const query = (params) => {

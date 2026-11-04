@@ -72,11 +72,17 @@ def get_manga_or_404(manga_id: int) -> Manga:
         abort(404, description=f"Manga {manga_id} not found")
     return manga
 
+def api_path(endpoint: str, **values) -> str:
+    """A path from the server's base, e.g. /api/v1/manga/1/cover, without a sub-path the server is reached at.
+    Clients add it to the server address they use (which includes the sub-path), so it isn't counted twice."""
+    path = url_for(endpoint, **values)
+    return path[len(request.script_root):] if request.script_root and path.startswith(request.script_root) else path
+
 def cover_url(manga_id: int) -> str:
-    return url_for("api_v1.cover", manga_id=manga_id)
+    return api_path("api_v1.cover", manga_id=manga_id)
 
 def page_image_url(manga_id: int, chapter_number: int, page_number: int) -> str:
-    return url_for("api_v1.page_image", manga_id=manga_id, chapter_number=chapter_number, page_number=page_number)
+    return api_path("api_v1.page_image", manga_id=manga_id, chapter_number=chapter_number, page_number=page_number)
 
 def paged_response(query, offset: int, limit: int) -> dict:
     """One batch of a (id, title) query, with cover URLs and the user's reading state."""

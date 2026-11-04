@@ -17,6 +17,12 @@ Android releases are published to https://github.com/XZcutable/MangaLib/releases
 - Tests: `.venv/Scripts/python -m pytest` (all should pass). Fixtures in `tests/conftest.py`: `make_app`, `scan`, `add_volume`.
 - Config: `config.toml` (defaults in `ENV.DEFAULT_CONFIG`, `mymangalib/constants.py`). Any key can be overridden with a `FLASK_<KEY>` env var (`from_prefixed_env`), e.g. `FLASK_CONFIG_PATH`, `FLASK_DATABASE_PATH`, `FLASK_FRONTEND_PATH`, `FLASK_CORS_ORIGINS`.
 - `FRONTEND_PATH` set to a built `manga-site/dist` serves the new UI at `/` and moves the classic UI to `/classic` (`mymangalib/frontend.py`).
+- Sub-paths (`https://example.com/manga/`): the prefix arrives as `SCRIPT_NAME`, from `X-Forwarded-Prefix` (ProxyFix) or `URL_PREFIX` (`UrlPrefixMiddleware`). Rules that keep it working:
+  - `frontend.py` writes `<base href="{script_root}/">` into `index.html`, and the app is built with relative asset paths (`base: "./"`).
+  - The app reads the prefix from `document.baseURI` (`lib/base.js`) for the router `basename` and API calls.
+  - API responses return paths without the prefix (`api_path()` in `api_v1.py`), because clients add their server address, which includes it.
+  - Classic templates use `url_for('static', ...)`, never a hard-coded `/static/`.
+  - `tests/test_frontend.py` covers both proxy styles.
 - No migration tool: new columns must be nullable and are added at startup by `add_missing_columns()` in `mymangalib/database.py`. Backfills go there too (e.g. `fill_missing_release_years`).
 - Settings the owner changes from the app live in the `ServerSetting` table (`server/server_settings.py`) and win over `config.toml`: on/off ones in `EDITABLE`, text ones (`SITE_NAME`) in `EDITABLE_TEXT`.
 - Usernames: `username_problem()` holds the rule (no leading or trailing spaces) and `rename_user()` the change, both in `auth.py`. `User.must_change_username` is set by admins or at login when a stored name breaks the rule. While it's set, only the endpoints in `API_RENAME_ENDPOINTS` / `CLASSIC_RENAME_ENDPOINTS` work, so add any endpoint a flagged user must still reach there.

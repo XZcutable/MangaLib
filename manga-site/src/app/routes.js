@@ -17,6 +17,7 @@ import { Reader } from "./pages/Reader"
 import { Connect } from "./pages/Connect"
 import { Logout } from "./pages/Logout"
 import { NotFound } from "./pages/NotFound"
+import { BASE_PATH } from "./lib/base"
 export const router = createBrowserRouter([
   { path: "/connect", Component: Connect },
   {
@@ -46,4 +47,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
-])
+],
+  // Under a sub-path (e.g. /manga) every route lives below it
+  { basename: BASE_PATH || "/" },
+)

@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import { useAuth } from "../context/AuthContext"
 import { useTheme } from "../context/ThemeContext"
 import { useStyles } from "../hooks/useStyles"
-import { api, parseServerDate } from "../lib/api"
+import { api, parseServerDate, serverBase } from "../lib/api"
 import { getLocal, setLocal, isNative } from "../lib/storage"
 import { AccountSection } from "../components/settings/AccountSection"
 import { LibrarySection } from "../components/settings/LibrarySection"
@@ -103,7 +103,7 @@ export function Settings() {
             </p>
             {serverInfo?.classic_ui_path && (
               <a
-                href={`${server}${serverInfo.classic_ui_path}`}
+                href={`${serverBase()}${serverInfo.classic_ui_path}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-2 text-sm text-blue-500 hover:text-blue-400"

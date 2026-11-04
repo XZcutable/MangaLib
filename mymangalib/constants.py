@@ -67,6 +67,11 @@ LIBRARY_PATHS=[]
 # classic UI moves to /classic. Leave empty to keep the classic UI at /.
 FRONTEND_PATH=''
 
+# For a reverse proxy that serves this at a sub-path and passes the path through unchanged, e.g. '/manga'
+# for https://example.com/manga/. A proxy that removes the prefix should send X-Forwarded-Prefix instead
+# (with BEHIND_PROXY=true). Leave empty when the server has its own address.
+URL_PREFIX=''
+
 # Web pages allowed to call /api/v1 from a browser. capacitor://localhost is the iOS app, http://localhost the Android app.
 CORS_ORIGINS=['capacitor://localhost', 'http://localhost', 'https://localhost']
 """

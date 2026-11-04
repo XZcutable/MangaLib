@@ -46,6 +46,7 @@ def create_app(config_file=None):
 
     # Inside ProxyFix so a reverse proxy's X-Forwarded-Prefix still applies to /classic
     frontend.install(app)
+    frontend.install_url_prefix(app)
 
     if app.config["BEHIND_PROXY"]:
         app.wsgi_app = ProxyFix(

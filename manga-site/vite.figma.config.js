@@ -52,9 +52,11 @@ export default defineConfig(async (env) =>
         replacement,
       })),
     },
+    // Relative asset paths, resolved against the <base> tag the server sets, so one build works at / and
+    // under a sub-path like /manga/
     base: process.env.FIGMA_PUBLIC_URL
       ? `${process.env.FIGMA_PUBLIC_URL}/`
-      : "/",
+      : "./",
     build: {
       sourcemap: env.mode === "development" ? "inline" : false,
       minify: env.mode !== "development",
