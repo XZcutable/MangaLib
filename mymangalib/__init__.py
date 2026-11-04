@@ -54,6 +54,11 @@ def create_app(config_file=None):
 
     create_filters()
 
+    @app.context_processor
+    def site_name_for_templates():
+        # The classic pages show the owner's site name in the browser tab
+        return {"site_name": server_settings.site_name()}
+
     # models_old.init_app(app)
     database.init_app(app)
     server_settings.load(app)  # Saved settings override the config file before anything reads them

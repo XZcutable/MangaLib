@@ -27,13 +27,22 @@ The original `compose.yml` had no volumes, so the database and config live **ins
 
 > ⚠️ Don't run `docker compose down` or `docker compose up --build` with the new files until step 2 is done. Either one replaces the old container, and your data goes with it.
 
+**Run every command below from the project folder**: the folder you cloned, which holds `compose.yml` and `Dockerfile`. For example:
+
+```sh
+cd ~/mymanga
+ls compose.yml        # should print compose.yml
+```
+
+From any other folder, `docker compose` stops with `no configuration file provided: not found`. Paths like `./data` are also relative to this folder.
+
 1. **Find the old container:**
 
    ```sh
    docker ps -a            # e.g. mymanga-mangalib-1
    ```
 
-2. **Copy the database and config out of it**, into the folder that holds `compose.yml`:
+2. **Copy the database and config out of it**, from the project folder:
 
    ```sh
    mkdir -p data/db data/config
@@ -59,12 +68,15 @@ The original `compose.yml` had no volumes, so the database and config live **ins
 
    This logs everyone out of the classic interface once. You can also delete the unused `DATABASE_FILE` line.
 
-7. **Start the new version:**
+7. **Start the new version**, from the project folder:
 
    ```sh
+   ls data/db/database.db data/config/config.toml    # both must exist here, or the server starts empty
    docker compose up -d --build
    docker compose logs -f
    ```
+
+   If `ls` can't find them, step 2 ran in another folder. Move that `data` folder into the project folder first.
 
    The first start prints `Adding column manga.release_year`, `Adding column manga.last_updated` and `Found release years for N manga`. A warning about `SECRET_KEY` means step 6 didn't take effect.
 
@@ -114,6 +126,7 @@ From now on, your data lives in `./data` and survives updates. Back that folder 
 
 - **Pages or covers don't load.** The server sees the manga at a different path than before. Make the right side of the `compose.yml` mount (or the folder location) match the old library path, then restart.
 - **Every series is listed twice.** The library was scanned again from a new path. Roll back the database (below), fix the path, and start again.
+- **`no configuration file provided: not found`.** `docker compose` was run outside the project folder. `cd` into the folder with `compose.yml` and run it again.
 - **"Database not found … Creating the database."** The server didn't find your copied database, so it started an empty one. Check the database file is at `data/db/database.db` (Docker) or at your `DATABASE_PATH`.
 
 ## Rolling back

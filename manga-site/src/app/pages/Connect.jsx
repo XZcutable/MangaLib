@@ -95,7 +95,7 @@ export function Connect() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-blue-500" />
-            <span className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>myMangaLib</span>
+            <span className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>{auth.siteName}</span>
           </div>
           <button
             onClick={toggleTheme}

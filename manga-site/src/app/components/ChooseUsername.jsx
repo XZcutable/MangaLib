@@ -7,7 +7,7 @@ import { api } from "../lib/api"
 // Shown instead of the app when the account has to pick a new username: an admin asked for it,
 // or the name breaks the username rules (e.g. spaces around it, from before they were checked).
 export function ChooseUsername() {
-  const { user, setUser, logout } = useAuth()
+  const { user, setUser, logout, siteName } = useAuth()
   const { theme } = useTheme()
   const dark = theme === "dark"
 
@@ -48,7 +48,7 @@ export function ChooseUsername() {
       >
         <div className="flex items-center gap-2 mb-6">
           <BookOpen className="w-6 h-6 text-blue-500" />
-          <span className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>myMangaLib</span>
+          <span className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>{siteName}</span>
         </div>
 
         <form onSubmit={submit} className="space-y-4">

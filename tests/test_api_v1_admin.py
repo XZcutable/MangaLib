@@ -189,9 +189,35 @@ def test_library_paths_browse_and_scan(app, client, auth, tmp_path):
 def test_server_config_toggles(client, auth):
     assert client.put("/api/v1/server/config", headers=auth, json={"hide_titles": True}).get_json() == {
         "allow_new_users": False, "auto_approve_new_users": False, "hide_manga": False, "hide_titles": True,
+        "site_name": "myMangaLib",
     }
     assert client.get("/api/v1/server/info").get_json()["hide_titles"] is True
     client.put("/api/v1/server/config", headers=auth, json={"hide_titles": False})
+
+def test_owner_renames_the_site(app, client, auth, reader, tmp_path):
+    info = client.get("/api/v1/server/info").get_json()
+    assert info["site_name"] == "myMangaLib" and info["name"] == "myMangaLib"
+
+    response = client.put("/api/v1/server/config", headers=auth, json={"site_name": "  Reuben's   Manga "})
+    assert response.get_json()["site_name"] == "Reuben's Manga"
+    info = client.get("/api/v1/server/info").get_json()
+    # The app still recognizes the server by "name"
+    assert info["site_name"] == "Reuben's Manga" and info["name"] == "myMangaLib"
+
+    # The classic pages use it in the browser tab
+    client.post("/login", data={"username": "owner", "password": PASSWORD})
+    assert "- Reuben&#39;s Manga</title>" in client.get("/manga/all").get_data(as_text=True)
+
+    # Saved, so it survives a restart
+    from mymangalib import create_app
+    restarted = create_app(str(tmp_path / "config.toml"))
+    assert restarted.test_client().get("/api/v1/server/info").get_json()["site_name"] == "Reuben's Manga"
+
+    # Only the owner, not too long, and empty goes back to the default
+    assert client.put("/api/v1/server/config", headers=reader["headers"], json={"site_name": "Mine"}).status_code == 403
+    assert client.put("/api/v1/server/config", headers=auth, json={"site_name": "x" * 41}).status_code == 400
+    assert client.put("/api/v1/server/config", headers=auth, json={"site_name": 5}).status_code == 400
+    assert client.put("/api/v1/server/config", headers=auth, json={"site_name": ""}).get_json()["site_name"] == "myMangaLib"
 
 def test_owner_opens_registration_and_admins_see_waiting_users(client, auth):
     anonymous = client.application.test_client()

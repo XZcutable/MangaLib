@@ -2,6 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { api, ApiError, configure, normalizeServerUrl } from "../lib/api"
 import { getItem, setItem, isNative } from "../lib/storage"
 
+// The default site name (the <title> in .figma/make/site.json)
+const DEFAULT_SITE_NAME = "myMangaLib"
+
 const SERVER_KEY = "server"
 const TOKEN_KEY = "token"
 
@@ -151,6 +154,12 @@ export function AuthProvider({ children }) {
     }
   }, [status, user?.is_admin, refreshUser])
 
+  // The owner can rename the site in Settings. Until the server answers, the name the page was built with.
+  const siteName = serverInfo?.site_name || DEFAULT_SITE_NAME
+  useEffect(() => {
+    document.title = siteName
+  }, [siteName])
+
   const refreshServerInfo = useCallback(
     () => api.serverInfo().then((info) => (setServerInfo(info), info)),
     [],
@@ -163,6 +172,7 @@ export function AuthProvider({ children }) {
         loggedOutOnPurpose,
         server,
         serverInfo,
+        siteName,
         user,
         connect,
         login,
