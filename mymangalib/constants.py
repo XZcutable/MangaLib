@@ -56,6 +56,10 @@ HIDE_TITLES=false
 
 FETCH_BATCH_SIZE=30
 
+# Library folders for a new server, e.g. ['/var/manga']. On a start with no library folders yet,
+# they're added and scanned. After that, manage folders in Settings > Library.
+LIBRARY_PATHS=[]
+
 # Folder of the built new front end (manga-site/dist). When set, it's served at / and the
 # classic UI moves to /classic. Leave empty to keep the classic UI at /.
 FRONTEND_PATH=''

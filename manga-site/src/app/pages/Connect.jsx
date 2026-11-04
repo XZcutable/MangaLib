@@ -58,16 +58,19 @@ export function Connect() {
 
   const submitAccount = (event) => {
     event.preventDefault()
+    // Spaces around the name are easy to type by accident (or added by autocomplete)
+    const name = username.trim()
+    setUsername(name)
     run(async () => {
       if (mode === "register") {
-        const { user } = await auth.register(username, password)
+        const { user } = await auth.register(name, password)
         if (!user.approved) {
           setMode("login")
           setNotice("Account created. An admin needs to approve it before you can log in.")
           return
         }
       }
-      await auth.login(username, password)
+      await auth.login(name, password)
     })
   }
 

@@ -78,6 +78,46 @@ def test_change_username(client, auth, reader):
     assert client.put("/api/v1/auth/username", headers=auth, json={"username": "READER"}).status_code == 409
     response = client.put("/api/v1/auth/username", headers=auth, json={"username": "boss"})
     assert response.get_json()["user"]["username"] == "boss"
+    # Spaces around a new name are removed; a blank name isn't allowed
+    response = client.put("/api/v1/auth/username", headers=auth, json={"username": "  chief "})
+    assert response.get_json()["user"]["username"] == "chief"
+    assert client.put("/api/v1/auth/username", headers=auth, json={"username": "   "}).status_code == 400
+
+def test_admin_can_require_a_username_change(client, auth, reader):
+    response = client.put(f"/api/v1/admin/users/{reader['id']}", headers=auth, json={"must_change_username": True})
+    assert response.get_json()["user"]["must_change_username"] is True
+
+    # Until then the reader can only see their account, rename, or log out
+    headers = reader["headers"]
+    me = client.get("/api/v1/auth/me", headers=headers).get_json()["user"]
+    assert me["must_change_username"] is True
+    blocked = client.get("/api/v1/manga?list=all", headers=headers)
+    assert blocked.status_code == 403 and blocked.get_json()["error"]["code"] == "username_change_required"
+    assert client.get("/api/v1/manga/1/cover", headers=headers).status_code == 403
+
+    # Keeping the same name doesn't count
+    response = client.put("/api/v1/auth/username", headers=headers, json={"username": "reader"})
+    assert response.status_code == 400
+
+    response = client.put("/api/v1/auth/username", headers=headers, json={"username": "reader2"})
+    assert response.get_json()["user"] == {**me, "username": "reader2", "must_change_username": False}
+    assert client.get("/api/v1/manga?list=all", headers=headers).status_code == 200
+
+def test_admin_can_clear_a_required_username_change(client, auth, reader):
+    client.put(f"/api/v1/admin/users/{reader['id']}", headers=auth, json={"must_change_username": True})
+    client.put(f"/api/v1/admin/users/{reader['id']}", headers=auth, json={"must_change_username": False})
+    assert client.get("/api/v1/manga?list=all", headers=reader["headers"]).status_code == 200
+
+def test_classic_ui_sends_flagged_users_to_settings(client, auth, reader):
+    client.put(f"/api/v1/admin/users/{reader['id']}", headers=auth, json={"must_change_username": True})
+    client.post("/login", data={"username": "reader", "password": PASSWORD})
+
+    response = client.get("/manga/all")
+    assert response.status_code == 302 and response.headers["Location"].endswith("/settings")
+    assert client.get("/settings").status_code == 200
+
+    client.post("/auth/change-username", data={"new-username": " renamed "})
+    assert client.get("/manga/all").status_code == 200
 
 # --- Tags ---
 

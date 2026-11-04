@@ -18,13 +18,16 @@ WORKDIR /mangalib
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
-ENV FLASK_ENV_CONFIG=true \
+# PYTHONUNBUFFERED: the server's messages (scan results, warnings) show up in "docker compose logs" right away
+ENV PYTHONUNBUFFERED=1 \
+FLASK_ENV_CONFIG=true \
 FLASK_BEHIND_PROXY=true \
 FLASK_CREATE_MISSING_CONFIG=true \
 FLASK_CONFIG_PATH="/var/config/config.toml" \
 FLASK_DATABASE_PATH="/var/db/database.db" \
 FLASK_THUMBNAIL_CACHE_PATH="/var/db/covers" \
-FLASK_FRONTEND_PATH="/mangalib/frontend"
+FLASK_FRONTEND_PATH="/mangalib/frontend" \
+FLASK_LIBRARY_PATHS='["/var/manga"]'
 
 # Mount these so data survives rebuilding the container (see compose.yml)
 VOLUME ["/var/db", "/var/config"]

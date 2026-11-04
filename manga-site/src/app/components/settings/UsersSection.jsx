@@ -174,8 +174,24 @@ export function UsersSection() {
                     <p className={`text-xs ${s.muted}`}>
                       {user.role}
                       {user.id === me?.id && " • you"}
+                      {user.must_change_username && (
+                        <span className="text-amber-500"> • must choose a new username</span>
+                      )}
                     </p>
                   </div>
+                  {!locked && (
+                    <button
+                      className={`${s.button} py-1`}
+                      onClick={() => update(user, { must_change_username: !user.must_change_username })}
+                      title={
+                        user.must_change_username
+                          ? "Let them keep their current username"
+                          : "They can't use their account until they pick a new username"
+                      }
+                    >
+                      {user.must_change_username ? "Keep username" : "Require new username"}
+                    </button>
+                  )}
                   {!locked && me?.is_owner && (
                     <select
                       className={`${s.input} py-1`}

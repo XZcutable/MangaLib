@@ -6,6 +6,7 @@ from .blueprints import api, api_v1, settings
 from .constants import ENV
 from . import auth, database, frontend
 from .server import server_settings
+from .server import api as scanner
 from .blueprints import manga
 
 import os, tomllib, secrets
@@ -61,6 +62,7 @@ def create_app(config_file=None):
     api_v1.init_app(app)
     manga.init_app(app)
     settings.init_app(app)
+    scanner.add_configured_paths(app)
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(manga.bp)

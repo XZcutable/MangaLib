@@ -37,6 +37,29 @@ def test_login_returns_token_for_me(client):
     assert me.status_code == 200
     assert me.get_json()["user"]["username"] == "owner"
 
+def test_spaces_around_the_username_are_ignored(app, client):
+    assert register(client, "  owner \t").get_json()["user"]["username"] == "owner"
+    assert login(client, " owner  ").status_code == 200
+    # The classic login form too
+    response = client.post("/login", data={"username": " owner ", "password": PASSWORD})
+    assert response.status_code == 302 and "/login" not in response.headers["Location"]
+
+def test_account_saved_with_spaces_can_still_log_in(app, client):
+    """Older versions didn't trim names, so an account may be stored with spaces."""
+    register(client, "owner")
+    with app.app_context():
+        db.session.execute(text("UPDATE user SET username = ' spaced '"))
+        db.session.commit()
+    response = login(client, " spaced ")
+    assert response.status_code == 200
+    # The login spots the invalid name and makes them pick a new one
+    assert response.get_json()["user"]["must_change_username"] is True
+    headers = {"Authorization": f"Bearer {response.get_json()['token']}"}
+    assert client.get("/api/v1/manga", headers=headers).status_code == 403
+    response = client.put("/api/v1/auth/username", headers=headers, json={"username": "spaced"})
+    assert response.get_json()["user"] == {**response.get_json()["user"], "username": "spaced", "must_change_username": False}
+    assert client.get("/api/v1/manga", headers=headers).status_code == 200
+
 def test_unapproved_user_cannot_log_in(app, client, auth):
     # The owner (an admin) can add users. Those are approved, so make one that isn't.
     app.config["ALLOW_NEW_USERS"] = True
@@ -225,6 +248,15 @@ def test_cors_preflight_for_app_origin(client):
     })
     assert response.status_code == 200
     assert response.headers["Access-Control-Allow-Origin"] == "capacitor://localhost"
+
+def test_cors_allows_every_method_the_app_uses(client):
+    for method in ("GET", "POST", "PUT", "PATCH", "DELETE"):
+        response = client.options("/api/v1/manga/1", headers={
+            "Origin": "http://localhost",
+            "Access-Control-Request-Method": method,
+            "Access-Control-Request-Headers": "Authorization, Content-Type",
+        })
+        assert method in response.headers.get("Access-Control-Allow-Methods", ""), method
 
 def test_cors_rejects_unknown_origin(client):
     response = client.get("/api/v1/server/info", headers={"Origin": "https://evil.example"})

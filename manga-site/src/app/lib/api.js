@@ -4,11 +4,13 @@
 let serverUrl = ""
 let token = null
 let onUnauthorized = () => {}
+let onUsernameChangeRequired = () => {}
 
 export function configure(options) {
   if ("server" in options) serverUrl = options.server ?? ""
   if ("token" in options) token = options.token
   if ("onUnauthorized" in options) onUnauthorized = options.onUnauthorized
+  if ("onUsernameChangeRequired" in options) onUsernameChangeRequired = options.onUsernameChangeRequired
 }
 
 export class ApiError extends Error {
@@ -48,6 +50,8 @@ async function request(path, { method = "GET", body, signal, server } = {}) {
   const data = await response.json().catch(() => null)
   if (!response.ok) {
     if (response.status === 401 && token) onUnauthorized()
+    // An admin flagged the account while the app was open
+    if (data?.error?.code === "username_change_required") onUsernameChangeRequired()
     throw new ApiError(
       response.status,
       data?.error?.code ?? "error",

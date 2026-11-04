@@ -66,6 +66,8 @@ export function AuthProvider({ children }) {
         // The token was revoked or expired while using the app
         clearToken().then(() => setStatus("logged-out"))
       },
+      // Shows the "choose a new username" screen (RequireAuth) without waiting for the next refresh
+      onUsernameChangeRequired: () => setUser((current) => current && { ...current, must_change_username: true }),
     })
     restore()
   }, [restore, clearToken])

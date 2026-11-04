@@ -37,6 +37,7 @@ def test_classic_ui_moves_under_classic(client):
     register(client, "owner")
     response = client.post("/classic/login", data={"username": "owner", "password": PASSWORD})
     assert response.status_code == 302
+    assert response.headers["Location"].endswith("/classic/")  # Not the new UI's home
 
     page = client.get("/classic/manga/all")
     html = page.get_data(as_text=True)

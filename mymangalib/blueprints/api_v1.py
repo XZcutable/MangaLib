@@ -36,7 +36,7 @@ def init_app(app: Flask):
         # Allows FLASK_CORS_ORIGINS="https://a.example,https://b.example"
         origins = [origin.strip() for origin in origins.split(",") if origin.strip()]
     CORS(app, resources={f"{API_V1_PREFIX}*": {"origins": origins}},
-         allow_headers=["Authorization", "Content-Type"], methods=["GET", "POST", "PUT", "DELETE"])
+         allow_headers=["Authorization", "Content-Type"], methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 
     @app.errorhandler(HTTPException)
     def json_errors_for_api(error: HTTPException):

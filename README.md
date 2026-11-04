@@ -1,6 +1,28 @@
 # MyMangaLibrary #
 MyMangaLibrary is self hosted manga reading website. It aims to give users the features they expect from a manga reading websites while also keeping control of their data. It also strives to be flexible enough to allow a savy user to share their collections with others or customize their own experience without having to write the backend.
 
+## Quick start with Docker ##
+Needs Docker with Compose (Docker Desktop on Windows and macOS).
+
+1. Clone the project. Put your manga in a `manga` folder next to `compose.yml`, or change `./manga` in `compose.yml` to where your manga already lives.
+2. Start the server:
+
+   ```sh
+   docker compose up -d --build
+   ```
+
+3. Open http://localhost:5000 and create the owner account. Your manga is already there: the library folder is added and scanned on first start.
+
+**Already running an older version?** Follow [UPGRADING.md](UPGRADING.md) first. The original Docker setup kept its database inside the container, so it has to be copied out before upgrading.
+
+Notes:
+- **Phones and other computers** connect to `http://<this computer's IP>:5000`, in a browser or in the Android app ([releases](https://github.com/XZcutable/MangaLib/releases)).
+- **Data:** the database, cover cache and `config.toml` (with a random secret key) are kept in `./data`. Back it up; rebuilding or updating the container doesn't touch it.
+- **Adding manga later:** copy it into the manga folder, then use Settings → Library → Scan.
+- **Logs:** `docker compose logs -f` shows the first-start scan and any warnings.
+- **Updating:** `git pull`, then `docker compose up -d --build`.
+- **Classic interface:** still available at http://localhost:5000/classic/.
+
 ## Deployment or Development ##
 To setup, first you must clone the project and have python installed. Some systems may use python3, but this will assume just 'python' will work. 
 

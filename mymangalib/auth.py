@@ -18,6 +18,35 @@ from sqlalchemy import func, select
 valid_password_regex = r"^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&\.,*-_()]).{6,20}$"
 valid_password_pattern = re.compile(valid_password_regex)
 
+def username_problem(username: str) -> str | None:
+    """Why a username isn't allowed, or None when it's fine."""
+    if not username or not username.strip():
+        return "Username is required"
+    if username != username.strip():
+        return "Usernames can't start or end with a space"
+    return None
+
+def rename_user(user: User, new_username: str) -> str | None:
+    """Changes the username and clears a required change. Returns an error message, or None when it worked.
+    Spaces around the new name are removed first."""
+    new_username = (new_username or "").strip()
+    problem = username_problem(new_username)
+    if problem is not None:
+        return problem
+    if user.must_change_username and new_username == user.username:
+        return "Choose a different username"
+    existing = db_engine.session.scalar(select(User).where(func.lower(User.username) == new_username.lower()))
+    if existing is not None and existing.id != user.id:
+        return "That username is taken"
+    user.username = new_username
+    user.must_change_username = False
+    db_engine.session.commit()
+    return None
+
+# Pages and API routes a user who has to change their username can still use
+CLASSIC_RENAME_ENDPOINTS = {"settings.index", "auth.changeUsername", ENDPOINT.AUTH_LOGOUT, "static"}
+API_RENAME_ENDPOINTS = {"api_v1.me", "api_v1.change_username", "api_v1.logout", "api_v1.server_info"}
+
 def init_app(app: Flask):    
     app.cli.add_command(register_user)
     app.cli.add_command(change_user_role)
@@ -58,7 +87,11 @@ def load_logged_in_user():
         session["requested_url"] = request.base_url
         print(session["requested_url"])
         return redirect(url_for(ENDPOINT.AUTH_LOGIN))
-    
+
+    if g.user.must_change_username and request.endpoint not in CLASSIC_RENAME_ENDPOINTS:
+        flash("Choose a new username to keep using your account", "error")
+        return redirect(url_for("settings.index"))
+
 API_V1_PREFIX = "/api/v1/"
 # Endpoints of /api/v1 that work without logging in
 API_PUBLIC_ENDPOINTS = {"api_v1.server_info", "api_v1.login", "api_v1.register"}
@@ -94,6 +127,8 @@ def load_api_user():
         return None
     if g.user is None:
         return api_error(401, "unauthorized", "Login required")
+    if g.user.must_change_username and request.endpoint not in API_RENAME_ENDPOINTS:
+        return api_error(403, "username_change_required", "Choose a new username to keep using your account")
 
 @bp.before_app_request
 def before_app_request():
@@ -146,19 +181,13 @@ def changePassword():
 
 @bp.route(ROUTE.CHANGE_USERNAME, methods=["POST"])
 def changeUsername():
-    new_username = request.form["new-username"]
-
-    existing_user = User.query.where(func.lower(User.username) == new_username.lower()).one_or_none()
-
-    if existing_user is None:
-        user: User = User.query.get({"id": g.user['id']})
-        user.username = new_username
-        db_engine.session.commit()
+    error = rename_user(g.user, request.form.get("new-username", ""))
+    if error is None:
         flash("Changed Username", "success")
     else:
-        flash("Username Already Exists", "error")
+        flash(error, "error")
 
-    return redirect(request.referrer)
+    return redirect(request.referrer or url_for("settings.index"))
 
 
 @bp.route(ROUTE.REGISTER, methods=('GET', 'POST'))
@@ -180,7 +209,7 @@ def register():
     error = None
 
     if request.method == 'POST':
-        username = request.form['username']
+        username = request.form['username'].strip()
         password = request.form['password']
 
         if not username:
@@ -221,6 +250,7 @@ def registration_rules() -> tuple[bool, bool]:
 def register_account(username: str, password: str, registration_open: bool, auto_approve: bool) -> tuple[User | None, str | None]:
     """Creates a user. The first account becomes the owner even when registration is closed.
     Returns (user, None) or (None, error message)."""
+    username = username.strip()
     existing_user = db_engine.session.scalar(select(User).where(func.lower(User.username) == username.lower()))
     if existing_user is not None:
         return None, f"User {username} is already registered"
@@ -243,13 +273,19 @@ def register_account(username: str, password: str, registration_open: bool, auto
     return user, None
 
 def check_credentials(username: str, password: str) -> tuple[User | None, str | None]:
-    user: User = User.query.filter_by(username=username).first()
+    # Spaces around the name are ignored. Accounts saved with them (before names were trimmed) still match as typed.
+    user: User = User.query.filter_by(username=username.strip()).first() \
+        or User.query.filter_by(username=username).first()
     if user is None:
         return None, 'Invalid username'
     elif not check_password_hash(user.password, password):
         return None, 'Incorrect password'
     elif not user.approved:
         return None, 'Account is waiting for approval'
+    # Names saved before the username rules (e.g. with spaces around them) have to be changed
+    if username_problem(user.username) is not None and not user.must_change_username:
+        user.must_change_username = True
+        db_engine.session.commit()
     return user, None
 
 @bp.route(ROUTE.LOGIN, methods=('GET', 'POST'))
@@ -267,7 +303,8 @@ def login():
         user, error = check_credentials(username, password)
 
         if error is None:
-            landing_page = session.get("requested_url", "/")
+            # url_for, not "/": when the new UI is at /, the classic home is /classic/
+            landing_page = session.get("requested_url") or url_for('manga.home')
             session.clear()
             session['user_id'] = user.id
             g.user = user
@@ -369,6 +406,10 @@ def get_owner() -> User:
 @click.option("-p", "--password")
 @click.option("-r", "--role", default="user")
 def register_user(username, password, role):
+    username = (username or "").strip()
+    if username_problem(username) is not None:
+        click.echo(username_problem(username))
+        return
     if User.query.filter_by(username=username).first() is None:
         user: User = User.create(username=username, password_hash=generate_password_hash(password))
         db_engine.session.add(user)

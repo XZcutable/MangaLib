@@ -31,3 +31,10 @@ Android releases are published to https://github.com/XZcutable/MangaLib/releases
 
 ## Docker
 `Dockerfile` has a Node stage that builds `manga-site` and sets `FRONTEND_PATH`; the server runs with waitress.
+- `FLASK_LIBRARY_PATHS='["/var/manga"]'`: `LIBRARY_PATHS` folders are registered and scanned at startup, but only when no library folders exist yet (`add_configured_paths` in `server/api.py`). Pages are stored with absolute paths, so upgraded servers keep their old folders, and adding a second mount of the same files would duplicate every manga.
+- Upgrading from the original version (before `41d5c34`): see `UPGRADING.md`. Old Docker installs keep the DB inside the container at `/usr/local/var/mymangalib-instance/database.db`. The scan runs before requests are served, because a background scan could collide with SQLite's write lock.
+- `PYTHONUNBUFFERED=1` is needed, or nothing the server prints reaches `docker compose logs`.
+- **Testing on this PC:** Docker isn't on Windows; it runs inside WSL Ubuntu (`wsl -d Ubuntu --cd /mnt/c/Users/RNGAb/Documents/projects/mymanga -- bash -lc "docker compose up -d --build"`). The user's account is in the docker group, so no sudo is needed.
+  - WSL stops the distro when no `wsl` command is running, which kills the container mid-test (it looks like a crash with exit code 0). Keep a background `wsl -d Ubuntu -- sleep infinity` running while testing.
+  - localhost:5000 on Windows reaches the container, but the LAN doesn't. For the phone, use `adb reverse tcp:5000 tcp:5000` and connect the app to `localhost:5000`.
+  - Compose data goes to `./data` (gitignored); delete it to test a fresh first start.

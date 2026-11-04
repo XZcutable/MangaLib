@@ -8,8 +8,8 @@ services:
             # Database and config (the config, with a random secret key, is created on first start)
             - ./data/db:/var/db
             - ./data/config:/var/config
-            # Your manga library. Change the left side to where your manga lives,
-            # then add /var/manga as a library folder in Settings > Library.
+            # Your manga library. Change the left side to where your manga lives. It's added to the
+            # library and scanned on first start; scan again from Settings > Library after adding manga.
             - ./manga:/var/manga:ro
         # The new interface is at http://localhost:5000 and the classic one at http://localhost:5000/classic/
         restart: unless-stopped

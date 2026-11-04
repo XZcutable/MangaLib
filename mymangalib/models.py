@@ -48,6 +48,9 @@ class User(Model):
     role: Mapped[str] = mapped_column(default=Access.USER.toString())
     date_created: Mapped[str] = mapped_column(default=None)
     email: Mapped[Optional[str]] = mapped_column(default=None)
+    # Set by an admin, or at login when the stored name breaks the username rules. Until the user picks a
+    # new name, the server only lets them change it or log out. Nullable so older databases get the column.
+    must_change_username: Mapped[Optional[bool]] = mapped_column(default=False, nullable=True)
 
     def __repr__(self):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
@@ -66,6 +69,7 @@ class User(Model):
             "is_owner": role == Access.OWNER,
             "is_admin": role >= Access.ADMIN,
             "is_mod": role >= Access.MODERATOR,
+            "must_change_username": bool(self.must_change_username),
         }
 
 # Settings changed from the web interface. They override config.toml, which only sets the starting values.

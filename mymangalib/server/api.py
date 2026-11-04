@@ -1,4 +1,4 @@
-from ..server.settings import has_path
+from ..server.settings import has_path, add_path, get_paths, update_paths
 
 
 from ..database import db, SUPPORTED_IMAGE_TYPES, SUPPORTED_ARCHIVE_TYPES
@@ -245,3 +245,30 @@ def scan_path(path: str, rescan_exisitng: bool = False):
             new_manga.append(manga)
 
     return new_manga
+
+def add_configured_paths(app) -> None:
+    """Gives a new server (e.g. in Docker) its library: the LIBRARY_PATHS folders from the config are
+    registered and scanned before requests are served.
+
+    Only when no library folders are registered yet. An existing server keeps its own folders, so an upgraded
+    install whose library lives elsewhere doesn't get the same manga added twice, and a folder the owner
+    removed doesn't come back."""
+    configured = app.config.get("LIBRARY_PATHS") or []
+    if isinstance(configured, str):
+        configured = [configured]
+    with app.app_context():
+        update_paths()
+        if not configured or get_paths():
+            return
+        added = []
+        for path in configured:
+            path = os.path.normpath(str(path)).replace("\\", "/")
+            if not os.path.isdir(path):
+                print(f"LIBRARY_PATHS: '{path}' isn't a folder, skipped")
+            elif not has_path(path):
+                add_path(path)
+                added.append(path)
+        if added:
+            print(f"Added library folders {added}, scanning them...")
+            result = scan_library(added)
+            print(f"Scan done: {result['added']} manga added")

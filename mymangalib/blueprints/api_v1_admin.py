@@ -9,7 +9,7 @@ from flask import g, request
 from sqlalchemy import func, select
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from ..auth import api_access, api_error, valid_password_pattern
+from ..auth import api_access, api_error, rename_user, valid_password_pattern
 from ..database import db
 from ..enum import Access
 from ..models import ContentTag, Manga, User, UserMangaData
@@ -51,14 +51,13 @@ def change_password():
 @api_access()
 def change_username():
     username = json_body().get("username")
-    if not isinstance(username, str) or not username.strip():
+    if not isinstance(username, str):
         return api_error(400, "bad_request", "Username is required")
-    username = username.strip()
-    existing = db.session.scalar(select(User).where(func.lower(User.username) == username.lower()))
-    if existing is not None and existing.id != g.user.id:
-        return api_error(409, "username_taken", "That username is taken")
-    g.user.username = username
-    db.session.commit()
+    error = rename_user(g.user, username)
+    if error == "That username is taken":
+        return api_error(409, "username_taken", error)
+    if error is not None:
+        return api_error(400, "bad_username", error)
     return {"user": account_json(g.user)}
 
 # --- Users (admin) ---
@@ -104,8 +103,12 @@ def update_user(user_id: int):
 
     body = json_body()
     approved = optional_bool(body, "approved")
+    must_change_username = optional_bool(body, "must_change_username")
     role = body.get("role")
 
+    if must_change_username is not None:
+        # Admins can make anyone below the owner pick a new name, e.g. one that's offensive or confusing
+        user.must_change_username = must_change_username
     if role is not None:
         # Only the owner hands out roles, and there is only ever one owner
         if Access.fromString(g.user.role) != Access.OWNER:
