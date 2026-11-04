@@ -24,7 +24,7 @@ def isValidFile(dir: str, file: str, filters: tuple | None):
             if filters is None:
                 return True
             else:
-                return os.path.splitext(file)[1] in filters
+                return os.path.splitext(file)[1].lower() in filters
     
     return False
 
@@ -65,7 +65,7 @@ def lsFiles(dir: str | None, filters: tuple | None):
     
     dir = os.path.normpath(dir).replace('\\', '/')
     if os.path.isfile(dir):
-        if filters is None or os.path.splitext(dir)[1] in filters:
+        if filters is None or os.path.splitext(dir)[1].lower() in filters:
             return [ dir ]
         else:
             return []
@@ -75,6 +75,7 @@ def lsFiles(dir: str | None, filters: tuple | None):
 
 def scan_archive_as_manga(archive_path: str, archive_name: str, rescan_exisitng: bool = False):
     archive_name, archive_ext = os.path.splitext(archive_name)
+    archive_ext = archive_ext.lower()
 
     manga: Manga = db.Manga.getOrCreate(title=archive_name, manga_path=archive_path)
     if not manga.new and not rescan_exisitng:
@@ -133,6 +134,7 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
         chapter: Chapter = None
         if chapter_name in chapter_archives:
             archive_name, archive_ext = os.path.splitext(chapter_name)
+            archive_ext = archive_ext.lower()
             chapter = db.Chapter.create(chapter_path=chapter_path, number=next_chapter_number, title=archive_name, archive_type=archive_ext)
             db.Chapter.from_archive(chapter, archive_path=chapter_path, archive_ext=archive_ext)
         else:

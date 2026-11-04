@@ -39,7 +39,9 @@ def make_thumbnail(image_data: bytes) -> Optional[bytes]:
             if pixmap.alpha:
                 pixmap = pymupdf.Pixmap(pixmap, 0)
         return pixmap.tobytes("jpg", jpg_quality=JPEG_QUALITY)
-    except (RuntimeError, ValueError) as error:
+    except Exception as error:
+        # MuPDF can't decode some formats (e.g. WebP) and raises its own error types.
+        # The cover route then serves the original image instead.
         print(f"Unable to make thumbnail: {error}")
         return None
 
