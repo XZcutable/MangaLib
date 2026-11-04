@@ -115,6 +115,11 @@ export const api = {
   saveProgress: (id, chapter, page) =>
     request(`/manga/${id}/progress`, { method: "PUT", body: { chapter, page } }),
   setState: (id, state) => request(`/manga/${id}/state`, { method: "PUT", body: state }),
+  suggestMetadata: (id, changes) =>
+    request(`/manga/${id}/metadata/suggestions`, { method: "POST", body: { changes } }),
+  withdrawSuggestion: (id) => request(`/manga/${id}/metadata/suggestions/mine`, { method: "DELETE" }),
+  setChaptersRead: (id, chapters, is_read) =>
+    request(`/manga/${id}/chapters/state`, { method: "PUT", body: { chapters, is_read } }),
   tags: () => request("/tags"),
 
   // Account
@@ -130,10 +135,16 @@ export const api = {
   deleteTag: (tag) => request(`/tags/${encodeURIComponent(tag)}`, { method: "DELETE" }),
   setMangaTags: (id, tags) => request(`/manga/${id}/tags`, { method: "PUT", body: { tags } }),
   editManga: (id, changes) => request(`/manga/${id}`, { method: "PATCH", body: changes }),
+  suggestions: () => request("/admin/metadata/suggestions"),
+  reviewSuggestion: (id, approve) =>
+    request(`/admin/metadata/suggestions/${id}/${approve ? "approve" : "reject"}`, { method: "POST" }),
+  job: (id) => request(`/admin/jobs/${id}`),
 
   // Owner
   deleteManga: (id) => request(`/manga/${id}`, { method: "DELETE" }),
   rescanManga: (id) => request(`/manga/${id}/rescan`, { method: "POST" }),
+  crunchManga: (id, chapters) => request(`/manga/${id}/crunch`, { method: "POST", body: chapters ? { chapters } : {} }),
+  unpackManga: (id, chapters) => request(`/manga/${id}/unpack`, { method: "POST", body: chapters ? { chapters } : {} }),
   library: () => request("/library"),
   addLibraryPath: (path) => request("/library/paths", { method: "POST", body: { path } }),
   removeLibraryPath: (path) =>

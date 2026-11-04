@@ -1,5 +1,5 @@
 import { Link } from "react-router"
-import { BookCheck, Heart } from "lucide-react"
+import { BookCheck, Heart, Star } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ImageWithFallback } from "./figma/ImageWithFallback"
 import { useTheme } from "../context/ThemeContext"
@@ -27,7 +27,7 @@ export function MangaCard({ manga, showProgress = false, showUpdated = false }) 
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
             <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
               <div
-                className="bg-blue-500 h-2 rounded-full"
+                className="bg-brand-500 h-2 rounded-full"
                 style={{ width: `${percent}%` }}
               />
             </div>
@@ -39,6 +39,15 @@ export function MangaCard({ manga, showProgress = false, showUpdated = false }) 
               </p>
             )}
           </div>
+        )}
+        {manga.rating?.count > 0 && (
+          <span
+            className="absolute top-2 left-2 inline-flex items-center gap-0.5 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded"
+            aria-label={`Average score ${manga.rating.average.toFixed(1)} out of 10`}
+          >
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+            {manga.rating.average.toFixed(1)}
+          </span>
         )}
         <div className="absolute top-2 right-2 flex gap-1">
           {user?.is_favorite && (
@@ -57,7 +66,7 @@ export function MangaCard({ manga, showProgress = false, showUpdated = false }) 
       <div className="space-y-1">
         {!hideTitle && (
           <h3
-            className={`font-semibold line-clamp-2 group-hover:text-blue-400 transition-colors ${
+            className={`font-semibold line-clamp-2 group-hover:text-brand-400 transition-colors ${
               theme === "dark" ? "text-gray-100" : "text-gray-900"
             }`}
           >
@@ -71,7 +80,7 @@ export function MangaCard({ manga, showProgress = false, showUpdated = false }) 
           {manga.total_chapters} {manga.total_chapters === 1 ? "chapter" : "chapters"}
         </div>
         {showUpdated && manga.last_updated && (
-          <div className="text-xs text-blue-500">
+          <div className="text-xs text-brand-500">
             Updated {formatDistanceToNow(parseServerDate(manga.last_updated), { addSuffix: true })}
           </div>
         )}

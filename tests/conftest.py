@@ -61,6 +61,7 @@ DATABASE_PATH="{(tmp_path / 'test.db').as_posix()}"
     config_path.write_text("\n".join(kept) + f"\n{extra_config}\n")
     app = create_app(str(config_path))
     app.config["TESTING"] = True
+    app.config["JOBS_INLINE"] = True
     app.config["THUMBNAIL_CACHE_PATH"] = str(tmp_path / "covers")
     app.config["TEST_LIBRARY"] = library_path.as_posix()
     scan(app, app.config["TEST_LIBRARY"])

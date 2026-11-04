@@ -21,7 +21,7 @@ export function UpdateDialog({ update, status, progress, error, onUpdate, onAllo
       >
         <div className="p-5 pb-3">
           <h2 id="update-title" className={`flex items-center gap-2 ${s.dark ? "text-white" : "text-gray-900"}`}>
-            <Download className="w-5 h-5 text-blue-500" /> Update available
+            <Download className="w-5 h-5 text-brand-500" /> Update available
           </h2>
           <p className={`text-sm mt-1 ${s.muted}`}>
             Version {update.version} {update.installed && `(you have ${update.installed})`}
@@ -40,7 +40,7 @@ export function UpdateDialog({ update, status, progress, error, onUpdate, onAllo
             <div>
               <div className={`h-2 rounded-full overflow-hidden ${s.dark ? "bg-gray-800" : "bg-gray-200"}`}>
                 <div
-                  className={`h-full bg-blue-600 transition-[width] ${percent === null ? "w-1/3 animate-pulse" : ""}`}
+                  className={`h-full bg-brand-600 transition-[width] ${percent === null ? "w-1/3 animate-pulse" : ""}`}
                   style={percent === null ? undefined : { width: `${percent}%` }}
                 />
               </div>
@@ -49,7 +49,7 @@ export function UpdateDialog({ update, status, progress, error, onUpdate, onAllo
           )}
 
           {status === "needs-permission" && (
-            <div className={`text-sm p-3 rounded-md ${s.dark ? "bg-blue-950/50 text-blue-200" : "bg-blue-50 text-blue-900"}`}>
+            <div className={`text-sm p-3 rounded-md ${s.dark ? "bg-brand-950/50 text-brand-200" : "bg-brand-50 text-brand-900"}`}>
               Android needs your permission for myMangaLib to install updates. Turn on{" "}
               <strong>Allow from this source</strong>, then come back. The update installs straight away.
             </div>

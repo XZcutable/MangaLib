@@ -29,20 +29,20 @@ export function Random() {
         <button
           onClick={() => surprise(true)}
           disabled={picking}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-60 transition-colors"
         >
           <Shuffle className="w-4 h-4" /> Random unread
         </button>
         <button
           onClick={() => surprise(false)}
           disabled={picking}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-500 rounded-md hover:bg-blue-600/10 disabled:opacity-60 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-brand-600 text-brand-500 rounded-md hover:bg-brand-600/10 disabled:opacity-60 transition-colors"
         >
           <Shuffle className="w-4 h-4" /> Anything
         </button>
         <button
           onClick={list.reload}
-          className="px-4 py-2 text-blue-500 rounded-md hover:bg-blue-600/10 transition-colors"
+          className="px-4 py-2 text-brand-500 rounded-md hover:bg-brand-600/10 transition-colors"
         >
           Shuffle again
         </button>

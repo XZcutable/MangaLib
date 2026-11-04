@@ -121,7 +121,7 @@ export function LibrarySection() {
             <li key={path} className="flex items-center gap-2 px-3 py-2">
               <span className={`flex-1 min-w-0 truncate font-mono text-sm ${s.text}`}>{path}</span>
               <button
-                className={`p-2 rounded-md ${s.muted} hover:text-blue-500`}
+                className={`p-2 rounded-md ${s.muted} hover:text-brand-500`}
                 onClick={() => scan(path)}
                 disabled={scanning !== null}
                 aria-label={`Scan ${path}`}

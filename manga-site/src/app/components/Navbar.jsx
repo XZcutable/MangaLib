@@ -2,6 +2,7 @@ import {
   Book,
   BookmarkCheck,
   ChevronDown,
+  Download,
   Folder,
   Heart,
   History,
@@ -13,6 +14,7 @@ import {
   Settings,
   Shuffle,
   Sparkles,
+  Star,
   Sun,
   User,
 } from "lucide-react"
@@ -20,6 +22,8 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router"
 import { useState, useRef, useEffect } from "react"
 import { useTheme } from "../context/ThemeContext"
 import { useAuth } from "../context/AuthContext"
+import { offlineAvailable } from "../lib/offline"
+import { useServerFeatures } from "../lib/features"
 
 // Same icons as the classic interface. Like the classic navbar, the labels drop away on smaller
 // screens and the icons stay, so every section is one tap away instead of hidden in a menu.
@@ -36,6 +40,9 @@ const accountItems = [
   { label: "Favorites", path: "/favorites", icon: Heart },
   { label: "To Read", path: "/bookmarks", icon: BookmarkCheck },
   { label: "History", path: "/history", icon: History },
+  { label: "Top Rated", path: "/top-rated", icon: Star },
+  // Downloads only exist in the Android app
+  ...(offlineAvailable ? [{ label: "Downloads", path: "/downloads", icon: Download }] : []),
   { label: "Log Out", path: "/logout", icon: LogOut },
 ]
 
@@ -64,7 +71,7 @@ function SearchBox({ className = "", autoFocus = false, onDone }) {
         aria-label="Search manga"
         autoFocus={autoFocus}
         enterKeyHint="search"
-        className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
+        className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent ${
           theme === "dark"
             ? "bg-gray-800 border-gray-700 text-white placeholder-gray-400"
             : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
@@ -83,7 +90,11 @@ export function Navbar() {
   const { theme, toggleTheme } = useTheme()
   const { user } = useAuth()
   const dark = theme === "dark"
-  const pending = user?.pending_users ?? 0
+  // Sign-ups and metadata suggestions waiting for an admin
+  const pendingUsers = user?.pending_users ?? 0
+  const { ratings } = useServerFeatures()
+  const menuItems = accountItems.filter((item) => ratings || item.path !== "/top-rated")
+  const pending = pendingUsers + (user?.pending_suggestions ?? 0)
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -129,7 +140,7 @@ export function Navbar() {
                   aria-current={active ? "page" : undefined}
                   className={`bounce-on-hover flex items-center gap-2 p-2 xl:px-3 rounded-md transition-colors ${
                     active
-                      ? "bg-blue-600 text-white"
+                      ? "bg-brand-600 text-white"
                       : dark
                         ? "text-gray-300 hover:bg-gray-800 hover:text-white"
                         : "text-gray-700 hover:bg-gray-100"
@@ -179,10 +190,10 @@ export function Navbar() {
                 <ChevronDown className={`w-4 h-4 ${dark ? "text-gray-400" : "text-gray-500"}`} />
                 {pending > 0 && (
                   <span
-                    className={`absolute top-1.5 left-6 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ${
+                    className={`absolute top-1.5 left-6 w-2.5 h-2.5 rounded-full bg-brand-500 ring-2 ${
                       dark ? "ring-gray-900" : "ring-white"
                     }`}
-                    aria-label="Sign-ups waiting"
+                    aria-label="Waiting for review"
                   />
                 )}
               </button>
@@ -196,12 +207,12 @@ export function Navbar() {
                   <p className={`px-4 py-2 text-sm sm:hidden ${dark ? "text-gray-400" : "text-gray-500"}`}>
                     Signed in as {user?.username}
                   </p>
-                  {accountItems.map(({ label, path, icon: Icon }) => {
+                  {menuItems.map(({ label, path, icon: Icon }) => {
                     const showCount = path === "/settings" && pending > 0
                     return (
                       <Link
                         key={path}
-                        to={showCount ? "/settings#users" : path}
+                        to={showCount ? (pendingUsers > 0 ? "/settings#users" : "/settings#suggestions") : path}
                         onClick={() => setIsAccountOpen(false)}
                         className={menuRow}
                       >
@@ -209,8 +220,8 @@ export function Navbar() {
                         {label}
                         {showCount && (
                           <span
-                            className="ml-auto inline-flex min-w-5 h-5 px-1.5 items-center justify-center rounded-full bg-blue-600 text-white text-xs"
-                            aria-label={`${pending} waiting for approval`}
+                            className="ml-auto inline-flex min-w-5 h-5 px-1.5 items-center justify-center rounded-full bg-brand-600 text-white text-xs"
+                            aria-label={`${pending} waiting for review`}
                           >
                             {pending}
                           </span>

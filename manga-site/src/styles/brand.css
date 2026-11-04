@@ -1,0 +1,58 @@
+/* Accent ("brand") colors. Components use brand-* classes; the accent picked in Settings
+   sets data-accent on <html>. Values are Tailwind's own blue, purple and red scales. */
+:root,
+:root[data-accent="blue"] {
+  --brand-50: oklch(97% 0.014 254.604);
+  --brand-100: oklch(93.2% 0.032 255.585);
+  --brand-200: oklch(88.2% 0.059 254.128);
+  --brand-300: oklch(80.9% 0.105 251.813);
+  --brand-400: oklch(70.7% 0.165 254.624);
+  --brand-500: oklch(62.3% 0.214 259.815);
+  --brand-600: oklch(54.6% 0.245 262.881);
+  --brand-700: oklch(48.8% 0.243 264.376);
+  --brand-800: oklch(42.4% 0.199 265.638);
+  --brand-900: oklch(37.9% 0.146 265.522);
+  --brand-950: oklch(28.2% 0.091 267.935);
+}
+
+:root[data-accent="purple"] {
+  --brand-50: oklch(97.7% 0.014 308.299);
+  --brand-100: oklch(94.6% 0.033 307.174);
+  --brand-200: oklch(90.2% 0.063 306.703);
+  --brand-300: oklch(82.7% 0.119 306.383);
+  --brand-400: oklch(71.4% 0.203 305.504);
+  --brand-500: oklch(62.7% 0.265 303.9);
+  --brand-600: oklch(55.8% 0.288 302.321);
+  --brand-700: oklch(49.6% 0.265 301.924);
+  --brand-800: oklch(43.8% 0.218 303.724);
+  --brand-900: oklch(38.1% 0.176 304.987);
+  --brand-950: oklch(29.1% 0.149 302.717);
+}
+
+:root[data-accent="red"] {
+  --brand-50: oklch(97.1% 0.013 17.38);
+  --brand-100: oklch(93.6% 0.032 17.717);
+  --brand-200: oklch(88.5% 0.062 18.334);
+  --brand-300: oklch(80.8% 0.114 19.571);
+  --brand-400: oklch(70.4% 0.191 22.216);
+  --brand-500: oklch(63.7% 0.237 25.331);
+  --brand-600: oklch(57.7% 0.245 27.325);
+  --brand-700: oklch(50.5% 0.213 27.518);
+  --brand-800: oklch(44.4% 0.177 26.899);
+  --brand-900: oklch(39.6% 0.141 25.723);
+  --brand-950: oklch(25.8% 0.092 26.042);
+}
+
+@theme inline {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+}

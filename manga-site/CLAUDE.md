@@ -20,6 +20,9 @@ AGENTS.md describes the Figma Make environment. Locally, no dev server is runnin
 - `src/app/components/settings/*`: owner/admin settings. `SettingSwitch` shows the disabled state and keeps its layout fixed.
 - Show the site name with `siteName` from `useAuth()` (the owner's `site_name`), never a hard-coded "myMangaLib". The only fixed "myMangaLib" is the server check in `connect()`.
 - `RequireAuth` shows `ChooseUsername` instead of the app while `user.must_change_username` is set. `api.js` flips it on when any request returns `username_change_required`.
+- Accent colors: use `brand-*` classes (never `blue-*`); values per accent in `styles/brand.css`, picked in Settings → Appearance (`ThemeContext`).
+- Reader modes: paged or vertical scroll (`components/VerticalReader.jsx`). "Auto" uses the series' `reading_hint` (webtoon format/genre), then page shape (median height/width ≥ 2), cached per series in localStorage. Direction is per series, falling back to the hint, then the global setting.
+- Offline downloads (Android only): `lib/offline.js` + `context/DownloadsContext.jsx` keep a per-server manifest in Preferences; native `OfflinePlugin`/`OfflineDownloader`/`DownloadService` (foreground service, dataSync) fetch pages to `filesDir/offline`. Offline, `RequireAuth` allows only `/downloads` and `/read/*`; progress is queued and sent on reconnect.
 - Navigation and icons follow the classic UI (`components/Navbar.jsx`). The reader (`pages/Reader.jsx`) has edge tap zones with a glow, swipe-follow, and page/chapter pickers.
 
 ## Android app

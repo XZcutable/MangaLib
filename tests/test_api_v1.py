@@ -16,7 +16,7 @@ def manga_id_by_title(client, auth, title):
 
 def test_server_info_is_public_and_reports_setup(client):
     info = client.get("/api/v1/server/info").get_json()
-    assert info["api_version"] == 1
+    assert info["api_version"] == 2
     assert info["needs_setup"] is True
     assert info["registration_open"] is True
 
@@ -265,6 +265,58 @@ def test_state_toggles_feed_lists(client, auth):
     client.put(f"/api/v1/manga/{beta}/state", headers=auth, json={"is_favorite": False})
     assert client.get("/api/v1/manga?list=favorites", headers=auth).get_json()["items"] == []
     assert client.get("/api/v1/manga?list=queued", headers=auth).get_json()["total"] == 1
+
+def test_ratings_are_personal_with_an_average(client, auth):
+    alpha = manga_id_by_title(client, auth, "Alpha")
+    beta = manga_id_by_title(client, auth, "Beta")
+    response = client.put(f"/api/v1/manga/{alpha}/state", headers=auth, json={"rating": 8})
+    assert response.get_json()["rating"] == {"mine": 8, "average": 8.0, "count": 1}
+
+    # Registering while signed in as the owner creates an approved account
+    client.post("/api/v1/auth/register", headers=auth, json={"username": "reader", "password": PASSWORD})
+    reader = {"Authorization": f"Bearer {login(client, 'reader').get_json()['token']}"}
+    client.put(f"/api/v1/manga/{alpha}/state", headers=reader, json={"rating": 5})
+
+    info = client.get(f"/api/v1/manga/{alpha}", headers=reader).get_json()
+    assert info["rating"] == {"mine": 5, "average": 6.5, "count": 2}
+    item = [i for i in client.get("/api/v1/manga?list=all", headers=reader).get_json()["items"] if i["id"] == alpha][0]
+    assert item["rating"] == {"average": 6.5, "count": 2}
+
+    rated = client.get("/api/v1/manga?list=rated", headers=auth).get_json()["items"]
+    assert [i["id"] for i in rated] == [alpha]
+
+    for bad in (0, 11, 7.5, "9", True):
+        assert client.put(f"/api/v1/manga/{alpha}/state", headers=auth, json={"rating": bad}).status_code == 400
+    cleared = client.put(f"/api/v1/manga/{alpha}/state", headers=auth, json={"rating": None}).get_json()
+    assert cleared["rating"] == {"mine": None, "average": 5.0, "count": 1}
+
+def test_chapters_can_be_marked_read_one_at_a_time(client, auth):
+    alpha = manga_id_by_title(client, auth, "Alpha")
+    read = lambda: [c["is_read"] for c in client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()["chapters"]]
+    assert read() == [False, False]
+
+    # Reaching a chapter's last page marks it read, but not the series
+    client.put(f"/api/v1/manga/{alpha}/progress", headers=auth, json={"chapter": 1, "page": 3})
+    assert read() == [True, False]
+    assert client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()["user"]["is_read"] is False
+
+    # Marking the remaining chapter finishes the series; unmarking one reopens it
+    response = client.put(f"/api/v1/manga/{alpha}/chapters/state", headers=auth, json={"chapters": [2], "is_read": True})
+    assert response.get_json()["read_chapters"] == [1, 2]
+    assert response.get_json()["user"]["is_read"] is True
+    response = client.put(f"/api/v1/manga/{alpha}/chapters/state", headers=auth, json={"chapters": [1], "is_read": False})
+    assert response.get_json()["user"]["is_read"] is False
+    assert read() == [False, True]
+
+    # The series-wide switches apply to every chapter
+    client.put(f"/api/v1/manga/{alpha}/state", headers=auth, json={"is_read": True})
+    assert read() == [True, True]
+    client.put(f"/api/v1/manga/{alpha}/state", headers=auth, json={"is_read": False, "reset": True})
+    assert read() == [False, False]
+
+    assert client.put(f"/api/v1/manga/{alpha}/chapters/state", headers=auth, json={"chapters": [9], "is_read": True}).status_code == 404
+    assert client.put(f"/api/v1/manga/{alpha}/chapters/state", headers=auth, json={"chapters": [], "is_read": True}).status_code == 400
+    assert client.put(f"/api/v1/manga/{alpha}/chapters/state", headers=auth, json={"chapters": [1], "is_read": "yes"}).status_code == 400
 
 def test_search_and_random(client, auth):
     results = client.get("/api/v1/manga/search?q=alpha", headers=auth).get_json()

@@ -12,8 +12,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from ..auth import api_access, api_error, rename_user, valid_password_pattern
 from ..database import db
 from ..enum import Access
-from ..models import ContentTag, Manga, User, UserMangaData
-from ..server import api as scanner, settings as library_settings, tokens, server_settings
+from ..models import ContentTag, Manga, MetadataSuggestion, User, UserChapterData, UserMangaData
+from ..server import api as scanner, settings as library_settings, tokens, server_settings, jobs, repack
+from ..server import metadata as series_metadata
 from .api import valid_tag_pattern
 from .api_v1 import account_json, bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
 
@@ -86,6 +87,8 @@ def delete_user(user_id: int):
     for token in tokens.user_tokens(user.id):
         db.session.delete(token)
     db.session.query(UserMangaData).filter(UserMangaData.user_id == user.id).delete()
+    db.session.query(UserChapterData).filter(UserChapterData.user_id == user.id).delete()
+    db.session.query(MetadataSuggestion).filter(MetadataSuggestion.user_id == user.id).delete()
     db.session.delete(user)
     db.session.commit()
     return {"success": True}
@@ -182,9 +185,15 @@ def set_manga_tags(manga_id: int):
 @bp.route("/manga/<int:manga_id>", methods=["PATCH"])
 @api_access(Access.ADMIN)
 def edit_manga(manga_id: int):
-    """{"title": "New title"} renames it. {"title": null} goes back to the folder or file name."""
+    """{"title": "New title"} renames it. {"title": null} goes back to the folder or file name.
+    {"metadata": {...}} changes series details like an approved suggestion, including writing them into the files."""
     manga = get_manga_or_404(manga_id)
     body = json_body()
+    changes = None
+    if "metadata" in body:
+        changes, problem = series_metadata.clean(body["metadata"])
+        if problem:
+            return api_error(400, "bad_request", problem)
     if "title" in body:
         title = body["title"]
         if title is None:
@@ -193,14 +202,60 @@ def edit_manga(manga_id: int):
             manga.title = title.strip()
         else:
             return api_error(400, "bad_request", "Title can't be empty")
+    job = None
+    if changes:
+        changes = series_metadata.differences(manga, changes)
+        if changes:
+            job = series_metadata.apply(manga, changes)
     db.session.commit()
-    return {"id": manga.id, "title": manga.title, "original_title": manga.original_title}
+    return {"id": manga.id, "title": manga.title, "original_title": manga.original_title,
+            "metadata": series_metadata.current(manga), "job": job}
+
+# --- Metadata suggestions (admin) ---
+
+@bp.route("/admin/metadata/suggestions")
+@api_access(Access.ADMIN)
+def list_suggestions():
+    """Pending suggestions, oldest first, with each field's current value next to the suggested one."""
+    suggestions = db.session.scalars(
+        select(MetadataSuggestion).where(MetadataSuggestion.status == "pending").order_by(MetadataSuggestion.id)
+    ).all()
+    return {"suggestions": [series_metadata.suggestion_json(s, include_manga=True) for s in suggestions]}
+
+def review_suggestion(suggestion_id: int, approve: bool):
+    suggestion = db.session.get(MetadataSuggestion, suggestion_id)
+    if suggestion is None or suggestion.status != "pending":
+        return api_error(404, "not_found", "That suggestion is no longer waiting for review")
+    job = series_metadata.review(suggestion, g.user.id, approve)
+    return {"suggestion": series_metadata.suggestion_json(suggestion), "job": job}
+
+@bp.route("/admin/metadata/suggestions/<int:suggestion_id>/approve", methods=["POST"])
+@api_access(Access.ADMIN)
+def approve_suggestion(suggestion_id: int):
+    return review_suggestion(suggestion_id, approve=True)
+
+@bp.route("/admin/metadata/suggestions/<int:suggestion_id>/reject", methods=["POST"])
+@api_access(Access.ADMIN)
+def reject_suggestion(suggestion_id: int):
+    return review_suggestion(suggestion_id, approve=False)
+
+@bp.route("/admin/jobs/<job_id>")
+@api_access(Access.ADMIN)
+def job_status(job_id: str):
+    job = jobs.get(job_id)
+    if job is None:
+        return api_error(404, "not_found", "No such job (finished jobs are forgotten after a restart)")
+    return {"job": job}
 
 @bp.route("/manga/<int:manga_id>", methods=["DELETE"])
 @api_access(Access.OWNER)
 def delete_manga(manga_id: int):
     """Removes the manga from the library. Files on disk are not touched, so a later scan adds it back."""
     manga = get_manga_or_404(manga_id)
+    # A later scan adds it back under a new id, so its reading data would be orphaned
+    db.session.query(UserMangaData).filter(UserMangaData.manga_id == manga.id).delete()
+    db.session.query(UserChapterData).filter(UserChapterData.manga_id == manga.id).delete()
+    db.session.query(MetadataSuggestion).filter(MetadataSuggestion.manga_id == manga.id).delete()
     db.session.delete(manga)
     db.session.commit()
     db.Manga.update_manga_count()
@@ -221,6 +276,34 @@ def rescan_manga(manga_id: int):
         return api_error(422, "rescan_failed", f"Couldn't rescan: {error}")
     db.session.commit()
     return {"success": True, "total_chapters": len(manga.chapters)}
+
+# --- Crunching and unpacking (owner) ---
+
+def start_repack(manga_id: int, kind: str):
+    manga = get_manga_or_404(manga_id)
+    if jobs.active_for(manga.id):
+        return api_error(409, "busy", "This series is already being changed. Wait for that to finish.")
+    numbers = json_body().get("chapters")
+    if numbers is not None and (not isinstance(numbers, list) or not all(isinstance(n, int) and not isinstance(n, bool) for n in numbers)):
+        return api_error(400, "bad_request", "chapters must be a list of chapter numbers")
+    eligible = repack.crunchable(manga) if kind == "crunch" else repack.unpackable(manga)
+    if not [n for n in (numbers if numbers is not None else eligible) if n in eligible]:
+        what = "image folders to crunch" if kind == "crunch" else ".cbz or .zip chapters to unpack"
+        return api_error(400, "nothing_to_do", f"No {what}")
+    job = jobs.submit(kind, manga.id, lambda job: repack.run(kind, manga_id, numbers, job))
+    return {"job": job}, 202
+
+@bp.route("/manga/<int:manga_id>/crunch", methods=["POST"])
+@api_access(Access.OWNER)
+def crunch_manga(manga_id: int):
+    """Packs image-folder chapters into .cbz files. {"chapters": [1, 2]} limits it to those chapters."""
+    return start_repack(manga_id, "crunch")
+
+@bp.route("/manga/<int:manga_id>/unpack", methods=["POST"])
+@api_access(Access.OWNER)
+def unpack_manga(manga_id: int):
+    """Extracts .cbz/.zip chapters into image folders. {"chapters": [1, 2]} limits it to those chapters."""
+    return start_repack(manga_id, "unpack")
 
 # --- Library folders and scanning (owner) ---
 

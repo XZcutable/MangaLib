@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react"
-import { Navigate, useLocation } from "react-router"
+import { Link, Navigate, useLocation } from "react-router"
 import { BookOpen, Moon, Server, Sun } from "lucide-react"
 import { useAuth } from "../context/AuthContext"
 import { useTheme } from "../context/ThemeContext"
+import { useDownloads } from "../context/DownloadsContext"
 import { isNative } from "../lib/storage"
 
 // Server address (mobile app), login and registration
 export function Connect() {
   const auth = useAuth()
+  const downloads = useDownloads()
   const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const dark = theme === "dark"
@@ -74,7 +76,7 @@ export function Connect() {
     })
   }
 
-  const input = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
+  const input = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent ${
     dark
       ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500"
       : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
@@ -94,7 +96,7 @@ export function Connect() {
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-blue-500" />
+            <BookOpen className="w-6 h-6 text-brand-500" />
             <span className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>{auth.siteName}</span>
           </div>
           <button
@@ -111,10 +113,20 @@ export function Connect() {
         ) : auth.status === "offline" && !askServer ? (
           <div className="space-y-4">
             <p className={muted}>Can't reach {auth.server || "the server"}. Check it's running and that you're on the right network.</p>
-            <button onClick={auth.retry} className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button onClick={auth.retry} className="w-full py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700">
               Try again
             </button>
-            <button onClick={() => setEditingServer(true)} className="w-full py-2 text-blue-500 text-sm">
+            {downloads.hasDownloads && (
+              <Link
+                to="/downloads"
+                className={`block w-full py-2 text-center rounded-md border ${
+                  dark ? "border-gray-700 text-gray-200" : "border-gray-300 text-gray-800"
+                }`}
+              >
+                Read downloaded chapters
+              </Link>
+            )}
+            <button onClick={() => setEditingServer(true)} className="w-full py-2 text-brand-500 text-sm">
               Use a different server
             </button>
           </div>
@@ -140,11 +152,11 @@ export function Connect() {
               />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
-            <button disabled={busy} className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60">
+            <button disabled={busy} className="w-full py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-60">
               {busy ? "Checking…" : "Connect"}
             </button>
             {editingServer && (
-              <button type="button" onClick={() => setEditingServer(false)} className="w-full py-2 text-sm text-blue-500">
+              <button type="button" onClick={() => setEditingServer(false)} className="w-full py-2 text-sm text-brand-500">
                 Cancel
               </button>
             )}
@@ -187,14 +199,14 @@ export function Connect() {
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             {notice && <p className="text-sm text-green-500">{notice}</p>}
-            <button disabled={busy} className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60">
+            <button disabled={busy} className="w-full py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-60">
               {busy ? "Please wait…" : mode === "register" ? "Create account" : "Log in"}
             </button>
             {canRegister && !info?.needs_setup && (
               <button
                 type="button"
                 onClick={() => setMode(mode === "register" ? "login" : "register")}
-                className="w-full text-sm text-blue-500"
+                className="w-full text-sm text-brand-500"
               >
                 {mode === "register" ? "I already have an account" : "Create an account"}
               </button>

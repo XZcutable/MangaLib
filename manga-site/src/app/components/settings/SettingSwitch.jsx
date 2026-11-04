@@ -24,8 +24,8 @@ export function SettingSwitch({ label, description, checked, onChange, disabled 
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative shrink-0 mt-0.5 w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-not-allowed ${
-          checked ? "bg-blue-600" : s.dark ? "bg-gray-700" : "bg-gray-300"
+        className={`relative shrink-0 mt-0.5 w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed ${
+          checked ? "bg-brand-600" : s.dark ? "bg-gray-700" : "bg-gray-300"
         }`}
       >
         <span

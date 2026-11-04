@@ -6,6 +6,7 @@ import { router } from "./routes"
 import { ThemeProvider, useTheme } from "./context/ThemeContext"
 import { AuthProvider } from "./context/AuthContext"
 import { UpdateProvider } from "./context/UpdateContext"
+import { DownloadsProvider } from "./context/DownloadsContext"
 
 function ThemedToaster() {
   const { theme } = useTheme()
@@ -17,10 +18,12 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <UpdateProvider>
-          <RouterProvider router={router} />
-          <ThemedToaster />
-        </UpdateProvider>
+        <DownloadsProvider>
+          <UpdateProvider>
+            <RouterProvider router={router} />
+            <ThemedToaster />
+          </UpdateProvider>
+        </DownloadsProvider>
       </AuthProvider>
     </ThemeProvider>
   )

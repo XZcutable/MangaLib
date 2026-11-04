@@ -7,6 +7,7 @@ from ..models import Manga, Chapter, Page
 from datetime import datetime, timezone
 import os
 from ..helpers import sort_paths, release_year_from_names
+from . import metadata
 
 
 
@@ -94,7 +95,8 @@ def scan_archive_as_manga(archive_path: str, archive_name: str, rescan_exisitng:
     else:
         manga.chapters.append(chapter)
 
-    manga.release_year = release_year_from_names([archive_name])
+    metadata.import_from_files(manga)
+    manga.release_year = manga.manga_metadata.year or release_year_from_names([archive_name])
     if manga.new:
         manga.last_updated = manga.date_uploaded
     return manga
@@ -156,7 +158,8 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
     if len(manga.chapters) <= 0:
         return None
 
-    manga.release_year = release_year_from_names([manga_name, *[chapter.title for chapter in manga.chapters]])
+    metadata.import_from_files(manga)
+    manga.release_year = manga.manga_metadata.year or release_year_from_names([manga_name, *[chapter.title for chapter in manga.chapters]])
     if manga.new:
         manga.last_updated = manga.date_uploaded
     elif len(manga.chapters) > previous_chapter_count:

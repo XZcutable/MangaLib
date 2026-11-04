@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import Select, select, func
 
 from ..database import db
-from ..models import Manga, Chapter, Page, UserMangaData
+from ..models import Manga, Chapter, Page, UserMangaData, UserChapterData
 from ..constants import SQL
 from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 from .search import create_search_query
@@ -12,8 +12,11 @@ from .search import create_search_query
 # "updated": most recently given new chapters or added. "newest": most recent release year first,
 # manga without a year last. History, favorites and queued default to most recent first.
 # "random" ignores sort and paging gives a new shuffle each time. "unread" is everything the user hasn't finished.
-LISTS = ("all", "updated", "newest", "history", "favorites", "queued", "unread", "random")
-DEFAULT_SORT = {"all": "asc", "updated": "desc", "newest": "desc", "history": "desc", "favorites": "desc", "queued": "desc", "unread": "asc", "random": "asc"}
+# "rated": rated manga only, highest average score first.
+LISTS = ("all", "updated", "newest", "history", "favorites", "queued", "unread", "random", "rated")
+DEFAULT_SORT = {"all": "asc", "updated": "desc", "newest": "desc", "history": "desc", "favorites": "desc", "queued": "desc", "unread": "asc", "random": "asc", "rated": "desc"}
+
+RATING_MIN, RATING_MAX = 1, 10
 
 def list_query(list_name: str, user_id: int, sort: Optional[str] = None) -> Select:
     """Returns a (id, title) query for one of LISTS. Raises ValueError for an unknown list."""
@@ -40,6 +43,18 @@ def list_query(list_name: str, user_id: int, sort: Optional[str] = None) -> Sele
             .outerjoin(UserMangaData, (UserMangaData.manga_id == Manga.id) & (UserMangaData.user_id == user_id))
             .where((UserMangaData.is_read == None) | (~UserMangaData.is_read))
             .order_by(SQL.ORDER[sort](Manga.id))
+        )
+    elif list_name == "rated":
+        average = (
+            select(UserMangaData.manga_id, func.avg(UserMangaData.rating).label("average"))
+            .where(UserMangaData.rating.is_not(None))
+            .group_by(UserMangaData.manga_id)
+            .subquery()
+        )
+        return (
+            select(Manga.id, Manga.title)
+            .join(average, average.c.manga_id == Manga.id)
+            .order_by(SQL.ORDER[sort](average.c.average), Manga.title)
         )
     elif list_name == "history":
         return QUERY_HISTORY(user_id, sort)
@@ -109,11 +124,14 @@ def reading_state(user_id: int, manga_ids: list[int]) -> dict[int, dict]:
         ).all()
     }
 
+    ratings = rating_summaries(manga_ids)
+
     states = {
         manga_id: {
             "total_chapters": chapter_counts.get(manga_id, 0),
             "release_year": details.get(manga_id, (None, None))[0],
             "last_updated": details.get(manga_id, (None, None))[1],
+            "rating": ratings.get(manga_id, EMPTY_RATING),
             "user": None,
         }
         for manga_id in manga_ids
@@ -124,6 +142,77 @@ def reading_state(user_id: int, manga_ids: list[int]) -> dict[int, dict]:
             row, states[row.manga_id]["total_chapters"], current_chapter_pages.get(row.manga_id, 0)
         )
     return states
+
+EMPTY_RATING = {"average": None, "count": 0}
+
+def rating_summaries(manga_ids: list[int]) -> dict[int, dict]:
+    """Average score (one decimal) and number of ratings per manga. Unrated manga are left out."""
+    rows = db.session.execute(
+        select(UserMangaData.manga_id, func.avg(UserMangaData.rating), func.count(UserMangaData.rating))
+        .where(UserMangaData.manga_id.in_(manga_ids), UserMangaData.rating.is_not(None))
+        .group_by(UserMangaData.manga_id)
+    ).all()
+    return {manga_id: {"average": round(average, 1), "count": count} for manga_id, average, count in rows}
+
+def rating_summary(manga_id: int) -> dict:
+    return rating_summaries([manga_id]).get(manga_id, EMPTY_RATING)
+
+def valid_rating(value) -> bool:
+    return value is None or (isinstance(value, int) and not isinstance(value, bool) and RATING_MIN <= value <= RATING_MAX)
+
+def read_chapters(user_id: int, manga_id: int) -> set[int]:
+    return set(db.session.scalars(
+        select(UserChapterData.chapter_number)
+        .where(UserChapterData.user_id == user_id, UserChapterData.manga_id == manga_id, UserChapterData.is_read)
+    ))
+
+def _mark_chapters(user_id: int, manga_id: int, numbers, is_read: bool):
+    """Sets the read mark on chapters without committing."""
+    numbers = set(numbers)
+    if not numbers:
+        return
+    existing = {
+        row.chapter_number: row
+        for row in db.session.scalars(
+            select(UserChapterData).where(
+                UserChapterData.user_id == user_id,
+                UserChapterData.manga_id == manga_id,
+                UserChapterData.chapter_number.in_(numbers),
+            )
+        )
+    }
+    now = db.getDatetimeISONow()
+    for number in numbers:
+        row = existing.get(number)
+        if row is None:
+            if not is_read:
+                continue
+            row = UserChapterData(user_id=user_id, manga_id=manga_id, chapter_number=number)
+            db.session.add(row)
+        if row.is_read != is_read or (is_read and row.read_when is None):
+            row.is_read = is_read
+            row.read_when = now if is_read else None
+
+def set_chapters_read(user_id: int, manga: Manga, numbers: list[int], is_read: bool) -> Optional[UserMangaData]:
+    """Marks chapters read or unread. Returns None if a number isn't a chapter of this manga.
+    Reading every chapter marks the manga read, and unmarking any chapter clears that."""
+    all_numbers = {chapter.number for chapter in manga.chapters}
+    if not set(numbers) <= all_numbers:
+        return None
+
+    user_data: UserMangaData = db.UserMangaData.getOrCreate(user_id, manga)
+    if user_data.new:
+        db.session.add(user_data)
+    _mark_chapters(user_id, manga.id, numbers, is_read)
+    db.session.flush()
+
+    if is_read and read_chapters(user_id, manga.id) >= all_numbers:
+        user_data.is_read = True
+        user_data.is_queued = False
+    elif not is_read:
+        user_data.is_read = False
+    db.session.commit()
+    return user_data
 
 def progress_fraction(user_data: UserMangaData, total_chapters: int, pages_in_current_chapter: int) -> float:
     """0 to 1. Unopened manga are 0 and read manga are 1."""
@@ -152,6 +241,9 @@ def save_progress(user_id: int, manga: Manga, chapter_number, page_number) -> Op
     user_data.current_page = page.number
     user_data.last_seen = db.getDatetimeISONow()
 
+    if page.number >= len(chapter.pages):
+        _mark_chapters(user_id, manga.id, [chapter.number], True)
+
     if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
         user_data.is_read = True
         user_data.is_queued = False
@@ -160,9 +252,13 @@ def save_progress(user_id: int, manga: Manga, chapter_number, page_number) -> Op
     db.session.commit()
     return user_data
 
+UNCHANGED = object()
+
 def update_state(user_id: int, manga: Manga, is_read: Optional[bool] = None, reset: bool = False,
-                 is_favorite: Optional[bool] = None, is_queued: Optional[bool] = None) -> UserMangaData:
-    """Changes read, favorite and queue flags. A None flag is left as it is."""
+                 is_favorite: Optional[bool] = None, is_queued: Optional[bool] = None,
+                 rating=UNCHANGED) -> UserMangaData:
+    """Changes read, favorite and queue flags and the rating. A None flag is left as it is;
+    rating=None clears the rating. Marking the manga read or unread does the same to every chapter."""
     user_data: UserMangaData = db.UserMangaData.getOrCreate(user_id, manga)
     db.session.begin_nested()
     if user_data.new:
@@ -170,9 +266,13 @@ def update_state(user_id: int, manga: Manga, is_read: Optional[bool] = None, res
 
     if is_read is not None:
         user_data.is_read = is_read
+        _mark_chapters(user_id, manga.id, [chapter.number for chapter in manga.chapters], is_read)
     if reset:
         user_data.current_chapter = 1
         user_data.current_page = 1
+        _mark_chapters(user_id, manga.id, [chapter.number for chapter in manga.chapters], False)
+    if rating is not UNCHANGED:
+        user_data.rating = rating
     if is_favorite is not None:
         user_data.is_favorite = is_favorite
         user_data.favorited_when = db.getDatetimeISONow() if is_favorite else ""

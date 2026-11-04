@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 import { useAuth } from "../context/AuthContext"
-import { useTheme } from "../context/ThemeContext"
+import { ACCENTS, useTheme } from "../context/ThemeContext"
 import { useStyles } from "../hooks/useStyles"
 import { api, parseServerDate, serverBase } from "../lib/api"
 import { getLocal, setLocal, isNative } from "../lib/storage"
@@ -10,18 +10,21 @@ import { AccountSection } from "../components/settings/AccountSection"
 import { LibrarySection } from "../components/settings/LibrarySection"
 import { TagsSection } from "../components/settings/TagsSection"
 import { UsersSection } from "../components/settings/UsersSection"
+import { SuggestionsSection } from "../components/settings/SuggestionsSection"
 import { SettingSwitch } from "../components/settings/SettingSwitch"
 import { UpdatesSection } from "../components/settings/UpdatesSection"
 import { canSelfUpdate } from "../lib/updater"
+import { useServerFeatures } from "../lib/features"
 
 const formatDate = (value) => (value ? parseServerDate(value).toLocaleString() : "never")
 
 export function Settings() {
-  const { toggleTheme } = useTheme()
+  const { toggleTheme, accent, setAccent } = useTheme()
   const { user, server, serverInfo, logout, changeServer } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const s = useStyles()
+  const features = useServerFeatures()
 
   // Links like /settings#users (from the "waiting" badge) open at that section
   useEffect(() => {
@@ -56,11 +59,16 @@ export function Settings() {
 
   const sections = [
     { id: "account", label: "Account" },
+    { id: "appearance", label: "Appearance" },
     { id: "reading", label: "Reading" },
     ...(user?.is_owner ? [{ id: "library", label: "Library" }] : []),
     ...(user?.is_admin
       ? [
           { id: "users", label: user.pending_users ? `Users (${user.pending_users} waiting)` : "Users" },
+          ...(features.seriesDetails ? [{
+            id: "suggestions",
+            label: user.pending_suggestions ? `Suggestions (${user.pending_suggestions})` : "Suggestions",
+          }] : []),
           { id: "tags", label: "Tags" },
         ]
       : []),
@@ -79,6 +87,16 @@ export function Settings() {
             </a>
           ))}
         </nav>
+      )}
+
+      {features.serverOutdated && (
+        <div className={`${s.card} border-amber-500/50`}>
+          <h2 className={s.heading}>Your server is older than this app</h2>
+          <p className={`text-sm ${s.muted}`}>
+            Scores, chapter read marks, series details and some reader options need a newer server, so
+            they're hidden for now. {user?.is_owner ? "Update the server to use them." : "Ask the server's owner to update it."}
+          </p>
+        </div>
       )}
 
       <div id="account" className="scroll-mt-20">
@@ -106,7 +124,7 @@ export function Settings() {
                 href={`${serverBase()}${serverInfo.classic_ui_path}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block mt-2 text-sm text-blue-500 hover:text-blue-400"
+                className="inline-block mt-2 text-sm text-brand-500 hover:text-brand-400"
               >
                 Open the classic web interface
               </a>
@@ -115,18 +133,58 @@ export function Settings() {
         </AccountSection>
       </div>
 
+      <section id="appearance" className={`${s.card} scroll-mt-20`}>
+        <h2 className={s.heading}>Appearance</h2>
+        <p className={`text-sm mb-4 ${s.muted}`}>Applies on this device.</p>
+        <div className={`divide-y ${s.divider}`}>
+          <SettingSwitch
+            label="Dark theme"
+            description="Dark backgrounds, easier on the eyes at night."
+            checked={s.dark}
+            onChange={toggleTheme}
+          />
+          <div className="py-3">
+            <p className={s.text}>Accent color</p>
+            <p className={`text-sm mt-0.5 mb-3 ${s.muted}`}>Used for buttons, links and highlights.</p>
+            <div className="flex flex-wrap gap-3" role="radiogroup" aria-label="Accent color">
+              {ACCENTS.map((option) => {
+                const selected = option.id === accent
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setAccent(option.id)}
+                    className={`flex items-center gap-2 pl-2 pr-4 py-2 rounded-full border transition-colors ${
+                      selected
+                        ? "border-brand-500 bg-brand-600/15"
+                        : s.dark
+                          ? "border-gray-700 hover:bg-gray-800"
+                          : "border-gray-300 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
+                      style={{ background: option.swatch }}
+                    >
+                      {selected ? "✓" : ""}
+                    </span>
+                    <span className={s.text}>{option.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="reading" className={`${s.card} scroll-mt-20`}>
         <h2 className={s.heading}>Reading</h2>
         <div className={`divide-y ${s.divider}`}>
           <SettingSwitch
-            label="Dark theme"
-            description="Applies on this device."
-            checked={s.dark}
-            onChange={toggleTheme}
-          />
-          <SettingSwitch
             label="Read right to left"
-            description="For Japanese manga: the next page is on the left, and swiping right turns forward."
+            description="For Japanese manga: the next page is on the left, and swiping right turns forward. Series can override this from the reader, or from their details."
             checked={rightToLeft}
             onChange={(value) => {
               setLocal("readerDirection", value ? "rtl" : "ltr")
@@ -145,7 +203,8 @@ export function Settings() {
         </div>
         <p className={`text-sm mt-3 ${s.muted}`}>
           In the reader, tap or click the left or right edge, swipe, or use the arrow keys to turn
-          pages. The bottom bar jumps to any page or chapter.
+          pages. The bottom bar jumps to any page or chapter. Webtoons (long strips) open in vertical
+          scroll automatically; the mode button in the reader changes it for a series.
         </p>
       </section>
 
@@ -159,6 +218,11 @@ export function Settings() {
           <div id="users" className="scroll-mt-20">
             <UsersSection />
           </div>
+          {features.seriesDetails && (
+            <div id="suggestions" className="scroll-mt-20">
+              <SuggestionsSection />
+            </div>
+          )}
           <div id="tags" className="scroll-mt-20">
             <TagsSection />
           </div>
@@ -183,7 +247,7 @@ export function Settings() {
                   <p className={`truncate ${s.text}`}>
                     {device.name || "Unknown device"}
                     {device.current && (
-                      <span className="ml-2 text-xs text-blue-500">This device</span>
+                      <span className="ml-2 text-xs text-brand-500">This device</span>
                     )}
                   </p>
                   <p className={`text-xs ${s.muted}`}>Last used {formatDate(device.last_used)}</p>

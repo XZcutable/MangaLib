@@ -51,7 +51,7 @@ export function MangaSection({
           )}
         </h2>
         {seeAllPath && items.length > 0 && (
-          <Link to={seeAllPath} className="text-sm text-blue-500 hover:text-blue-400">
+          <Link to={seeAllPath} className="text-sm text-brand-500 hover:text-brand-400">
             See all
           </Link>
         )}

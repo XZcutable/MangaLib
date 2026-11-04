@@ -16,12 +16,15 @@ from ..auth import API_V1_PREFIX, api_access, api_error, check_credentials, regi
 from ..database import db
 from ..enum import Access
 from ..models import Manga, ContentTag, User
-from ..server import library, server_settings, tokens, thumbnails
+from ..server import library, server_settings, tokens, thumbnails, jobs, repack
+from ..server import metadata as series_metadata
 from . import manga as manga_views
 
 bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 
-API_VERSION = 1
+# Bump when routes or fields are added, so the app can tell what an older server lacks.
+# 2: ratings, chapter read marks, series details and suggestions, crunch/unpack, reading hints.
+API_VERSION = 2
 IMAGE_MAX_AGE = 10*24*60*60
 MAX_BATCH_SIZE = 100
 DEFAULT_CORS_ORIGINS = [
@@ -99,6 +102,7 @@ def paged_response(query, offset: int, limit: int) -> dict:
             "release_year": state.get("release_year"),
             "last_updated": state.get("last_updated"),
             "progress": state.get("progress", 0.0),
+            "rating": state.get("rating", library.EMPTY_RATING),
             "user": state.get("user"),
         })
     total = library.count(query)
@@ -115,6 +119,7 @@ def account_json(user: User) -> dict:
     data = user.toJson()
     if data["is_admin"]:
         data["pending_users"] = db.session.scalar(select(func.count()).select_from(User).where(~User.approved))
+        data["pending_suggestions"] = series_metadata.pending_count()
     return data
 
 # --- Server ---
@@ -237,16 +242,33 @@ def manga_info(manga_id: int):
     page_counts = library.chapter_page_counts(manga.id)
     user_data = db.UserMangaData.getOrCreate(g.user.id, manga)
     total_chapters = len(manga.chapters)
+    read = library.read_chapters(g.user.id, manga.id)
 
     return {
         **manga.toJson(),
         "cover_url": cover_url(manga.id),
         "tags": sorted((tag.toJson() for tag in manga.manga_metadata.tags), key=lambda tag: tag["tag"]),
         "chapters": [
-            {"number": chapter.number, "title": chapter.title, "page_count": page_counts.get(chapter.number, 0)}
+            {
+                "number": chapter.number,
+                "title": chapter.title,
+                "page_count": page_counts.get(chapter.number, 0),
+                "is_read": chapter.number in read,
+                "format": repack.chapter_format(chapter),
+            }
             for chapter in manga.chapters
         ],
         "user": user_data.toJson(),
+        "rating": {"mine": user_data.rating, **library.rating_summary(manga.id)},
+        "metadata": series_metadata.current(manga),
+        "reading_hint": series_metadata.reading_hint(manga),
+        # Owner tools: what can be crunched or unpacked, and any conversion running now
+        "repack": {
+            "crunchable": len(repack.crunchable(manga)),
+            "unpackable": len(repack.unpackable(manga)),
+            "job": jobs.active_for(manga.id),
+        } if Access.fromString(g.user.role) == Access.OWNER else None,
+        "my_suggestion": suggestion_or_none(g.user.id, manga.id),
         # Only the owner sees where files live on the server
         "path": manga.path if Access.fromString(g.user.role) == Access.OWNER else None,
         "progress": library.progress_fraction(user_data, total_chapters, page_counts.get(user_data.current_chapter, 0)),
@@ -256,6 +278,35 @@ def manga_info(manga_id: int):
             "page": user_data.current_page if not user_data.new else 1,
         },
     }
+
+def suggestion_or_none(user_id: int, manga_id: int):
+    suggestion = series_metadata.pending_for(user_id, manga_id)
+    return series_metadata.suggestion_json(suggestion) if suggestion else None
+
+@bp.route("/manga/<int:manga_id>/metadata/suggestions", methods=["POST"])
+@api_access()
+def suggest_metadata(manga_id: int):
+    """{"changes": {"summary": "...", "genres": ["Action"]}} proposes new series details for an admin to review.
+    A second suggestion for the same manga replaces the user's pending one."""
+    manga = get_manga_or_404(manga_id)
+    changes, problem = series_metadata.clean(json_body().get("changes"))
+    if problem:
+        return api_error(400, "bad_request", problem)
+    changes = series_metadata.differences(manga, changes)
+    if not changes:
+        return api_error(400, "nothing_changed", "Those details are already set")
+    suggestion = series_metadata.suggest(g.user.id, manga, changes)
+    return {"suggestion": series_metadata.suggestion_json(suggestion)}, 201
+
+@bp.route("/manga/<int:manga_id>/metadata/suggestions/mine", methods=["DELETE"])
+@api_access()
+def withdraw_suggestion(manga_id: int):
+    suggestion = series_metadata.pending_for(g.user.id, manga_id)
+    if suggestion is None:
+        return api_error(404, "not_found", "No pending suggestion")
+    db.session.delete(suggestion)
+    db.session.commit()
+    return {"success": True}
 
 @bp.route("/manga/<int:manga_id>/chapters/<int:chapter_number>")
 @api_access()
@@ -300,14 +351,35 @@ def save_progress(manga_id: int):
 def update_state(manga_id: int):
     manga = get_manga_or_404(manga_id)
     body = json_body()
+    extra = {}
+    if "rating" in body:
+        if not library.valid_rating(body["rating"]):
+            return api_error(400, "bad_request", f"rating must be a whole number from {library.RATING_MIN} to {library.RATING_MAX}, or null")
+        extra["rating"] = body["rating"]
     user_data = library.update_state(
         g.user.id, manga,
         is_read=optional_bool(body, "is_read"),
         reset=body.get("reset") is True,
         is_favorite=optional_bool(body, "is_favorite"),
         is_queued=optional_bool(body, "is_queued"),
+        **extra,
     )
-    return {"user": user_data.toJson()}
+    return {"user": user_data.toJson(), "rating": {"mine": user_data.rating, **library.rating_summary(manga.id)}}
+
+@bp.route("/manga/<int:manga_id>/chapters/state", methods=["PUT"])
+@api_access()
+def update_chapters_state(manga_id: int):
+    """{"chapters": [1, 2], "is_read": true} marks those chapters read (or unread)."""
+    manga = get_manga_or_404(manga_id)
+    body = json_body()
+    numbers, is_read = body.get("chapters"), body.get("is_read")
+    if (not isinstance(numbers, list) or not numbers or not isinstance(is_read, bool)
+            or not all(isinstance(n, int) and not isinstance(n, bool) for n in numbers)):
+        return api_error(400, "bad_request", "chapters must be a list of chapter numbers and is_read true or false")
+    user_data = library.set_chapters_read(g.user.id, manga, numbers, is_read)
+    if user_data is None:
+        return api_error(404, "not_found", "One of those chapters doesn't exist")
+    return {"user": user_data.toJson(), "read_chapters": sorted(library.read_chapters(g.user.id, manga.id))}
 
 @bp.route("/tags")
 @api_access()

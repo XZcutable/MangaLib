@@ -1,9 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import { ArrowLeft, ArrowLeftRight, Info, Maximize2, MoveLeft, MoveRight, Pin, PinOff } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  BookOpen,
+  Info,
+  Maximize2,
+  MoveLeft,
+  MoveRight,
+  Pin,
+  PinOff,
+  ScrollText,
+} from "lucide-react"
 import { api, imageUrl } from "../lib/api"
 import { getLocal, setLocal } from "../lib/storage"
 import { keepScreenOn } from "../lib/native"
+import { VerticalReader } from "../components/VerticalReader"
+import { useAuth } from "../context/AuthContext"
+import * as offline from "../lib/offline"
+
+// Downloaded pages load from the phone; everything else from the server
+const pageSrc = (page) => page.local_url ?? imageUrl(page.image_url)
 
 const PRELOAD_AHEAD = 3
 const SAVE_DELAY_MS = 600
@@ -12,6 +29,27 @@ const SAVE_DELAY_MS = 600
 const EDGE_ZONE = 0.2
 const SWIPE_DISTANCE = 40
 const DRAG_START = 15
+// Pages at least this many times taller than wide are a webtoon-style strip
+const STRIP_ASPECT = 2
+const MODES = ["auto", "paged", "vertical"]
+
+// Opens a few pages and reports whether they're long strips. Returns null if none could be measured.
+async function looksLikeStrip(urls) {
+  const sizes = await Promise.all(
+    urls.map(
+      (url) =>
+        new Promise((resolve) => {
+          const image = new Image()
+          image.onload = () => resolve(image.naturalWidth ? image.naturalHeight / image.naturalWidth : null)
+          image.onerror = () => resolve(null)
+          image.src = url
+        }),
+    ),
+  )
+  const ratios = sizes.filter((ratio) => ratio !== null).sort((a, b) => a - b)
+  if (!ratios.length) return null
+  return ratios[Math.floor(ratios.length / 2)] >= STRIP_ASPECT
+}
 
 // Full-screen page reader. URL: /read/:mangaId/:chapter/:page
 // Page turns replace the history entry, so Back leaves the reader instead of stepping through pages.
@@ -21,6 +59,18 @@ export function Reader() {
   const chapterNumber = Number(params.chapter)
   const pageNumber = Number(params.page)
   const navigate = useNavigate()
+  const { status } = useAuth()
+  const offlineMode = status === "offline"
+
+  // A downloaded chapter is read from the phone even when online. Offline, previous and next
+  // only go to other downloaded chapters.
+  const loadChapter = useCallback(
+    (number, signal) => {
+      const local = offline.localChapter(mangaId, number, { offlineOnly: offlineMode })
+      return local ? Promise.resolve(local) : api.chapter(mangaId, number, signal)
+    },
+    [mangaId, offlineMode],
+  )
 
   const [chapter, setChapter] = useState(null)
   const [error, setError] = useState(null)
@@ -31,7 +81,28 @@ export function Reader() {
   const [glow, setGlow] = useState(null) // { side, id } restarts the edge animation each time
   const [dragOffset, setDragOffset] = useState(0)
   const hoverSide = useRef(null)
-  const [rightToLeft, setRightToLeft] = useState(() => getLocal("readerDirection", "ltr") === "rtl")
+  // Direction: this series' own choice, then its details (ComicInfo), then the setting for all series
+  const [seriesDirection, setSeriesDirection] = useState(() => getLocal(`readerDirection:${mangaId}`, null))
+  const [hint, setHint] = useState(null) // { mode, direction } from the server
+  const rightToLeft = (seriesDirection ?? hint?.direction ?? getLocal("readerDirection", "ltr")) === "rtl"
+  const setRightToLeft = (update) => {
+    const value = (typeof update === "function" ? update(rightToLeft) : update) ? "rtl" : "ltr"
+    setLocal(`readerDirection:${mangaId}`, value)
+    setSeriesDirection(value)
+  }
+  // Mode: "auto" uses the series' details, then the shape of its pages
+  const [modeSetting, setModeSetting] = useState(() => {
+    const saved = getLocal(`readerMode:${mangaId}`, "auto")
+    return MODES.includes(saved) ? saved : "auto"
+  })
+  const [detected, setDetected] = useState(() => {
+    const saved = getLocal(`readerDetected:${mangaId}`, null)
+    return saved === null ? null : saved === "vertical"
+  })
+  const vertical =
+    modeSetting === "vertical" ||
+    (modeSetting === "auto" && (hint?.mode === "vertical" || (hint !== null && hint.mode === null && detected === true)))
+  const stripRef = useRef(null)
   const [fitWidth, setFitWidth] = useState(() => getLocal("readerFit", "screen") === "width")
   const touchStart = useRef(null)
   const scrollRef = useRef(null)
@@ -52,34 +123,61 @@ export function Reader() {
     keepScreenOn(true)
     return () => keepScreenOn(false)
   }, [])
-  useEffect(() => setLocal("readerDirection", rightToLeft ? "rtl" : "ltr"), [rightToLeft])
+  useEffect(() => setLocal(`readerMode:${mangaId}`, modeSetting), [modeSetting, mangaId])
   useEffect(() => setLocal("readerFit", fitWidth ? "width" : "screen"), [fitWidth])
   useEffect(() => setLocal("readerControls", pinned ? "always" : "tap"), [pinned])
 
   // Chapter titles for the chapter picker
   useEffect(() => {
     const controller = new AbortController()
-    api
-      .manga(mangaId, controller.signal)
-      .then((manga) => setChapters(manga.chapters))
-      .catch(() => {})
+    const saved = offline.mangaInfo(mangaId)
+    const use = (manga) => {
+      setChapters(manga.chapters)
+      setHint(manga.reading_hint ?? { mode: null, direction: null })
+    }
+    if (offlineMode && saved) use(saved)
+    else
+      api
+        .manga(mangaId, controller.signal)
+        .then(use)
+        .catch((error) => {
+          if (error.name === "AbortError") return
+          if (saved) use(saved)
+          else setHint({ mode: null, direction: null })
+        })
     return () => controller.abort()
-  }, [mangaId])
+  }, [mangaId, offlineMode])
 
   const flash = (side) => setGlow({ side, id: Date.now() })
 
   useEffect(() => {
     const controller = new AbortController()
     setError(null)
-    api
-      .chapter(mangaId, chapterNumber, controller.signal)
+    loadChapter(chapterNumber, controller.signal)
       .then(setChapter)
       .catch((error) => error.name !== "AbortError" && setError(error))
     return () => controller.abort()
-  }, [mangaId, chapterNumber])
+  }, [mangaId, chapterNumber, loadChapter])
 
   const loaded = chapter && chapter.manga_id === mangaId && chapter.number === chapterNumber
   const page = loaded ? chapter.pages.find((p) => p.number === pageNumber) : null
+
+  // Auto mode without a hint: measure the first pages once per series and remember the answer
+  const needsDetection = modeSetting === "auto" && hint !== null && hint.mode === null && detected === null
+  useEffect(() => {
+    if (!needsDetection || !loaded) return
+    let cancelled = false
+    looksLikeStrip(chapter.pages.slice(0, 3).map(pageSrc)).then((strip) => {
+      if (cancelled || strip === null) return
+      setLocal(`readerDetected:${mangaId}`, strip ? "vertical" : "paged")
+      setDetected(strip)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [needsDetection, loaded, chapter, mangaId])
+  // Waiting for the hint or the measurement, so a webtoon doesn't flash up as single pages first
+  const deciding = modeSetting === "auto" && (hint === null || needsDetection)
 
   // The page being shown or just requested. Taps read this instead of the URL params, because
   // the params update a render later and a quick second tap would otherwise repeat the first.
@@ -119,33 +217,43 @@ export function Reader() {
     else if (chapter.previous_chapter !== null) {
       // Lands on the last page of the previous chapter
       try {
-        const previousChapter = await api.chapter(mangaId, chapter.previous_chapter)
+        const previousChapter = await loadChapter(chapter.previous_chapter)
         goTo(previousChapter.number, previousChapter.page_count)
       } catch (error) {
         setError(error)
       }
     }
-  }, [chapter, goTo, mangaId])
+  }, [chapter, goTo, mangaId, loadChapter])
 
   // Save progress shortly after the page settles, so flicking through pages sends one request
+  // The last page of a chapter is always saved, even when it's left straight away, because
+  // reaching it marks the chapter read
+  const pageCountNow = loaded ? chapter.page_count : 0
   useEffect(() => {
     if (!page) return
-    const timer = setTimeout(() => {
-      api.saveProgress(mangaId, chapterNumber, pageNumber).catch(() => {})
-    }, SAVE_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [page, mangaId, chapterNumber, pageNumber])
+    let sent = false
+    const save = () => {
+      sent = true
+      offline.saveProgress(mangaId, chapterNumber, pageNumber, pageNumber >= pageCountNow)
+    }
+    const timer = setTimeout(save, SAVE_DELAY_MS)
+    const lastPage = pageNumber >= pageCountNow
+    return () => {
+      clearTimeout(timer)
+      if (!sent && lastPage) save()
+    }
+  }, [page, mangaId, chapterNumber, pageNumber, pageCountNow])
 
   useEffect(() => {
-    if (!loaded) return
+    if (!loaded || vertical) return
     const upcoming = chapter.pages.filter(
       (p) => p.number > pageNumber && p.number <= pageNumber + PRELOAD_AHEAD,
     )
     upcoming.forEach((p) => {
       const image = new Image()
-      image.src = imageUrl(p.image_url)
+      image.src = pageSrc(p)
     })
-  }, [loaded, chapter, pageNumber])
+  }, [loaded, chapter, pageNumber, vertical])
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0)
@@ -158,7 +266,7 @@ export function Reader() {
   // the height (but never wider than the screen). When the area is shorter, the page is shown at
   // the screen width, or its own width if that's smaller, and scrolls down.
   let pageSize = null
-  if (!fitWidth && viewport && page && natural?.url === page.image_url) {
+  if (!fitWidth && viewport && page && natural?.url === pageSrc(page)) {
     const { width: areaWidth, height: areaHeight } = viewport
     if (areaHeight >= natural.height) {
       const scale = Math.min(areaHeight / natural.height, areaWidth / natural.width)
@@ -176,6 +284,15 @@ export function Reader() {
       // WASD work like the arrow keys, but not while a picker or the slider has focus
       const letter = event.key.length === 1 ? event.key.toLowerCase() : null
       if (letter && event.target.closest?.("input, select, textarea")) return
+      if (vertical) {
+        const down = ["ArrowDown", "ArrowRight", "PageDown", " "].includes(event.key) || letter === "s" || letter === "d"
+        const up = ["ArrowUp", "ArrowLeft", "PageUp"].includes(event.key) || letter === "w" || letter === "a"
+        if (down || up) {
+          event.preventDefault()
+          stripRef.current?.scrollByScreen(down ? 1 : -1)
+        } else if (event.key === "Escape") navigate(`/manga/${mangaId}`)
+        return
+      }
       if (letter === "w" || letter === "s") {
         scrollRef.current?.scrollBy({ top: (letter === "w" ? -1 : 1) * 80 })
         return
@@ -194,7 +311,16 @@ export function Reader() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [forward, backward, next, fitWidth, pageScrolls, navigate, mangaId])
+  }, [forward, backward, next, fitWidth, pageScrolls, navigate, mangaId, vertical])
+
+  // Vertical mode reports the page in the middle of the screen; the URL follows it
+  const onStripPage = useCallback((number) => goTo(position.current.chapter, number), [goTo])
+  const onStripFinished = useCallback(() => {
+    if (chapter?.next_chapter != null) goTo(chapter.next_chapter, 1)
+  }, [chapter, goTo])
+  const nextChapterInfo = chapters.find((item) => item.number === chapter?.next_chapter)
+  const modeLabel =
+    modeSetting === "auto" ? `Auto (${vertical ? "scroll" : "pages"})` : modeSetting === "vertical" ? "Scroll" : "Pages"
 
   const zoneAt = (event) => {
     const bounds = event.currentTarget.getBoundingClientRect()
@@ -273,7 +399,7 @@ export function Reader() {
   const pageCount = chapter?.page_count ?? 0
   const iconButton = "bounce-on-hover p-2 rounded-md hover:bg-white/10 shrink-0"
   const select =
-    "bg-white/10 hover:bg-white/15 rounded-md px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500"
+    "bg-white/10 hover:bg-white/15 rounded-md px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-500"
   // Pinned bars take their own space like the classic reader; otherwise they float over the page
   const barClass = pinned
     ? "relative bg-gray-950 text-white z-10 shrink-0"
@@ -291,16 +417,27 @@ export function Reader() {
           <p className="truncate text-xs text-gray-400">{chapter?.title || `Chapter ${chapterNumber}`}</p>
         </div>
         <button
+          onClick={() => setModeSetting((mode) => MODES[(MODES.indexOf(mode) + 1) % MODES.length])}
+          className={`${iconButton} flex items-center gap-1.5 text-xs`}
+          aria-label={`Reading mode: ${modeLabel}`}
+          title="Reading mode for this series: auto, single pages, or vertical scroll (webtoon)"
+        >
+          {vertical ? <ScrollText className="bounce-icon w-4 h-4" /> : <BookOpen className="bounce-icon w-4 h-4" />}
+          <span className="hidden sm:inline">{modeLabel}</span>
+        </button>
+        <button
           onClick={() => setRightToLeft((value) => !value)}
+          hidden={vertical}
           className={`${iconButton} flex items-center gap-1.5 text-xs`}
           aria-label={rightToLeft ? "Reading right to left" : "Reading left to right"}
-          title="Page direction"
+          title="Page direction for this series"
         >
           <ArrowLeftRight className="bounce-icon w-4 h-4" />
           <span className="hidden sm:inline">{rightToLeft ? "Right to left" : "Left to right"}</span>
         </button>
         <button
           onClick={() => setFitWidth((value) => !value)}
+          hidden={vertical}
           className={`${iconButton} flex items-center gap-1.5 text-xs`}
           aria-label={fitWidth ? "Fit width" : "Fit screen"}
           title="Page size"
@@ -313,7 +450,7 @@ export function Reader() {
             setPinned((value) => !value)
             setShowControls(true)
           }}
-          className={`${iconButton} flex items-center gap-1.5 text-xs ${pinned ? "text-blue-400" : ""}`}
+          className={`${iconButton} flex items-center gap-1.5 text-xs ${pinned ? "text-brand-400" : ""}`}
           aria-pressed={pinned}
           aria-label="Keep controls visible"
           title={pinned ? "Controls always visible" : "Controls hide until you tap the middle"}
@@ -335,8 +472,8 @@ export function Reader() {
           max={pageCount || 1}
           value={pageNumber}
           onChange={(event) => goTo(chapterNumber, Number(event.target.value))}
-          className="w-full accent-blue-500"
-          style={{ direction: rightToLeft ? "rtl" : "ltr" }}
+          className="w-full accent-brand-500"
+          style={{ direction: rightToLeft && !vertical ? "rtl" : "ltr" }}
           aria-label="Page slider"
         />
       </div>
@@ -346,6 +483,7 @@ export function Reader() {
         </Link>
         <button
           onClick={backward}
+          hidden={vertical}
           className={`${iconButton} hidden sm:block`}
           aria-label={rightToLeft ? "Next page" : "Previous page"}
           title={rightToLeft ? "Next page" : "Previous page"}
@@ -367,6 +505,7 @@ export function Reader() {
         </select>
         <button
           onClick={forward}
+          hidden={vertical}
           className={`${iconButton} hidden sm:block`}
           aria-label={rightToLeft ? "Previous page" : "Next page"}
           title={rightToLeft ? "Previous page" : "Next page"}
@@ -396,8 +535,25 @@ export function Reader() {
     <div className="fixed inset-0 bg-black text-white select-none flex flex-col">
       {pinned && topBar}
       <div className="relative flex-1 min-h-0 overflow-hidden">
+        {vertical && loaded && !error && (
+          <VerticalReader
+            ref={stripRef}
+            chapter={chapter}
+            pageNumber={pageNumber}
+            pageUrl={pageSrc}
+            onPageChange={onStripPage}
+            onFinished={chapter.next_chapter != null ? onStripFinished : null}
+            nextChapterLabel={
+              chapter.next_chapter != null
+                ? nextChapterInfo?.title || `chapter ${chapter.next_chapter}`
+                : null
+            }
+            onTap={() => !pinned && setShowControls((shown) => !shown)}
+          />
+        )}
         <div
           ref={scrollRef}
+          hidden={vertical && loaded && !error}
           className={`absolute inset-0 overflow-x-hidden ${fitWidth ? "overflow-y-auto" : "overflow-y-auto flex"}`}
           style={{ touchAction: pageScrolls ? "pan-y pinch-zoom" : "pinch-zoom" }}
           onClick={onTap}
@@ -414,19 +570,19 @@ export function Reader() {
           {error ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
               <p>{error.message}</p>
-              <Link to={`/manga/${mangaId}`} className="px-4 py-2 bg-blue-600 rounded-md">
+              <Link to={`/manga/${mangaId}`} className="px-4 py-2 bg-brand-600 rounded-md">
                 Back to manga
               </Link>
             </div>
-          ) : page ? (
+          ) : page && !deciding ? (
             <img
-              key={page.image_url}
-              src={imageUrl(page.image_url)}
+              key={pageSrc(page)}
+              src={pageSrc(page)}
               alt={`Page ${pageNumber}`}
               draggable={false}
               onLoad={(event) =>
                 setNatural({
-                  url: page.image_url,
+                  url: pageSrc(page),
                   width: event.currentTarget.naturalWidth,
                   height: event.currentTarget.naturalHeight,
                 })

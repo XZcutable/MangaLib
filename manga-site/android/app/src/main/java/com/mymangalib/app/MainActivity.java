@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Plugins that live in this app (not in npm packages) are registered here
         registerPlugin(ApkUpdaterPlugin.class);
+        registerPlugin(OfflinePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

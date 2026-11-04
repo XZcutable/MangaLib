@@ -12,6 +12,8 @@ import { History } from "./pages/History"
 import { Favorites } from "./pages/Favorites"
 import { Bookmarks } from "./pages/Bookmarks"
 import { Search } from "./pages/Search"
+import { TopRated } from "./pages/TopRated"
+import { Downloads } from "./pages/Downloads"
 import { MangaInfo } from "./pages/MangaInfo"
 import { Reader } from "./pages/Reader"
 import { Connect } from "./pages/Connect"
@@ -35,6 +37,8 @@ export const router = createBrowserRouter([
           { path: "newest", Component: Newest },
           { path: "random", Component: Random },
           { path: "unread", Component: Unread },
+          { path: "top-rated", Component: TopRated },
+          { path: "downloads", Component: Downloads },
           { path: "search", Component: Search },
           { path: "manga/:mangaId", Component: MangaInfo },
           { path: "settings", Component: Settings },

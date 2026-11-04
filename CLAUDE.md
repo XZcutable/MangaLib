@@ -27,6 +27,9 @@ Android releases are published to https://github.com/XZcutable/MangaLib/releases
 - Settings the owner changes from the app live in the `ServerSetting` table (`server/server_settings.py`) and win over `config.toml`: on/off ones in `EDITABLE`, text ones (`SITE_NAME`) in `EDITABLE_TEXT`.
 - Usernames: `username_problem()` holds the rule (no leading or trailing spaces) and `rename_user()` the change, both in `auth.py`. `User.must_change_username` is set by admins or at login when a stored name breaks the rule. While it's set, only the endpoints in `API_RENAME_ENDPOINTS` / `CLASSIC_RENAME_ENDPOINTS` work, so add any endpoint a flagged user must still reach there.
 - Classic routes: `/all`, `/latest` etc. are link aliases with no view (requesting them raises `KeyError`). The real pages are under `/manga/` (e.g. `/manga/all`); use those in tests.
+- Series details: `server/comicinfo.py` reads/writes `ComicInfo.xml` (file work only); `server/metadata.py` validates, imports on scan (once, tracked by `MangaMetadata.metadata_source`) and applies edits. Users suggest (`MetadataSuggestion`), admins approve; approved edits write only the changed fields, and summary/year go to the first volume only (they're per volume in ComicInfo).
+- Slow file work (metadata write-back, crunch/unpack in `server/repack.py`) runs through `server/jobs.py`: one in-memory worker, polled with `GET /admin/jobs/<id>`. Tests set `JOBS_INLINE`. Temporary copies are hidden `.partial` files the scanner skips.
+- Per-chapter read marks (`UserChapterData`) and saved positions are keyed by chapter number; crunch/unpack remaps them by chapter title after the rescan.
 - CORS (`api_v1.init_app`) lists the allowed HTTP methods. A route with a new method won't work from the Android app until the method is added there.
 
 ### `/api/v1` conventions

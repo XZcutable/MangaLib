@@ -178,6 +178,8 @@ def init_app(app: Flask):
             db_engine.create_all()
             add_missing_columns()
             fill_missing_release_years()
+            from .server.metadata import fill_missing_from_files
+            fill_missing_from_files()
 
 def add_missing_columns():
     """create_all() only makes missing tables. This adds new nullable columns to tables that already exist."""

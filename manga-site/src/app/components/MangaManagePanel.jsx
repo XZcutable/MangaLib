@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { useAuth } from "../context/AuthContext"
 import { useStyles } from "../hooks/useStyles"
 import { api } from "../lib/api"
+import { waitForJob } from "../lib/metadata"
 
 // Admin tools on the manga page: rename and tags. The owner also gets rescan, folder location and remove.
 export function MangaManagePanel({ manga, onChanged }) {
@@ -14,6 +15,7 @@ export function MangaManagePanel({ manga, onChanged }) {
   const [allTags, setAllTags] = useState(null)
   const [selected, setSelected] = useState(() => new Set(manga.tags.map((tag) => tag.tag)))
   const [busy, setBusy] = useState(false)
+  const [job, setJob] = useState(null) // a crunch or unpack in progress
 
   useEffect(() => {
     api.tags().then(({ tags }) => setAllTags(tags)).catch(() => setAllTags([]))
@@ -45,6 +47,43 @@ export function MangaManagePanel({ manga, onChanged }) {
 
   const tagsChanged =
     selected.size !== manga.tags.length || manga.tags.some((tag) => !selected.has(tag.tag))
+
+  // Follow a conversion started here or already running when the page opened
+  useEffect(() => {
+    const running = manga.repack?.job
+    if (running && !job) follow(running)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manga.repack?.job?.id])
+
+  const follow = async (started) => {
+    setJob(started)
+    try {
+      const done = await waitForJob(started, setJob)
+      toast.success(done.message ?? "Done")
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setJob(null)
+      onChanged()
+    }
+  }
+
+  const convert = async (kind) => {
+    const count = kind === "crunch" ? manga.repack.crunchable : manga.repack.unpackable
+    const what = count === 1 ? "chapter" : "chapters"
+    const message =
+      kind === "crunch"
+        ? `Pack ${count} image-folder ${what} into .cbz files? Each folder's images are deleted once its .cbz has been written and checked. Other files in the folders are kept.`
+        : `Unpack ${count} ${what} into folders of images? Each .cbz/.zip is deleted once its pages have been extracted and checked.`
+    if (!confirm(message)) return
+    try {
+      const { job: started } =
+        kind === "crunch" ? await api.crunchManga(manga.id) : await api.unpackManga(manga.id)
+      follow(started)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
 
   const remove = () => {
     const message = `Remove "${manga.title}" from the library? Files on the server aren't deleted, so the next scan adds it back unless you move them.`
@@ -150,10 +189,53 @@ export function MangaManagePanel({ manga, onChanged }) {
               >
                 Rescan files
               </button>
-              <button className={s.dangerButton} disabled={busy} onClick={remove}>
+              <button className={s.dangerButton} disabled={busy || job} onClick={remove}>
                 Remove from library
               </button>
             </div>
+
+            {manga.repack && (
+              <div className="pt-2 space-y-3">
+                <h3 className={s.subheading}>Convert</h3>
+                <p className={`text-sm ${s.muted}`}>
+                  Crunch packs folders of page images into .cbz files. Unpack does the opposite. Reading
+                  progress, scores and read marks carry over.
+                </p>
+                {job ? (
+                  <div>
+                    <div className={`h-2 rounded-full overflow-hidden ${s.dark ? "bg-gray-800" : "bg-gray-200"}`}>
+                      <div
+                        className={`h-full bg-brand-600 transition-[width] ${job.total ? "" : "w-1/3 animate-pulse"}`}
+                        style={job.total ? { width: `${Math.round((job.done / job.total) * 100)}%` } : undefined}
+                      />
+                    </div>
+                    <p className={`text-xs mt-1 ${s.muted}`}>
+                      {job.kind === "crunch" ? "Crunching" : "Unpacking"}
+                      {job.total ? ` ${job.done} of ${job.total}` : ""}…
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      className={s.button}
+                      disabled={busy || !manga.repack.crunchable}
+                      onClick={() => convert("crunch")}
+                      title={manga.repack.crunchable ? undefined : "No image-folder chapters"}
+                    >
+                      Crunch to .cbz{manga.repack.crunchable ? ` (${manga.repack.crunchable})` : ""}
+                    </button>
+                    <button
+                      className={s.button}
+                      disabled={busy || !manga.repack.unpackable}
+                      onClick={() => convert("unpack")}
+                      title={manga.repack.unpackable ? undefined : "No .cbz or .zip chapters"}
+                    >
+                      Unpack to folders{manga.repack.unpackable ? ` (${manga.repack.unpackable})` : ""}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

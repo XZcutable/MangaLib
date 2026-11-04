@@ -32,7 +32,7 @@ export function ChooseUsername() {
     }
   }
 
-  const input = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
+  const input = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent ${
     dark
       ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500"
       : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
@@ -47,7 +47,7 @@ export function ChooseUsername() {
         }`}
       >
         <div className="flex items-center gap-2 mb-6">
-          <BookOpen className="w-6 h-6 text-blue-500" />
+          <BookOpen className="w-6 h-6 text-brand-500" />
           <span className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>{siteName}</span>
         </div>
 
@@ -81,7 +81,7 @@ export function ChooseUsername() {
           {error && <p className="text-sm text-red-500">{error}</p>}
           <button
             disabled={busy || !username.trim()}
-            className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60"
+            className="w-full py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-60"
           >
             {busy ? "Saving…" : "Save username"}
           </button>

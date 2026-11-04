@@ -109,6 +109,8 @@ class UserMangaData(Model):
     favorited_when:Mapped[Optional[str]] = mapped_column(default=None)
     queued_when:Mapped[Optional[str]] = mapped_column(default=None)
     last_seen:Mapped[Optional[str]] = mapped_column(default=None)
+    # The user's score from 1 to 10, or None when they haven't rated it
+    rating:Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
 
     manga:Mapped["Manga"] = relationship(default=None, viewonly=True)
 
@@ -126,10 +128,21 @@ class UserMangaData(Model):
             "favorited_when": self.favorited_when,
             "queued_when": self.queued_when,
             "last_seen": self.last_seen,
+            "rating": self.rating,
         }
  
     def __repr__(self):
         return f"<UserMangaData({self.user_id=}, {self.manga_id=}, {self.current_chapter=}, {self.current_page=}, {self.is_read=}, {self.is_favorite=}, {self.last_seen=})>"
+
+
+# Which chapters a user has read. Keyed by chapter number, like the saved position in UserMangaData.
+class UserChapterData(Model):
+    __tablename__ = "user_chapter_data"
+    user_id:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))
+    manga_id:Mapped[int_pk] = mapped_column(ForeignKey("manga.id"))
+    chapter_number:Mapped[int_pk]
+    is_read:Mapped[bool] = mapped_column(default=False)
+    read_when:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
 
 
 class ContentTag(Model):
@@ -159,6 +172,20 @@ class MangaMetadata(Model):
     tags:Mapped[List["ContentTag"]] = relationship(default_factory=list, secondary="manga_content_tag", back_populates="mangas")
     language:Mapped[Optional[str]] = mapped_column(default="")
 
+    # Series details, from ComicInfo.xml or approved edits (server/metadata.py)
+    summary:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    writer:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    artist:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    publisher:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    genres:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)  # comma separated
+    age_rating:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    web:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    reading_direction:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)  # "ltr" or "rtl"
+    format:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)  # e.g. "Webtoon"
+    year:Mapped[Optional[int]] = mapped_column(default=None, nullable=True)  # overrides the year in file names
+    # None: files not checked yet. "none": checked, nothing found. "file": read from ComicInfo.xml. "edited": changed on the server.
+    metadata_source:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+
     def toJson(self):
         return {
             "manga_id": self.manga_id,
@@ -168,6 +195,18 @@ class MangaMetadata(Model):
 
     def __repr__(self):
         return f"<Metadata({self.manga_id=}, {self.language=}, {self.tags=})>"
+
+# A change to a series' details proposed by a user. Admins approve or reject it.
+class MetadataSuggestion(Model):
+    __tablename__ = "metadata_suggestion"
+    id:Mapped[int_pk] = mapped_column(init=False)
+    manga_id:Mapped[int] = mapped_column(ForeignKey("manga.id"), index=True)
+    user_id:Mapped[int] = mapped_column(ForeignKey("user.id"))
+    changes:Mapped[str]  # JSON object of field: new value
+    status:Mapped[str] = mapped_column(default="pending", index=True)  # pending, approved, rejected
+    created:Mapped[Optional[str]] = mapped_column(default=None)
+    reviewed_by:Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
+    reviewed_when:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
 
 class Manga(Model):
     __tablename__ = "manga"

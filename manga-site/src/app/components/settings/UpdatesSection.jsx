@@ -29,7 +29,7 @@ export function UpdatesSection() {
         {update && (
           <>
             {" • "}
-            <button className="text-blue-500 hover:text-blue-400" onClick={openDialog}>
+            <button className="text-brand-500 hover:text-brand-400" onClick={openDialog}>
               Version {update.version} is available
             </button>
           </>
@@ -53,7 +53,7 @@ export function UpdatesSection() {
             {status === "checking" ? "Checking…" : "Check for updates"}
           </span>
         </button>
-        <a href={RELEASES_PAGE} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:text-blue-400">
+        <a href={RELEASES_PAGE} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-500 hover:text-brand-400">
           All releases
         </a>
       </div>
