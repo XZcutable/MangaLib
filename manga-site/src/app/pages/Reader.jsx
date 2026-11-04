@@ -35,6 +35,18 @@ export function Reader() {
   const [fitWidth, setFitWidth] = useState(() => getLocal("readerFit", "screen") === "width")
   const touchStart = useRef(null)
   const scrollRef = useRef(null)
+  const [viewport, setViewport] = useState(null) // size of the page area
+  const [natural, setNatural] = useState(null) // { url, width, height } of the loaded image
+
+  useEffect(() => {
+    const element = scrollRef.current
+    if (!element) return
+    const observer = new ResizeObserver(() =>
+      setViewport({ width: element.clientWidth, height: element.clientHeight }),
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     keepScreenOn(true)
@@ -142,18 +154,47 @@ export function Reader() {
   const forward = rightToLeft ? previous : next
   const backward = rightToLeft ? next : previous
 
+  // Fit screen: when the reader area is at least as tall as the page, the page is scaled to fill
+  // the height (but never wider than the screen). When the area is shorter, the page is shown at
+  // the screen width, or its own width if that's smaller, and scrolls down.
+  let pageSize = null
+  if (!fitWidth && viewport && page && natural?.url === page.image_url) {
+    const { width: areaWidth, height: areaHeight } = viewport
+    if (areaHeight >= natural.height) {
+      const scale = Math.min(areaHeight / natural.height, areaWidth / natural.width)
+      pageSize = { width: natural.width * scale, height: natural.height * scale }
+    } else {
+      const width = Math.min(areaWidth, natural.width)
+      pageSize = { width, height: (width * natural.height) / natural.width }
+    }
+  }
+  const pageScrolls = fitWidth || (pageSize && viewport && pageSize.height > viewport.height + 1)
+
   useEffect(() => {
     const onKey = (event) => {
-      if (event.key === "ArrowRight") forward()
-      else if (event.key === "ArrowLeft") backward()
-      else if (event.key === " " && !fitWidth) {
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      // WASD work like the arrow keys, but not while a picker or the slider has focus
+      const letter = event.key.length === 1 ? event.key.toLowerCase() : null
+      if (letter && event.target.closest?.("input, select, textarea")) return
+      if (letter === "w" || letter === "s") {
+        scrollRef.current?.scrollBy({ top: (letter === "w" ? -1 : 1) * 80 })
+        return
+      }
+      if (event.key === "ArrowRight" || letter === "d") forward()
+      else if (event.key === "ArrowLeft" || letter === "a") backward()
+      else if (event.key === " ") {
+        // Space scrolls a tall page first, then turns to the next one at the bottom
+        const element = scrollRef.current
+        const atBottom = !element || element.scrollTop + element.clientHeight >= element.scrollHeight - 2
+        if (pageScrolls && !atBottom) return
+        if (fitWidth) return
         event.preventDefault()
         next()
       } else if (event.key === "Escape") navigate(`/manga/${mangaId}`)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [forward, backward, next, fitWidth, navigate, mangaId])
+  }, [forward, backward, next, fitWidth, pageScrolls, navigate, mangaId])
 
   const zoneAt = (event) => {
     const bounds = event.currentTarget.getBoundingClientRect()
@@ -357,8 +398,8 @@ export function Reader() {
       <div className="relative flex-1 min-h-0 overflow-hidden">
         <div
           ref={scrollRef}
-          className={`absolute inset-0 ${fitWidth ? "overflow-y-auto" : "overflow-hidden flex items-center justify-center"}`}
-          style={{ touchAction: fitWidth ? "pan-y pinch-zoom" : "pinch-zoom" }}
+          className={`absolute inset-0 overflow-x-hidden ${fitWidth ? "overflow-y-auto" : "overflow-y-auto flex"}`}
+          style={{ touchAction: pageScrolls ? "pan-y pinch-zoom" : "pinch-zoom" }}
           onClick={onTap}
           onMouseMove={onMouseMove}
           onMouseLeave={() => (hoverSide.current = null)}
@@ -371,7 +412,7 @@ export function Reader() {
           }}
         >
           {error ? (
-            <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
+            <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
               <p>{error.message}</p>
               <Link to={`/manga/${mangaId}`} className="px-4 py-2 bg-blue-600 rounded-md">
                 Back to manga
@@ -383,14 +424,29 @@ export function Reader() {
               src={imageUrl(page.image_url)}
               alt={`Page ${pageNumber}`}
               draggable={false}
-              className={fitWidth ? "w-full h-auto" : "max-w-full max-h-full object-contain"}
+              onLoad={(event) =>
+                setNatural({
+                  url: page.image_url,
+                  width: event.currentTarget.naturalWidth,
+                  height: event.currentTarget.naturalHeight,
+                })
+              }
+              // m-auto centers a page smaller than the screen and keeps a taller one scrollable from its top
+              className={
+                fitWidth
+                  ? "w-full h-auto"
+                  : pageSize
+                    ? "m-auto shrink-0"
+                    : "m-auto max-w-full max-h-full object-contain"
+              }
               style={{
+                ...(pageSize && { width: pageSize.width, height: pageSize.height }),
                 transform: dragOffset ? `translateX(${dragOffset}px)` : undefined,
                 transition: dragOffset ? "none" : "transform 150ms ease-out",
               }}
             />
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-400">Loading…</div>
+            <div className="w-full h-full flex items-center justify-center text-gray-400">Loading…</div>
           )}
         </div>
         {glow && <div key={glow.id} className={`edge-glow edge-glow-${glow.side}`} aria-hidden="true" />}

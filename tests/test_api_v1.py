@@ -1,5 +1,7 @@
 import base64, os, time, zipfile
 
+import pymupdf
+import pytest
 from sqlalchemy import text
 
 from conftest import PNG, PASSWORD, register, login, add_volume, scan
@@ -187,26 +189,45 @@ def test_images_accept_header_or_query_token(client, auth, owner_token):
     assert client.get(f"/api/v1/manga/{beta}/chapters/1/pages/2/image?t={owner_token}").data == PNG
     assert client.get(f"/api/v1/manga/{alpha}/cover").status_code == 401
 
-def test_webp_and_uppercase_extensions(app, client, auth):
-    # MuPDF can't decode WebP, so the cover falls back to the original image
-    webp = base64.b64decode("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==")
+def small_jpeg():
+    pixmap = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 4, 4), False)
+    pixmap.clear_with(200)
+    return pixmap.tobytes("jpg")
+
+WEBP = base64.b64decode("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==")
+GIF = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+
+@pytest.mark.parametrize("ext, mimetype, data", [
+    (".png", "image/png", PNG),
+    (".jpg", "image/jpeg", small_jpeg()),
+    (".jpeg", "image/jpeg", small_jpeg()),
+    (".jfif", "image/jpeg", small_jpeg()),
+    (".gif", "image/gif", GIF),
+    (".webp", "image/webp", WEBP), # MuPDF can't decode WebP, so the cover is the original image
+])
+def test_image_types_and_uppercase_extensions(app, client, auth, ext, mimetype, data):
     library = app.config["TEST_LIBRARY"]
     os.makedirs(os.path.join(library, "Gamma"))
     with zipfile.ZipFile(os.path.join(library, "Gamma", "Gamma v01.CBZ"), "w") as archive:
-        archive.writestr("page001.webp", webp)
-        archive.writestr("page002.WEBP", webp)
+        archive.writestr(f"page001{ext}", data)
+        archive.writestr(f"page002{ext.upper()}", data)
     delta_chapter = os.path.join(library, "Delta", "Chapter 1")
     os.makedirs(delta_chapter)
-    with open(os.path.join(delta_chapter, "1.webp"), "wb") as image:
-        image.write(webp)
+    with open(os.path.join(delta_chapter, f"1{ext}"), "wb") as image:
+        image.write(data)
     scan(app, library)
 
     for title, pages in (("Gamma", 2), ("Delta", 1)):
         manga = manga_id_by_title(client, auth, title)
         cover = client.get(f"/api/v1/manga/{manga}/cover", headers=auth)
-        assert cover.status_code == 200 and cover.mimetype == "image/webp" and cover.data == webp
-        page = client.get(f"/api/v1/manga/{manga}/chapters/1/pages/{pages}/image", headers=auth)
-        assert page.status_code == 200 and page.mimetype == "image/webp" and page.data == webp
+        assert cover.status_code == 200
+        if ext == ".webp":
+            assert cover.mimetype == "image/webp" and cover.data == WEBP
+        else:
+            assert cover.mimetype == "image/jpeg" and cover.data[:2] == bytes([0xFF, 0xD8])
+        for page_number in range(1, pages + 1):
+            page = client.get(f"/api/v1/manga/{manga}/chapters/1/pages/{page_number}/image", headers=auth)
+            assert page.status_code == 200 and page.mimetype == mimetype and page.data == data
 
 def test_query_token_only_works_for_images(client, auth, owner_token):
     assert client.get(f"/api/v1/auth/me?t={owner_token}").status_code == 401
