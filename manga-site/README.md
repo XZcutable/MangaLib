@@ -60,7 +60,7 @@ pnpm release 1.1.0 --dry-run      # build the signed APK into release/ without p
 
 The script does the following:
 
-1. Checks the version is higher than the one in `package.json`.
+1. Checks the version isn't lower than the one in `package.json` and hasn't been published yet.
 2. Sets that version.
 3. Builds the web app and a signed release APK.
 4. Creates the GitHub release as a draft, uploads the APK, and publishes it only once the upload succeeds.

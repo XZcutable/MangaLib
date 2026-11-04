@@ -48,8 +48,10 @@ const compare = (a, b) => {
 }
 const [major, minor, patch] = version.split(".").map(Number)
 if (minor > 99 || patch > 99) fail("Minor and patch numbers go up to 99 (the Android version code is built from them)")
-if (compare(version, pkg.version) < 0 || (compare(version, pkg.version) === 0 && !dryRun)) {
-  fail(`${version} isn't newer than the current version ${pkg.version}. Phones only install newer versions.`)
+// The same version is fine: after a --dry-run, package.json already has it. A version that was already
+// published is caught by the GitHub check below.
+if (compare(version, pkg.version) < 0) {
+  fail(`${version} is older than the current version ${pkg.version}. Phones only install newer versions.`)
 }
 if (!existsSync(SIGNING_FILE)) fail(`No signing key settings at ${SIGNING_FILE}`)
 
