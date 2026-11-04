@@ -16,7 +16,7 @@ from ..auth import API_V1_PREFIX, api_access, api_error, check_credentials, regi
 from ..database import db
 from ..enum import Access
 from ..models import Manga, ContentTag, User
-from ..server import library, tokens, thumbnails
+from ..server import library, server_settings, tokens, thumbnails
 from . import manga as manga_views
 
 bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
@@ -121,7 +121,10 @@ def server_info():
         version = None
     needs_setup = get_owner() is None
     return {
+        # Always "myMangaLib": the app checks it to know the address is a myMangaLib server
         "name": "myMangaLib",
+        # The name to show people, which the owner can change
+        "site_name": server_settings.site_name(),
         "version": version,
         "api_version": API_VERSION,
         "needs_setup": needs_setup,

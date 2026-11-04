@@ -1,4 +1,4 @@
-import time
+import base64, os, time, zipfile
 
 from sqlalchemy import text
 
@@ -186,6 +186,27 @@ def test_images_accept_header_or_query_token(client, auth, owner_token):
     assert client.get(f"/api/v1/manga/{alpha}/chapters/2/pages/3/image?t={owner_token}").data == PNG
     assert client.get(f"/api/v1/manga/{beta}/chapters/1/pages/2/image?t={owner_token}").data == PNG
     assert client.get(f"/api/v1/manga/{alpha}/cover").status_code == 401
+
+def test_webp_and_uppercase_extensions(app, client, auth):
+    # MuPDF can't decode WebP, so the cover falls back to the original image
+    webp = base64.b64decode("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==")
+    library = app.config["TEST_LIBRARY"]
+    os.makedirs(os.path.join(library, "Gamma"))
+    with zipfile.ZipFile(os.path.join(library, "Gamma", "Gamma v01.CBZ"), "w") as archive:
+        archive.writestr("page001.webp", webp)
+        archive.writestr("page002.WEBP", webp)
+    delta_chapter = os.path.join(library, "Delta", "Chapter 1")
+    os.makedirs(delta_chapter)
+    with open(os.path.join(delta_chapter, "1.webp"), "wb") as image:
+        image.write(webp)
+    scan(app, library)
+
+    for title, pages in (("Gamma", 2), ("Delta", 1)):
+        manga = manga_id_by_title(client, auth, title)
+        cover = client.get(f"/api/v1/manga/{manga}/cover", headers=auth)
+        assert cover.status_code == 200 and cover.mimetype == "image/webp" and cover.data == webp
+        page = client.get(f"/api/v1/manga/{manga}/chapters/1/pages/{pages}/image", headers=auth)
+        assert page.status_code == 200 and page.mimetype == "image/webp" and page.data == webp
 
 def test_query_token_only_works_for_images(client, auth, owner_token):
     assert client.get(f"/api/v1/auth/me?t={owner_token}").status_code == 401

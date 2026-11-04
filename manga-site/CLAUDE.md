@@ -8,7 +8,8 @@ AGENTS.md describes the Figma Make environment. Locally, no dev server is runnin
 - pnpm is pinned with `"packageManager": "pnpm@10.34.3"`. The global pnpm is 12, which fails with `ERR_PNPM_VERIFY_DEPS_BEFORE_RUN`; the pin makes it switch automatically.
 - Dev: `pnpm dev` at http://localhost:8443. Vite proxies `/api` to `http://127.0.0.1:5000`; override with `MANGALIB_SERVER`.
 - Android SDK: `%LOCALAPPDATA%\Android\Sdk` (`platform-tools/adb.exe`, `emulator/emulator.exe`). adb isn't on PATH.
-- In Git Bash, set `MSYS_NO_PATHCONV=1` before adb commands, or paths like `/sdcard/...` get rewritten.
+- In Git Bash, set `MSYS_NO_PATHCONV=1` before adb commands, or paths like `/sdcard/...` get rewritten. With it set, local paths for `adb pull` must be Windows-style (`C:/Users/...`), not `/c/Users/...`.
+- Phone screenshots: `adb shell screencap -p /sdcard/s.png`, then `adb pull`. Redirecting `adb exec-out screencap` in PowerShell corrupts the PNG.
 - Under pnpm, call `android/gradlew.bat` by its full path; Windows won't run it by bare name.
 - VS Code's Java errors in `android/` (e.g. `getContext()` not found) are false positives: the editor has no Gradle classpath. Build with Gradle to check.
 - `npx cap sync` rewrites line endings in `android/app/capacitor.build.gradle` and `android/capacitor.settings.gradle`. That diff is noise.
@@ -17,6 +18,8 @@ AGENTS.md describes the Figma Make environment. Locally, no dev server is runnin
 - `src/app/lib/api.js`: API client; adds the token, parses JSON errors, `parseServerDate`. `lib/storage.js`: Capacitor Preferences in the app, localStorage on the web. `lib/native.js`: back button, keep-awake.
 - `src/app/context/AuthContext.jsx`: server and login state. `loggedOutOnPurpose` prevents a login redirect loop; admins poll `/auth/me` every 30 s.
 - `src/app/components/settings/*`: owner/admin settings. `SettingSwitch` shows the disabled state and keeps its layout fixed.
+- Show the site name with `siteName` from `useAuth()` (the owner's `site_name`), never a hard-coded "myMangaLib". The only fixed "myMangaLib" is the server check in `connect()`.
+- `RequireAuth` shows `ChooseUsername` instead of the app while `user.must_change_username` is set. `api.js` flips it on when any request returns `username_change_required`.
 - Navigation and icons follow the classic UI (`components/Navbar.jsx`). The reader (`pages/Reader.jsx`) has edge tap zones with a glow, swipe-follow, and page/chapter pickers.
 
 ## Android app

@@ -114,7 +114,7 @@ class db:
                         if entry.is_dir():
                             pass
                         else:
-                            entry_ext = os.path.splitext(entry.filename)[1]
+                            entry_ext = os.path.splitext(entry.filename)[1].lower()
                             if entry_ext in SUPPORTED_IMAGE_TYPES:
                                 files.append(entry.filename)
                     

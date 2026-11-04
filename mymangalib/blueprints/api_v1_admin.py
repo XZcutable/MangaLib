@@ -300,8 +300,17 @@ def get_config():
 @bp.route("/server/config", methods=["PUT"])
 @api_access(Access.OWNER)
 def update_config():
-    """Any of allow_new_users, auto_approve_new_users, hide_manga, hide_titles. Saved, so they survive restarts."""
+    """Any of allow_new_users, auto_approve_new_users, hide_manga, hide_titles (true/false) and site_name
+    (text; empty goes back to config.toml). Saved, so they survive restarts."""
     body = json_body()
+    for key, name in server_settings.EDITABLE_TEXT.items():
+        value = body.get(name)
+        if value is not None and not isinstance(value, str):
+            return api_error(400, "bad_request", f"{name} must be text")
+        if isinstance(value, str):
+            error = server_settings.set_text(key, value)
+            if error is not None:
+                return api_error(400, "bad_request", error)
     for key, name in server_settings.EDITABLE.items():
         value = optional_bool(body, name)
         if value is not None:

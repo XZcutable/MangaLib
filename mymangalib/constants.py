@@ -56,6 +56,9 @@ HIDE_TITLES=false
 
 FETCH_BATCH_SIZE=30
 
+# The name in the browser tab and the interface. The owner can also change it in Settings.
+SITE_NAME='myMangaLib'
+
 # Library folders for a new server, e.g. ['/var/manga']. On a start with no library folders yet,
 # they're added and scanned. After that, manage folders in Settings > Library.
 LIBRARY_PATHS=[]

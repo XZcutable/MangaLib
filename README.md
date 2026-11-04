@@ -80,6 +80,31 @@ Set `FRONTEND_PATH` in `config.toml` (or the `FLASK_FRONTEND_PATH` environment v
 
 The Docker image builds the front end and turns this on. Owners manage library folders, scanning, users and tags in the new interface under Settings; the classic interface stays available at `/classic/` in the meantime.
 
+## Changing the site name ##
+The site is called "myMangaLib" by default. The name appears in the browser tab, on the login screen and at the bottom of every page, in both interfaces.
+
+**As the owner, in the app:** Settings → Library → Display → **Site name**, then **Save**. It takes effect straight away for everyone and is kept after restarts. Leave it empty to go back to the default.
+
+**In the config:** set `SITE_NAME` in `config.toml` (or the `FLASK_SITE_NAME` environment variable), then restart:
+
+```toml
+SITE_NAME='My Manga'
+```
+
+This is the starting name; a name saved in Settings wins over it.
+
+**In the code**, to change the default for everyone who builds from your copy:
+
+| What | Where |
+|---|---|
+| Default name on the server | `DEFAULT_SITE_NAME` in `mymangalib/server/server_settings.py`, and `SITE_NAME` in `DEFAULT_CONFIG` in `mymangalib/constants.py` (written into new configs) |
+| Tab title before the app has reached the server | `"title"` in `manga-site/.figma/make/site.json`, and `DEFAULT_SITE_NAME` in `manga-site/src/app/context/AuthContext.jsx` |
+| Name under the Android app's icon | `appName` in `manga-site/capacitor.config.json` and `app_name` in `manga-site/android/app/src/main/res/values/strings.xml` |
+
+Changes to `manga-site` take effect after rebuilding: `docker compose up -d --build` for Docker, or `pnpm build` in `manga-site/`. The Android app picks them up in its next release.
+
+Don't change `"name": "myMangaLib"` in `server_info()` in `mymangalib/blueprints/api_v1.py`. The app checks it to recognize a myMangaLib server. If it changes, the app refuses to connect.
+
 # Onboarding #
 After the server is running, going to the url will take you to the simple onbaording process of making an Owner Account. After creating the account you will be taken to the login page. The home page will be empty but will select a random amount of registered titles when avaiable.
 

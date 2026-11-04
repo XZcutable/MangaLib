@@ -1,7 +1,9 @@
 import { Github } from "lucide-react"
+import { useAuth } from "../context/AuthContext"
 import { useTheme } from "../context/ThemeContext"
 export function Footer() {
   const { theme } = useTheme()
+  const { siteName } = useAuth()
   return (
     <footer
       className={`${
@@ -18,7 +20,7 @@ export function Footer() {
                 theme === "dark" ? "text-white" : "text-gray-900"
               }`}
             >
-              MangaReader
+              {siteName}
             </span>
             <span
               className={theme === "dark" ? "text-gray-500" : "text-gray-600"}

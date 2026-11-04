@@ -58,6 +58,23 @@ export function LibrarySection() {
     }
   }
 
+  const [siteName, setSiteName] = useState("")
+  useEffect(() => {
+    if (config) setSiteName(config.site_name)
+  }, [config?.site_name])
+
+  const saveSiteName = async (event) => {
+    event.preventDefault()
+    try {
+      const updated = await api.updateServerConfig({ site_name: siteName })
+      setConfig(updated)
+      refreshServerInfo().catch(() => {})
+      toast.success(`The site is now called ${updated.site_name}`)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
   const toggle = async (key) => {
     try {
       setConfig(await api.updateServerConfig({ [key]: !config[key] }))
@@ -128,6 +145,28 @@ export function LibrarySection() {
       {config && (
         <div className="mt-6">
           <h3 className={s.subheading}>Display</h3>
+          <form onSubmit={saveSiteName} className="mb-4">
+            <label htmlFor="site-name" className={`block mb-1 ${s.text}`}>
+              Site name
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="site-name"
+                className={`${s.input} flex-1 min-w-[10rem]`}
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
+                maxLength={40}
+                placeholder="myMangaLib"
+              />
+              <button className={s.button} disabled={siteName.trim() === config.site_name}>
+                Save
+              </button>
+            </div>
+            <p className={`text-xs mt-1 ${s.muted}`}>
+              Shown in the browser tab, on the login screen and at the bottom of every page. Leave it empty
+              to go back to the default.
+            </p>
+          </form>
           <div className={`divide-y ${s.divider}`}>
             <SettingSwitch
               label="Hide pages and covers"
