@@ -1,6 +1,6 @@
 [project]
 name = "mymangalib"
-version = "1.3.0"
+version = "1.4.0"
 description = "Host and view your Manga locally"
 requires-python = ">=3.11"
 dependencies = [
