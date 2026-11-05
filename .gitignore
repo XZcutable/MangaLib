@@ -19,3 +19,6 @@ config.toml
 # Docker compose data and library mounts
 /data/
 /manga/
+
+# Tenma drafts from scripts/tenma_drafts.py (approved art goes to Tenma/source/)
+/Tenma/drafts/

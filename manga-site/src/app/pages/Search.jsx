@@ -15,6 +15,7 @@ export function Search() {
         title={q ? `Results for "${q}"` : "Search"}
         list={results}
         infinite
+        emptyPose="searching"
         emptyMessage={q ? "No manga matched your search." : "Type in the search bar to find manga."}
       />
       <p className={`text-sm ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>

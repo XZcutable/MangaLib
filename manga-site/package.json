@@ -12,7 +12,8 @@
     "app:sync": "pnpm build && cap sync",
     "app:android": "pnpm build && cap sync android && cap open android",
     "app:ios": "pnpm build && cap sync ios && cap open ios",
-    "release": "node ../scripts/release.mjs"
+    "release": "node ../scripts/release.mjs",
+    "tenma:assets": "node scripts/tenma-assets.mjs"
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^7.1.0",
@@ -83,6 +84,7 @@
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
     "oxfmt": "^0.2.0",
+    "sharp": "0.34.4",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   },

@@ -11,6 +11,7 @@ import {
   Moon,
   Rss,
   Search,
+  Server,
   Settings,
   Shuffle,
   Sparkles,
@@ -21,7 +22,7 @@ import {
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router"
 import { useState, useRef, useEffect } from "react"
 import { useTheme } from "../context/ThemeContext"
-import { useAuth } from "../context/AuthContext"
+import { serverLabel, useAuth } from "../context/AuthContext"
 import { offlineAvailable } from "../lib/offline"
 import { useServerFeatures } from "../lib/features"
 
@@ -84,11 +85,13 @@ function SearchBox({ className = "", autoFocus = false, onDone }) {
 
 export function Navbar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [isAccountOpen, setIsAccountOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const accountRef = useRef(null)
   const { theme, toggleTheme } = useTheme()
-  const { user } = useAuth()
+  const { user, server, servers, switchServer } = useAuth()
+  const otherServers = servers.filter((entry) => entry.url !== server)
   const dark = theme === "dark"
   // Sign-ups and metadata suggestions waiting for an admin
   const pendingUsers = user?.pending_users ?? 0
@@ -238,6 +241,26 @@ export function Navbar() {
                     )}
                     {dark ? "Light theme" : "Dark theme"}
                   </button>
+                  {otherServers.length > 0 && (
+                    <div className={`mt-1 pt-1 border-t ${dark ? "border-gray-700" : "border-gray-200"}`}>
+                      <p className={`px-4 py-1 text-xs ${dark ? "text-gray-400" : "text-gray-500"}`}>Switch server</p>
+                      {otherServers.map((entry) => (
+                        <button
+                          key={entry.url}
+                          onClick={() => {
+                            setIsAccountOpen(false)
+                            // Pages from one server mean nothing on the other, so start at home
+                            navigate("/", { replace: true })
+                            switchServer(entry.url)
+                          }}
+                          className={menuRow}
+                        >
+                          <Server className="bounce-icon w-4 h-4 shrink-0" aria-hidden="true" />
+                          <span className="truncate">{serverLabel(entry)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

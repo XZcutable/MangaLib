@@ -4,6 +4,7 @@ import { BookOpen, Download, RotateCw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useDownloads } from "../context/DownloadsContext"
 import { useStyles } from "../hooks/useStyles"
+import { Tenma } from "../components/Tenma"
 import * as offline from "../lib/offline"
 
 export const formatBytes = (bytes) =>
@@ -54,7 +55,8 @@ export function Downloads() {
       {!ready ? (
         <p className={s.muted}>Loading…</p>
       ) : series.length === 0 ? (
-        <div className={s.card}>
+        <div className={`${s.card} text-center`}>
+          <Tenma pose="download" size="h-52 sm:h-64" className="mx-auto mb-4" />
           <p className={s.text}>Nothing downloaded yet.</p>
           <p className={`text-sm mt-1 ${s.muted}`}>
             Open a series and use <Download className="inline w-4 h-4" /> Download to read it without a connection.

@@ -1,6 +1,8 @@
 import { useTheme } from "../context/ThemeContext"
+import { Tenma } from "./Tenma"
 
-export function StatusMessage({ message, onRetry, children }) {
+// A message card for empty lists and errors. `pose` adds a small Tenma above the message.
+export function StatusMessage({ message, onRetry, children, pose }) {
   const { theme } = useTheme()
   return (
     <div
@@ -10,6 +12,7 @@ export function StatusMessage({ message, onRetry, children }) {
           : "bg-white border-gray-200 text-gray-600"
       }`}
     >
+      {pose && <Tenma pose={pose} size="h-52 sm:h-64" className="mx-auto mb-4" />}
       <p>{message}</p>
       {children}
       {onRetry && (

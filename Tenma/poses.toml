@@ -1,0 +1,132 @@
+# Tenma's poses. Each one is a drawing the app can show (components/Tenma.jsx in manga-site).
+#
+# Making a pose:
+#   - By hand: start a ChatGPT chat, attach Tenma.png, paste `style` and then the pose's `prompt`.
+#   - Automatically: scripts/tenma_drafts.py <pose> (needs an OpenAI API key, see that file).
+# Approving it: save the drawing you like as Tenma/<name>.png (e.g. Tenma/reading.png), then run
+# `pnpm tenma:assets` in manga-site. Drafts in Tenma/drafts/ never reach the app.
+
+style = """
+This is Tenma, my project's mascot. Use the attached image as the character reference. Keep her \
+design exactly the same: long wavy violet-and-white hair with an ahoge, purple cat ears with pink \
+insides, a purple ribbon and a cat-face hair clip, a cat-face choker, a white zip hoodie with \
+violet-striped sleeves and paw-print patches, a violet pleated skirt with white stripes, white \
+thigh-high socks with paw prints, violet-and-white sneakers with paw prints, and a fluffy \
+violet-and-white striped tail. Same anime cel-shaded style, same line weight, same colors (violet \
+#7B2FD6, deep violet #4A1A8C, lavender #E8DCFB, pink #F4A3BC, white). Transparent background, PNG, \
+no text, no watermark, centered with a small margin.
+"""
+
+# size: 1024x1536 (portrait), 1024x1024 (square) or 1536x1024 (landscape)
+# Priority: icon, silhouette, sad, searching, sleeping, working, then the rest.
+
+[poses.main]
+used_for = "About page; fallback for any pose not drawn yet"
+done = true
+size = "1024x1536"
+prompt = "The existing reference image (Tenma.png)."
+
+[poses.reading]
+done = true
+used_for = "Empty library and other empty lists"
+size = "1024x1536"
+prompt = """
+Tenma sitting cross-legged on the floor, completely absorbed in an open manga volume held up with \
+both hands. Small content smile, eyes on the page, ears relaxed, tail curled around her side. A \
+couple of closed manga volumes stacked next to her.
+"""
+
+[poses.searching]
+used_for = "Search with no results"
+size = "1024x1536"
+prompt = """
+Tenma crouching forward and peering through a big magnifying glass held in one hand, the other hand \
+shading her eyes. Ears perked straight up, tail raised in a curious curve, one small question mark \
+floating near her head. Curious, focused expression.
+"""
+
+[poses.sad]
+used_for = "404 page, errors loading a list or a series"
+size = "1024x1536"
+prompt = """
+Tenma standing and holding an empty open cardboard box toward the viewer, looking into it with a \
+sad, slightly teary expression. Ears drooped flat, tail hanging low, one small torn manga page \
+drifting out of the box. Cute and gentle, not dramatic.
+"""
+
+[poses.sleeping]
+used_for = "Empty reading history; can't reach the server (login page)"
+size = "1024x1536"
+prompt = """
+Tenma curled up asleep on top of a stack of manga volumes, cheek on her arms, eyes closed, peaceful \
+smile, tail wrapped around herself like a blanket. Small "z z z" shapes floating above her (shapes, \
+not text).
+"""
+
+[poses.working]
+used_for = "Server updating / starting screen"
+size = "1024x1536"
+prompt = """
+Tenma wearing a small yellow hard hat over her hair, ears poking out through it, carrying a tall \
+stack of manga volumes in both arms, one leg mid-step, determined little smile with tongue poking \
+out. A small wrench tucked into her hoodie pocket.
+"""
+
+[poses.heart]
+used_for = "Empty Favorites"
+size = "1024x1536"
+prompt = """
+Tenma hugging a big soft pink heart-shaped pillow to her chest, eyes closed in a happy smile, \
+cheeks blushing, tail swishing in a heart-like curve behind her.
+"""
+
+[poses.bookmark]
+used_for = "Empty To Read list"
+size = "1024x1536"
+prompt = """
+Tenma holding up a long violet ribbon bookmark with a paw-print charm at the end, showing it \
+proudly to the viewer, one eye winking, free hand making a peace sign.
+"""
+
+[poses.wave]
+used_for = "Login / connect page"
+size = "1024x1024"
+prompt = """
+Half-body portrait of Tenma from the waist up, waving hello with one raised hand, bright \
+open-mouthed smile, eyes open and sparkling, head tilted slightly, one ear tilted.
+"""
+
+[poses.download]
+used_for = "Empty Downloads (Android)"
+size = "1024x1536"
+prompt = """
+Tenma hugging a large smartphone to her chest. The screen shows a simple downward arrow icon. \
+Excited smile, little sparkle shapes around the phone, tail raised.
+"""
+
+[poses.peek]
+used_for = "Small corner accents (not used yet)"
+size = "1536x1024"
+prompt = """
+Only Tenma's head, cat ears and both hands visible, peeking up over a flat bottom edge as if looking \
+over a table. Hands gripping the edge, big curious eyes, ahoge sticking up. Nothing below the edge; \
+the edge is the bottom of the image.
+"""
+
+[poses.icon]
+used_for = "Android app icon, splash and browser favicon"
+size = "1024x1024"
+prompt = """
+Chibi-style head-only icon of Tenma: big head, closed-eye happy smile, cat ears clearly visible, \
+ahoge, violet-and-white hair. Simple, bold outlines and few small details, so it still reads at 48 \
+pixels. Centered and filling about 70% of the canvas. Transparent background.
+"""
+
+[poses.silhouette]
+used_for = "Faint figure in the page background"
+size = "1024x1536"
+prompt = """
+The exact same pose as the reference image (arms wide, one leg kicked up, tail out), drawn as a \
+clean single-color line-art silhouette: solid black lines only, no fill, no shading, no color, no \
+"!!" marks. Transparent background.
+"""

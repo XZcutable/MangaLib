@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext"
 import { useTheme } from "../context/ThemeContext"
 import { serverBase } from "../lib/api"
 import { subscribeRestarting } from "../lib/serverStatus"
+import { Tenma, tenmaArt } from "./Tenma"
 
 const POLL_MS = 2000
 const SLOW_AFTER_MS = 3 * 60 * 1000
@@ -15,6 +16,13 @@ export function UpdatingOverlay() {
   const [slow, setSlow] = useState(false)
 
   useEffect(() => subscribeRestarting((next) => setReason((current) => current ?? next)), [])
+
+  // While the server updates, it answers every request with 503, images too. Fetch the picture now so
+  // the browser has it cached (assets are cached for a year) by the time the overlay needs it.
+  useEffect(() => {
+    const image = new Image()
+    image.src = tenmaArt("working")
+  }, [])
 
   useEffect(() => {
     if (!reason) return
@@ -55,11 +63,12 @@ export function UpdatingOverlay() {
       aria-live="assertive"
       aria-label={title}
       className={`fixed inset-0 z-[1000] flex items-center justify-center px-4 text-center ${
-        dark ? "bg-gray-950/95 text-gray-100" : "bg-gray-50/95 text-gray-900"
+        dark ? "bg-gray-950 text-gray-100" : "bg-gray-50 text-gray-900"
       }`}
     >
       <div className="max-w-sm">
-        <div className="mx-auto mb-5 h-10 w-10 animate-spin rounded-full border-4 border-gray-400/40 border-t-brand-600" />
+        <Tenma pose="working" size="h-72 sm:h-96" className="mx-auto mb-4" />
+        <div className="mx-auto mb-5 h-8 w-8 animate-spin rounded-full border-4 border-gray-400/40 border-t-brand-600" />
         <h2 className="mb-2 text-xl font-semibold">{title}</h2>
         <p className={dark ? "text-gray-400" : "text-gray-600"}>
           {reason === "starting"

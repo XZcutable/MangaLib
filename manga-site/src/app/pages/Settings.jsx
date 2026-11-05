@@ -6,6 +6,7 @@ import { ACCENTS, useTheme } from "../context/ThemeContext"
 import { useStyles } from "../hooks/useStyles"
 import { api, parseServerDate, serverBase } from "../lib/api"
 import { getLocal, setLocal, isNative } from "../lib/storage"
+import { FIT_MODES, getFitMode, setFitMode } from "../lib/pageFit"
 import { AccountSection } from "../components/settings/AccountSection"
 import { LibrarySection } from "../components/settings/LibrarySection"
 import { TagsSection } from "../components/settings/TagsSection"
@@ -14,14 +15,17 @@ import { SuggestionsSection } from "../components/settings/SuggestionsSection"
 import { SettingSwitch } from "../components/settings/SettingSwitch"
 import { UpdatesSection } from "../components/settings/UpdatesSection"
 import { ServerUpdatesSection } from "../components/settings/ServerUpdatesSection"
+import { ServersSection } from "../components/settings/ServersSection"
 import { canSelfUpdate } from "../lib/updater"
 import { useServerFeatures } from "../lib/features"
 
 const formatDate = (value) => (value ? parseServerDate(value).toLocaleString() : "never")
 
 export function Settings() {
-  const { toggleTheme, accent, setAccent } = useTheme()
-  const { user, server, serverInfo, logout, changeServer } = useAuth()
+  const { toggleTheme, accent, setAccent, showMascot, setShowMascot } = useTheme()
+  const { user, server, servers, serverInfo, logout } = useAuth()
+  // On the web, only once a server other than this site has been added
+  const showServers = isNative || servers.some((entry) => entry.url)
   const navigate = useNavigate()
   const location = useLocation()
   const s = useStyles()
@@ -40,6 +44,7 @@ export function Settings() {
   const [alwaysShowControls, setAlwaysShowControls] = useState(
     () => getLocal("readerControls", "tap") === "always",
   )
+  const [fitMode, setFitModeState] = useState(getFitMode)
 
   const loadDevices = useCallback(() => {
     api
@@ -60,6 +65,7 @@ export function Settings() {
 
   const sections = [
     { id: "account", label: "Account" },
+    ...(showServers ? [{ id: "servers", label: "Servers" }] : []),
     { id: "appearance", label: "Appearance" },
     { id: "reading", label: "Reading" },
     ...(user?.is_owner ? [{ id: "library", label: "Library" }] : []),
@@ -123,14 +129,6 @@ export function Settings() {
               <button className={s.button} onClick={() => logout().then(() => navigate("/connect"))}>
                 Log out
               </button>
-              {(isNative || server) && (
-                <button
-                  className={s.button}
-                  onClick={() => changeServer().then(() => navigate("/connect"))}
-                >
-                  Change server
-                </button>
-              )}
             </div>
             <p className={`text-sm mt-4 ${s.muted}`}>
               Server: {server || window.location.origin}
@@ -152,6 +150,8 @@ export function Settings() {
           </div>
         </AccountSection>
       </div>
+
+      {showServers && <ServersSection />}
 
       <section id="appearance" className={`${s.card} scroll-mt-20`}>
         <h2 className={s.heading}>Appearance</h2>
@@ -196,6 +196,12 @@ export function Settings() {
               })}
             </div>
           </div>
+          <SettingSwitch
+            label="Tenma in the background"
+            description="A faint figure of Tenma, the mascot, in the corner of the page."
+            checked={showMascot}
+            onChange={setShowMascot}
+          />
         </div>
       </section>
 
@@ -220,11 +226,51 @@ export function Settings() {
               setAlwaysShowControls(value)
             }}
           />
+          <div className="py-3">
+            <p className={s.text}>Page size</p>
+            <p className={`text-sm mt-0.5 mb-3 ${s.muted}`}>
+              How single pages fit the screen. Webtoons in vertical scroll always fill the width.
+            </p>
+            <div className="flex flex-wrap gap-3" role="radiogroup" aria-label="Page size">
+              {FIT_MODES.map((option) => {
+                const selected = option.id === fitMode
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    title={option.description}
+                    onClick={() => {
+                      setFitMode(option.id)
+                      setFitModeState(option.id)
+                    }}
+                    className={`px-4 py-2 rounded-full border transition-colors ${
+                      selected
+                        ? "border-brand-500 bg-brand-600/15"
+                        : s.dark
+                          ? "border-gray-700 hover:bg-gray-800"
+                          : "border-gray-300 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span className={s.text}>
+                      {selected ? "✓ " : ""}
+                      {option.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className={`text-sm mt-2 ${s.muted}`}>
+              {FIT_MODES.find((option) => option.id === fitMode).description}
+            </p>
+          </div>
         </div>
         <p className={`text-sm mt-3 ${s.muted}`}>
           In the reader, tap or click the left or right edge, swipe, or use the arrow keys to turn
-          pages. The bottom bar jumps to any page or chapter. Webtoons (long strips) open in vertical
-          scroll automatically; the mode button in the reader changes it for a series.
+          pages. The bottom bar jumps to any page or chapter, and the page size button changes how
+          pages fit the screen. Webtoons (long strips) open in vertical scroll automatically; the mode
+          button in the reader changes it for a series.
         </p>
       </section>
 

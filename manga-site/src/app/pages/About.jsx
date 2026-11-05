@@ -6,6 +6,7 @@ import { canSelfUpdate, RELEASES_PAGE } from "../lib/updater"
 import { APP_VERSION, GITHUB_PAGE } from "../lib/version"
 import { APP_API_VERSION } from "../lib/features"
 import { UpdatesSection } from "../components/settings/UpdatesSection"
+import { Tenma } from "../components/Tenma"
 
 const CREDITS = [
   { name: "Flask", url: "https://flask.palletsprojects.com/" },
@@ -57,6 +58,17 @@ export function About() {
               Server updates
             </Link>
           )}
+        </div>
+      </section>
+
+      <section className={`${s.card} flex flex-col sm:flex-row items-center gap-6`}>
+        <Tenma pose="main" size="h-56 sm:h-64" className="shrink-0" />
+        <div>
+          <h2 className={s.heading}>Meet Tenma</h2>
+          <p className={`text-sm ${s.muted}`}>
+            Tenma is the myMangaLib mascot. She keeps an eye on your library, cheers when you finish a series,
+            and shows up whenever there's nothing to read yet. The app's default colors come from her.
+          </p>
         </div>
       </section>
 

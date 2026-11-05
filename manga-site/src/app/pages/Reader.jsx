@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import {
   ArrowLeft,
@@ -18,6 +18,14 @@ import { keepScreenOn } from "../lib/native"
 import { VerticalReader } from "../components/VerticalReader"
 import { useAuth } from "../context/AuthContext"
 import * as offline from "../lib/offline"
+import { FIT_MODES, STRIP_ASPECT, fitPageSize, getFitMode, setFitMode } from "../lib/pageFit"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu"
 
 // Downloaded pages load from the phone; everything else from the server
 const pageSrc = (page) => page.local_url ?? imageUrl(page.image_url)
@@ -29,8 +37,8 @@ const SAVE_DELAY_MS = 600
 const EDGE_ZONE = 0.2
 const SWIPE_DISTANCE = 40
 const DRAG_START = 15
-// Pages at least this many times taller than wide are a webtoon-style strip
-const STRIP_ASPECT = 2
+// Arrow keys scroll a page that's wider than the screen by this share of the screen before turning
+const KEY_SCROLL = 0.8
 const MODES = ["auto", "paged", "vertical"]
 
 // Opens a few pages and reports whether they're long strips. Returns null if none could be measured.
@@ -103,7 +111,11 @@ export function Reader() {
     modeSetting === "vertical" ||
     (modeSetting === "auto" && (hint?.mode === "vertical" || (hint !== null && hint.mode === null && detected === true)))
   const stripRef = useRef(null)
-  const [fitWidth, setFitWidth] = useState(() => getLocal("readerFit", "screen") === "width")
+  const [fitMode, setFitModeState] = useState(getFitMode)
+  const chooseFitMode = (mode) => {
+    setFitMode(mode)
+    setFitModeState(mode)
+  }
   const touchStart = useRef(null)
   const scrollRef = useRef(null)
   const [viewport, setViewport] = useState(null) // size of the page area
@@ -124,7 +136,6 @@ export function Reader() {
     return () => keepScreenOn(false)
   }, [])
   useEffect(() => setLocal(`readerMode:${mangaId}`, modeSetting), [modeSetting, mangaId])
-  useEffect(() => setLocal("readerFit", fitWidth ? "width" : "screen"), [fitWidth])
   useEffect(() => setLocal("readerControls", pinned ? "always" : "tap"), [pinned])
 
   // Chapter titles for the chapter picker
@@ -262,21 +273,24 @@ export function Reader() {
   const forward = rightToLeft ? previous : next
   const backward = rightToLeft ? next : previous
 
-  // Fit screen: when the reader area is at least as tall as the page, the page is scaled to fill
-  // the height (but never wider than the screen). When the area is shorter, the page is shown at
-  // the screen width, or its own width if that's smaller, and scrolls down.
-  let pageSize = null
-  if (!fitWidth && viewport && page && natural?.url === pageSrc(page)) {
-    const { width: areaWidth, height: areaHeight } = viewport
-    if (areaHeight >= natural.height) {
-      const scale = Math.min(areaHeight / natural.height, areaWidth / natural.width)
-      pageSize = { width: natural.width * scale, height: natural.height * scale }
-    } else {
-      const width = Math.min(areaWidth, natural.width)
-      pageSize = { width, height: (width * natural.height) / natural.width }
-    }
+  // The page's display size comes from the fit mode (lib/pageFit.js) once the image has loaded
+  const pageSize =
+    viewport && page && natural?.url === pageSrc(page) ? fitPageSize(fitMode, natural, viewport) : null
+  const scrollsDown = pageSize ? pageSize.height > viewport.height + 1 : fitMode === "width"
+  const scrollsSideways = !!pageSize && pageSize.width > viewport.width + 1
+
+  // A right-to-left page wider than the screen starts at its right edge, where reading begins
+  useLayoutEffect(() => {
+    const element = scrollRef.current
+    if (element && scrollsSideways) element.scrollLeft = rightToLeft ? element.scrollWidth : 0
+  }, [natural?.url, fitMode, scrollsSideways, rightToLeft])
+
+  // How far a page wider than the screen can still scroll left (-1) or right (1)
+  const sidewaysRoom = (direction) => {
+    const element = scrollRef.current
+    if (!element || !scrollsSideways) return 0
+    return direction < 0 ? element.scrollLeft : element.scrollWidth - element.clientWidth - element.scrollLeft
   }
-  const pageScrolls = fitWidth || (pageSize && viewport && pageSize.height > viewport.height + 1)
 
   useEffect(() => {
     const onKey = (event) => {
@@ -297,21 +311,29 @@ export function Reader() {
         scrollRef.current?.scrollBy({ top: (letter === "w" ? -1 : 1) * 80 })
         return
       }
-      if (event.key === "ArrowRight" || letter === "d") forward()
-      else if (event.key === "ArrowLeft" || letter === "a") backward()
-      else if (event.key === " ") {
+      const right = event.key === "ArrowRight" || letter === "d"
+      const left = event.key === "ArrowLeft" || letter === "a"
+      if (right || left) {
+        // A page wider than the screen scrolls to its edge first, then the page turns
+        const direction = right ? 1 : -1
+        const element = scrollRef.current
+        if (sidewaysRoom(direction) > 2) {
+          event.preventDefault()
+          element.scrollBy({ left: direction * element.clientWidth * KEY_SCROLL, behavior: "smooth" })
+        } else right ? forward() : backward()
+      } else if (event.key === " ") {
         // Space scrolls a tall page first, then turns to the next one at the bottom
         const element = scrollRef.current
         const atBottom = !element || element.scrollTop + element.clientHeight >= element.scrollHeight - 2
-        if (pageScrolls && !atBottom) return
-        if (fitWidth) return
+        if (scrollsDown && !atBottom) return
+        if (fitMode === "width") return
         event.preventDefault()
         next()
       } else if (event.key === "Escape") navigate(`/manga/${mangaId}`)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [forward, backward, next, fitWidth, pageScrolls, navigate, mangaId, vertical])
+  })
 
   // Vertical mode reports the page in the middle of the screen; the URL follows it
   const onStripPage = useCallback((number) => goTo(position.current.chapter, number), [goTo])
@@ -319,6 +341,7 @@ export function Reader() {
     if (chapter?.next_chapter != null) goTo(chapter.next_chapter, 1)
   }, [chapter, goTo])
   const nextChapterInfo = chapters.find((item) => item.number === chapter?.next_chapter)
+  const fitModeLabel = FIT_MODES.find((mode) => mode.id === fitMode).label
   const modeLabel =
     modeSetting === "auto" ? `Auto (${vertical ? "scroll" : "pages"})` : modeSetting === "vertical" ? "Scroll" : "Pages"
 
@@ -372,6 +395,9 @@ export function Reader() {
       // Mostly vertical: the reader is scrolling a long page, not turning it
       if (Math.abs(dy) > DRAG_START && Math.abs(dy) > Math.abs(dx)) return (touchStart.current = null)
       if (Math.abs(dx) < DRAG_START) return
+      // A page wider than the screen scrolls sideways until it reaches its edge; only then
+      // does a drag turn the page. Dragging left moves the view right.
+      if (sidewaysRoom(dx < 0 ? 1 : -1) > 2) return (touchStart.current = null)
       start.dragging = true
     }
     setDragOffset(Math.max(-SWIPE_DISTANCE, Math.min(SWIPE_DISTANCE, dx)))
@@ -435,16 +461,34 @@ export function Reader() {
           <ArrowLeftRight className="bounce-icon w-4 h-4" />
           <span className="hidden sm:inline">{rightToLeft ? "Right to left" : "Left to right"}</span>
         </button>
-        <button
-          onClick={() => setFitWidth((value) => !value)}
-          hidden={vertical}
-          className={`${iconButton} flex items-center gap-1.5 text-xs`}
-          aria-label={fitWidth ? "Fit width" : "Fit screen"}
-          title="Page size"
-        >
-          <Maximize2 className="bounce-icon w-4 h-4" />
-          <span className="hidden sm:inline">{fitWidth ? "Fit width" : "Fit screen"}</span>
-        </button>
+        {!vertical && (
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger
+              className={`${iconButton} flex items-center gap-1.5 text-xs focus:outline-none`}
+              aria-label={`Page size: ${fitModeLabel}`}
+              title="Page size"
+            >
+              <Maximize2 className="bounce-icon w-4 h-4" />
+              <span className="hidden sm:inline">{fitModeLabel}</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 bg-gray-900 text-white border-white/10">
+              <DropdownMenuRadioGroup value={fitMode} onValueChange={chooseFitMode}>
+                {FIT_MODES.map((mode) => (
+                  <DropdownMenuRadioItem
+                    key={mode.id}
+                    value={mode.id}
+                    className="items-start focus:bg-white/10 focus:text-white [&>span:first-child]:top-3"
+                  >
+                    <div>
+                      <p>{mode.label}</p>
+                      <p className="text-xs text-gray-400">{mode.description}</p>
+                    </div>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <button
           onClick={() => {
             setPinned((value) => !value)
@@ -554,8 +598,12 @@ export function Reader() {
         <div
           ref={scrollRef}
           hidden={vertical && loaded && !error}
-          className={`absolute inset-0 overflow-x-hidden ${fitWidth ? "overflow-y-auto" : "overflow-y-auto flex"}`}
-          style={{ touchAction: pageScrolls ? "pan-y pinch-zoom" : "pinch-zoom" }}
+          className={`absolute inset-0 flex ${
+            fitMode === "height" ? "overflow-x-auto overflow-y-hidden" : "overflow-x-hidden overflow-y-auto"
+          }`}
+          style={{
+            touchAction: scrollsSideways ? "pan-x pinch-zoom" : scrollsDown ? "pan-y pinch-zoom" : "pinch-zoom",
+          }}
           onClick={onTap}
           onMouseMove={onMouseMove}
           onMouseLeave={() => (hoverSide.current = null)}
@@ -587,12 +635,13 @@ export function Reader() {
                   height: event.currentTarget.naturalHeight,
                 })
               }
-              // m-auto centers a page smaller than the screen and keeps a taller one scrollable from its top
+              // m-auto centers a page smaller than the screen and keeps a bigger one scrollable from its start.
+              // Until the image's size is known, CSS gives a close guess.
               className={
-                fitWidth
-                  ? "w-full h-auto"
-                  : pageSize
-                    ? "m-auto shrink-0"
+                pageSize
+                  ? "m-auto shrink-0 max-w-none"
+                  : fitMode === "width"
+                    ? "m-auto shrink-0 w-full h-auto"
                     : "m-auto max-w-full max-h-full object-contain"
               }
               style={{

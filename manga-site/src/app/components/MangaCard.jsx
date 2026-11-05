@@ -52,7 +52,7 @@ export function MangaCard({ manga, showProgress = false, showUpdated = false }) 
         <div className="absolute top-2 right-2 flex gap-1">
           {user?.is_favorite && (
             <span className="bg-black/70 text-white p-1 rounded" aria-label="Favorite">
-              <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />
+              <Heart className="w-3.5 h-3.5 fill-heart text-heart" />
             </span>
           )}
           {user?.is_read && !showProgress && (

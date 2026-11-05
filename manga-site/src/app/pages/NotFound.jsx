@@ -1,9 +1,11 @@
 import { Link } from "react-router"
 import { useTheme } from "../context/ThemeContext"
+import { Tenma } from "../components/Tenma"
 export function NotFound() {
   const { theme } = useTheme()
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+      <Tenma pose="sad" size="h-72 sm:h-80" className="mx-auto mb-6" />
       <h1
         className={`mb-4 ${theme === "dark" ? "text-white" : "text-gray-900"}`}
       >

@@ -132,7 +132,7 @@ export function MangaInfo() {
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <StatusMessage message={error.message} onRetry={load} />
+        <StatusMessage message={error.message} onRetry={load} pose="sad" />
       </div>
     )
   }

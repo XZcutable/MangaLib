@@ -1,7 +1,46 @@
 /* Accent ("brand") colors. Components use brand-* classes; the accent picked in Settings
-   sets data-accent on <html>. Values are Tailwind's own blue, purple and red scales. */
+   sets data-accent on <html>. "tenma" (the default) is taken from the mascot's art; blue,
+   purple and red are Tailwind's own scales.
+
+   --heart colors the favorite heart: Tenma's ear pink, red for the other accents.
+   Keep the Tenma values in step with scripts/tenma-assets.mjs (icon and splash colors). */
+
+/* Tenma: violet from her hair and tail (brand-600 = #9027d2), lavender highlights (brand-200),
+   pink from her ears. Also the fallback when no accent is set. */
 :root,
+:root[data-accent="tenma"] {
+  --brand-50: oklch(97.6% 0.016 312);
+  --brand-100: oklch(94.8% 0.034 314);
+  --brand-200: oklch(90.6% 0.06 312);
+  --brand-300: oklch(83.2% 0.108 311);
+  --brand-400: oklch(72.5% 0.18 309);
+  --brand-500: oklch(62% 0.245 308);
+  --brand-600: oklch(52.5% 0.24 307.6);
+  --brand-700: oklch(46.5% 0.215 307);
+  --brand-800: oklch(40.5% 0.195 304.5);
+  --brand-900: oklch(34% 0.155 306);
+  --brand-950: oklch(25.5% 0.11 305);
+  --heart: oklch(64.5% 0.2 2);
+}
+
+/* Grays (used for page backgrounds, cards and text) get a slight violet tint, so the whole page
+   takes on her colors. Only for Tenma: the other accents keep Tailwind's grays. */
+:root[data-accent="tenma"] {
+  --color-gray-50: oklch(98.5% 0.006 310);
+  --color-gray-100: oklch(96.5% 0.01 310);
+  --color-gray-200: oklch(92.6% 0.015 310);
+  --color-gray-300: oklch(87.2% 0.021 310);
+  --color-gray-400: oklch(71% 0.031 310);
+  --color-gray-500: oklch(55.6% 0.036 310);
+  --color-gray-600: oklch(44.8% 0.036 310);
+  --color-gray-700: oklch(37.3% 0.036 310);
+  --color-gray-800: oklch(27.8% 0.033 310);
+  --color-gray-900: oklch(21% 0.03 310);
+  --color-gray-950: oklch(14.5% 0.024 308);
+}
+
 :root[data-accent="blue"] {
+  --heart: oklch(63.7% 0.237 25.331);
   --brand-50: oklch(97% 0.014 254.604);
   --brand-100: oklch(93.2% 0.032 255.585);
   --brand-200: oklch(88.2% 0.059 254.128);
@@ -16,6 +55,7 @@
 }
 
 :root[data-accent="purple"] {
+  --heart: oklch(63.7% 0.237 25.331);
   --brand-50: oklch(97.7% 0.014 308.299);
   --brand-100: oklch(94.6% 0.033 307.174);
   --brand-200: oklch(90.2% 0.063 306.703);
@@ -30,6 +70,7 @@
 }
 
 :root[data-accent="red"] {
+  --heart: oklch(63.7% 0.237 25.331);
   --brand-50: oklch(97.1% 0.013 17.38);
   --brand-100: oklch(93.6% 0.032 17.717);
   --brand-200: oklch(88.5% 0.062 18.334);
@@ -55,4 +96,5 @@
   --color-brand-800: var(--brand-800);
   --color-brand-900: var(--brand-900);
   --color-brand-950: var(--brand-950);
+  --color-heart: var(--heart);
 }

@@ -15,6 +15,7 @@ export function MangaSection({
   showUpdated = false,
   infinite = false,
   emptyMessage = "Nothing here yet.",
+  emptyPose = "reading",
   seeAllPath,
   hideWhenEmpty = false,
 }) {
@@ -63,9 +64,9 @@ export function MangaSection({
         </p>
       )}
       {list?.error && items.length === 0 ? (
-        <StatusMessage message={list.error.message} onRetry={list.reload} />
+        <StatusMessage message={list.error.message} onRetry={list.reload} pose="sad" />
       ) : isEmpty ? (
-        <StatusMessage message={emptyMessage} />
+        <StatusMessage message={emptyMessage} pose={emptyPose} />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
           {items.map((item) => (

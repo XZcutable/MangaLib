@@ -10,6 +10,7 @@ export function ListPage({
   showProgress = false,
   showUpdated = false,
   emptyMessage,
+  emptyPose,
 }) {
   const results = useMangaList(list, { sort })
   return (
@@ -21,6 +22,7 @@ export function ListPage({
         showProgress={showProgress}
         showUpdated={showUpdated}
         emptyMessage={emptyMessage}
+        emptyPose={emptyPose}
         infinite
       />
     </div>

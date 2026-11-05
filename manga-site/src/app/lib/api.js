@@ -34,10 +34,13 @@ export function normalizeServerUrl(input) {
   return url.replace(/\/+$/, "").replace(/\/api\/v1$/, "")
 }
 
-async function request(path, { method = "GET", body, signal, server } = {}) {
+// `server` and `as` (a token) send one request to a saved server other than the current one
+async function request(path, { method = "GET", body, signal, server, as } = {}) {
+  const other = as !== undefined
+  const auth = other ? as : token
   const headers = { Accept: "application/json" }
   if (body !== undefined) headers["Content-Type"] = "application/json"
-  if (token) headers.Authorization = `Bearer ${token}`
+  if (auth) headers.Authorization = `Bearer ${auth}`
 
   let response
   try {
@@ -54,11 +57,13 @@ async function request(path, { method = "GET", body, signal, server } = {}) {
 
   const data = await response.json().catch(() => null)
   if (!response.ok) {
-    if (response.status === 401 && token) onUnauthorized()
-    // An admin flagged the account while the app was open
-    if (data?.error?.code === "username_change_required") onUsernameChangeRequired()
-    // The server is restarting into an update (or still starting); the overlay waits for it
-    if (response.status === 503 && RESTART_CODES[data?.error?.code]) reportRestarting(RESTART_CODES[data.error.code])
+    if (!other) {
+      if (response.status === 401 && token) onUnauthorized()
+      // An admin flagged the account while the app was open
+      if (data?.error?.code === "username_change_required") onUsernameChangeRequired()
+      // The server is restarting into an update (or still starting); the overlay waits for it
+      if (response.status === 503 && RESTART_CODES[data?.error?.code]) reportRestarting(RESTART_CODES[data.error.code])
+    }
     throw new ApiError(
       response.status,
       data?.error?.code ?? "error",
@@ -104,6 +109,8 @@ export const api = {
   register: (username, password) =>
     request("/auth/register", { method: "POST", body: { username, password } }),
   logout: () => request("/auth/logout", { method: "POST" }),
+  // Logs out a saved server's login without switching to it
+  logoutFrom: (server, savedToken) => request("/auth/logout", { method: "POST", server, as: savedToken }),
   me: () => request("/auth/me"),
   tokens: () => request("/auth/tokens"),
   revokeToken: (id) => request(`/auth/tokens/${id}`, { method: "DELETE" }),
