@@ -5,7 +5,6 @@ Every route takes and returns JSON, authenticates with `Authorization: Bearer <t
 Image routes also accept the token as ?t= because <img> tags can't send headers.
 """
 import os
-from importlib import metadata
 
 from flask import Flask, Blueprint, request, g, current_app, url_for, abort, send_file
 from werkzeug.exceptions import HTTPException
@@ -16,15 +15,17 @@ from ..auth import API_V1_PREFIX, api_access, api_error, check_credentials, regi
 from ..database import db
 from ..enum import Access
 from ..models import Manga, ContentTag, User
-from ..server import library, server_settings, tokens, thumbnails, jobs, repack
+from ..server import library, server_settings, tokens, thumbnails, jobs, repack, updater
 from ..server import metadata as series_metadata
 from . import manga as manga_views
+from ..version import __version__
 
 bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 
 # Bump when routes or fields are added, so the app can tell what an older server lacks.
 # 2: ratings, chapter read marks, series details and suggestions, crunch/unpack, reading hints.
-API_VERSION = 2
+# 3: server updates (/admin/server/update), restart_in in /server/info.
+API_VERSION = 3
 IMAGE_MAX_AGE = 10*24*60*60
 MAX_BATCH_SIZE = 100
 DEFAULT_CORS_ORIGINS = [
@@ -120,29 +121,34 @@ def account_json(user: User) -> dict:
     if data["is_admin"]:
         data["pending_users"] = db.session.scalar(select(func.count()).select_from(User).where(~User.approved))
         data["pending_suggestions"] = series_metadata.pending_count()
+    if data.get("is_owner"):
+        # For the badge on Settings: a newer server version is downloaded (or found)
+        update = updater.get().as_json()
+        data["server_update"] = {
+            "status": update["status"],
+            "version": update["staged_version"] or (update["latest"] or {}).get("version"),
+        }
     return data
 
 # --- Server ---
 
 @bp.route("/server/info")
 def server_info():
-    try:
-        version = metadata.version("mymangalib")
-    except metadata.PackageNotFoundError:
-        version = None
     needs_setup = get_owner() is None
     return {
         # Always "myMangaLib": the app checks it to know the address is a myMangaLib server
         "name": "myMangaLib",
         # The name to show people, which the owner can change
         "site_name": server_settings.site_name(),
-        "version": version,
+        "version": __version__,
         "api_version": API_VERSION,
         "needs_setup": needs_setup,
         "registration_open": needs_setup or bool(current_app.config.get("ALLOW_NEW_USERS")),
         "hide_titles": manga_views.HIDE_TITLES,
         # Where the classic web interface is: /classic/ when this server also serves the new one
         "classic_ui_path": current_app.config.get("CLASSIC_UI_PATH", "/"),
+        # Seconds until the server restarts into an update, so open pages can show a notice
+        "restart_in": updater.get().restart_in(),
     }
 
 # --- Auth ---

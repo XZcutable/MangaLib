@@ -31,6 +31,15 @@ Android releases are published to https://github.com/XZcutable/MangaLib/releases
 - Slow file work (metadata write-back, crunch/unpack in `server/repack.py`) runs through `server/jobs.py`: one in-memory worker, polled with `GET /admin/jobs/<id>`. Tests set `JOBS_INLINE`. Temporary copies are hidden `.partial` files the scanner skips.
 - Per-chapter read marks (`UserChapterData`) and saved positions are keyed by chapter number; crunch/unpack remaps them by chapter title after the rescan.
 - CORS (`api_v1.init_app`) lists the allowed HTTP methods. A route with a new method won't work from the Android app until the method is added there.
+- **Versions:** server and app share one version, in `pyproject.toml` and `manga-site/package.json` (`tests/test_updates.py` checks they match; `pnpm release` bumps both). The server reads it from `mymangalib/version.py`, the app from `__APP_VERSION__` (Vite `define`, `lib/version.js`). `API_VERSION` (api_v1.py) / `APP_API_VERSION` (`lib/features.js`) are separate and gate features.
+
+### Launcher and server updates
+- `mymangalib serve` (`cli.py`, also `python -m mymangalib`) turns flags into `FLASK_<KEY>` env vars, then runs `supervisor.py`, which starts the real server (`python -P -m mymangalib.child`) as a child. The Docker image's `ENTRYPOINT` is `mymangalib serve`, so `docker run <image> --flag` works. Keep `child.py`'s flags stable: an older supervisor starts newer versions through it.
+- While the child starts or restarts, the supervisor holds the port and answers 503 (JSON `server_updating`/`server_starting` for `/api/v1`, an auto-reloading page otherwise, header `X-MyMangaLib-Maintenance`). The child writes `MYMANGALIB_READY_FILE` after `create_app()`, then takes the port.
+- `server/updater.py` checks GitHub Releases (`UPDATE_REPO`, or `UPDATE_URL` for testing), downloads `mymangalib-server-X.Y.Z.tar.gz` in Range chunks (sha256 from the asset `digest`), and unpacks it to `<UPDATE_PATH>/versions/X.Y.Z` (Docker: `/var/db/updates`; layout in `update_files.py`). Apply = DB backup + `current` pointer + exit code 75; the supervisor restarts into it and rolls back (pointer + DB backup) if it doesn't become ready. A newer image wins over an older applied update.
+- The bundle is made by `scripts/make_server_bundle.py` (called by `release.mjs`). Bump `update_files.PROTOCOL` when the bundle layout or the supervisor/child handshake changes; a bundle with a higher protocol reports `needs_image`.
+- `AUTO_UPDATE=false` (`--no-auto-update`) is a hard off and locks the owner's `UPDATE_CHECKS` switch (in `EDITABLE`); manual checks still work. Applying needs `MYMANGALIB_SUPERVISED=1` (tests set `UPDATE_ASSUME_SUPERVISED` and `UPDATE_RESTART`).
+- Apply from inside the app is only possible under the supervisor; `flask run` and plain `waitress-serve` can check and download but not apply.
 
 ### `/api/v1` conventions
 - Routes: `blueprints/api_v1.py` (users) and `blueprints/api_v1_admin.py` (owner/admin). Shared query logic lives in `mymangalib/server/` so the old `/api` and v1 don't duplicate it.
@@ -44,12 +53,12 @@ Android releases are published to https://github.com/XZcutable/MangaLib/releases
 - **New Releases** = series that came out most recently (`Manga.release_year`).
 
 ## Docker
-`Dockerfile` has a Node stage that builds `manga-site` and sets `FRONTEND_PATH`; the server runs with waitress.
+`Dockerfile` has a Node stage that builds `manga-site` and sets `FRONTEND_PATH`; the server runs with waitress under `mymangalib serve`. Releases push it to `ghcr.io/xzcutable/mangalib` (tags `X.Y.Z`, `X.Y`, `X`, `latest`), which `compose.yml` uses; `compose.build.yml` builds locally instead. Pushing needs a classic token with `write:packages` in `~/.mymangalib/ghcr-token` (GHCR doesn't take fine-grained tokens).
 - `FLASK_LIBRARY_PATHS='["/var/manga"]'`: `LIBRARY_PATHS` folders are registered and scanned at startup, but only when no library folders exist yet (`add_configured_paths` in `server/api.py`). Pages are stored with absolute paths, so upgraded servers keep their old folders, and adding a second mount of the same files would duplicate every manga. The scan runs before requests are served, because a background scan could collide with SQLite's write lock.
 - Upgrading from the original version (before `41d5c34`): see `UPGRADING.md`. Old Docker installs keep the DB inside the container at `/usr/local/var/mymangalib-instance/database.db`.
   - To rehearse an upgrade, check out `41d5c34` in a `git worktree`. Its image only builds with `apt upgrade -y` in the Dockerfile and `SQLAlchemy<2.1` in `requirements.txt`; the old code crashes on SQLAlchemy 2.1.
 - `PYTHONUNBUFFERED=1` is needed, or nothing the server prints reaches `docker compose logs`.
-- **Testing on this PC:** Docker isn't on Windows; it runs inside WSL Ubuntu (`wsl -d Ubuntu --cd /mnt/c/Users/RNGAb/Documents/projects/mymanga -- bash -lc "docker compose up -d --build"`). The user's account is in the docker group, so no sudo is needed.
+- **Testing on this PC:** Docker isn't on Windows; it runs inside WSL Ubuntu (`wsl -d Ubuntu --cd /mnt/c/Users/RNGAb/Documents/projects/mymanga -- bash -lc "docker compose -f compose.yml -f compose.build.yml up -d --build"`). Run `wsl` from PowerShell: Git Bash rewrites the `/mnt/c/...` path. The user's account is in the docker group, so no sudo is needed.
   - WSL stops the distro when no `wsl` command is running, which kills the container mid-test (it looks like a crash with exit code 0). Keep a background `wsl -d Ubuntu -- sleep infinity` running while testing.
   - localhost:5000 on Windows reaches the container, but the LAN doesn't. For the phone, use `adb reverse tcp:5000 tcp:5000` and connect the app to `localhost:5000`.
   - Compose data goes to `./data` (gitignored); delete it to test a fresh first start.

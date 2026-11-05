@@ -19,6 +19,7 @@ import { Reader } from "./pages/Reader"
 import { Connect } from "./pages/Connect"
 import { Logout } from "./pages/Logout"
 import { NotFound } from "./pages/NotFound"
+import { About } from "./pages/About"
 import { BASE_PATH } from "./lib/base"
 export const router = createBrowserRouter([
   { path: "/connect", Component: Connect },
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
           { path: "favorites", Component: Favorites },
           { path: "bookmarks", Component: Bookmarks },
           { path: "logout", Component: Logout },
+          { path: "about", Component: About },
           { path: "*", Component: NotFound },
         ],
       },

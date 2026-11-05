@@ -3,6 +3,7 @@
 // API paths (including the cover_url / image_url the server returns) are relative to the server's base.
 
 import { BASE_PATH } from "./base"
+import { reportRestarting, RESTART_CODES } from "./serverStatus"
 
 // "" = the server this page came from, at the path it's served at (BASE_PATH)
 let serverUrl = ""
@@ -56,6 +57,8 @@ async function request(path, { method = "GET", body, signal, server } = {}) {
     if (response.status === 401 && token) onUnauthorized()
     // An admin flagged the account while the app was open
     if (data?.error?.code === "username_change_required") onUsernameChangeRequired()
+    // The server is restarting into an update (or still starting); the overlay waits for it
+    if (response.status === 503 && RESTART_CODES[data?.error?.code]) reportRestarting(RESTART_CODES[data.error.code])
     throw new ApiError(
       response.status,
       data?.error?.code ?? "error",
@@ -153,4 +156,9 @@ export const api = {
   scanLibrary: (path) => request("/library/scan", { method: "POST", body: path ? { path } : {} }),
   serverConfig: () => request("/server/config"),
   updateServerConfig: (changes) => request("/server/config", { method: "PUT", body: changes }),
+  serverUpdate: () => request("/admin/server/update"),
+  checkServerUpdate: () => request("/admin/server/update/check", { method: "POST" }),
+  downloadServerUpdate: () => request("/admin/server/update/download", { method: "POST" }),
+  applyServerUpdate: () => request("/admin/server/update/apply", { method: "POST" }),
+  discardServerUpdate: () => request("/admin/server/update", { method: "DELETE" }),
 }

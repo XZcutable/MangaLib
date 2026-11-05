@@ -19,7 +19,11 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 # PYTHONUNBUFFERED: the server's messages (scan results, warnings) show up in "docker compose logs" right away
+# FLASK_UPDATE_PATH: updates installed from Settings live next to the database, so they survive a new container
 ENV PYTHONUNBUFFERED=1 \
+FLASK_HOST=0.0.0.0 \
+FLASK_PORT=5000 \
+FLASK_UPDATE_PATH="/var/db/updates" \
 FLASK_ENV_CONFIG=true \
 FLASK_BEHIND_PROXY=true \
 FLASK_CREATE_MISSING_CONFIG=true \
@@ -42,6 +46,14 @@ COPY --from=frontend /build/dist /mangalib/frontend
 
 EXPOSE 5000
 
-# CMD ["flask", "--app", "mymangalib", "run", "--host=0.0.0.0"]
-# CMD ["gunicorn", "-w", "2", "--bind=0.0.0.0:5000", "mymangalib:create_app()"]
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "--call", "mymangalib:create_app"]
+ARG VERSION=dev
+LABEL org.opencontainers.image.title="myMangaLib" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.source="https://github.com/XZcutable/MangaLib"
+
+# `mymangalib serve` runs the server under a small supervisor that can restart it to apply updates.
+# Anything after the image name is passed as flags, e.g.
+#   docker run ... ghcr.io/xzcutable/mangalib --site-name "Home library" --no-auto-update
+# (`docker run --rm ghcr.io/xzcutable/mangalib --help` lists them all.)
+ENTRYPOINT ["mymangalib", "serve"]
+CMD []

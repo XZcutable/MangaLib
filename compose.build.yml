@@ -1,0 +1,6 @@
+# Builds the image from this folder instead of pulling the published one:
+#   docker compose -f compose.yml -f compose.build.yml up -d --build
+services:
+    mangalib:
+        build: .
+        image: mangalib:local

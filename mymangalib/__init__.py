@@ -4,8 +4,9 @@ from jinja2 import filters
 from .blueprints import api, api_v1, settings 
 
 from .constants import ENV
+from .version import __version__
 from . import auth, database, frontend
-from .server import server_settings
+from .server import server_settings, updater
 from .server import api as scanner
 from .blueprints import manga
 
@@ -18,7 +19,10 @@ def get(app: Flask, key: str, default_value=None):
     return app.config.get(key, default_value)
 
 def create_app(config_file=None):
-    app = Flask(__name__, instance_relative_config=True)
+    # The supervisor passes the installed copy's instance folder, so an update unpacked elsewhere keeps
+    # using the same config and database
+    app = Flask(__name__, instance_relative_config=True,
+                instance_path=os.environ.get("MYMANGALIB_INSTANCE_PATH") or None)
 
     app.config.from_prefixed_env()
 
@@ -42,6 +46,14 @@ def create_app(config_file=None):
     # ENV has priority
     app.config.from_prefixed_env()
 
+    # Older config files don't have these
+    app.config.setdefault("AUTO_UPDATE", True)
+    app.config.setdefault("UPDATE_CHECKS", True)  # The owner's switch in Settings (saved, see server_settings)
+    # Running an update installed from Settings: serve the front end that came with it
+    bundled_frontend = os.environ.get("MYMANGALIB_BUNDLE_FRONTEND")
+    if bundled_frontend and app.config.get("FRONTEND_PATH"):
+        app.config["FRONTEND_PATH"] = bundled_frontend
+
     warn_if_placeholder_secret(app)
 
     # Inside ProxyFix so a reverse proxy's X-Forwarded-Prefix still applies to /classic
@@ -58,7 +70,7 @@ def create_app(config_file=None):
     @app.context_processor
     def site_name_for_templates():
         # The classic pages show the owner's site name in the browser tab
-        return {"site_name": server_settings.site_name()}
+        return {"site_name": server_settings.site_name(), "app_version": __version__}
 
     # models_old.init_app(app)
     database.init_app(app)
@@ -66,6 +78,7 @@ def create_app(config_file=None):
     auth.init_app(app)
     api.init_app(app)
     api_v1.init_app(app)
+    updater.init_app(app)
     manga.init_app(app)
     settings.init_app(app)
     scanner.add_configured_paths(app)

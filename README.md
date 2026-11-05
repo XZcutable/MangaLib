@@ -2,25 +2,48 @@
 MyMangaLibrary is self hosted manga reading website. It aims to give users the features they expect from a manga reading websites while also keeping control of their data. It also strives to be flexible enough to allow a savy user to share their collections with others or customize their own experience without having to write the backend.
 
 ## Quick start with Docker ##
-Needs Docker with Compose (Docker Desktop on Windows and macOS).
+Needs Docker (Docker Desktop on Windows and macOS). One command starts a server; change `/path/to/manga` to where your manga lives:
 
-1. Clone the project. Put your manga in a `manga` folder next to `compose.yml`, or change `./manga` in `compose.yml` to where your manga already lives.
-2. Start the server:
+```sh
+docker run -d --name mangalib --restart unless-stopped -p 5000:5000 \
+  -v mangalib-db:/var/db -v mangalib-config:/var/config \
+  -v /path/to/manga:/var/manga:ro \
+  ghcr.io/xzcutable/mangalib --site-name "My Library"
+```
 
-   ```sh
-   docker compose up -d --build
-   ```
+Then open http://localhost:5000 and create the owner account. Your manga is already there: the library folder is added and scanned on first start.
 
-3. Open http://localhost:5000 and create the owner account. Your manga is already there: the library folder is added and scanned on first start.
+Or with Compose: put your manga in a `manga` folder next to [compose.yml](compose.yml) (or change `./manga` in it), then run `docker compose up -d`. Settings you'd pass as flags go in its `command:` line.
 
 **Already running an older version?** Follow [UPGRADING.md](UPGRADING.md) first. The original Docker setup kept its database inside the container, so it has to be copied out before upgrading.
 
+### Options ###
+Anything after the image name is a flag (`docker run --rm ghcr.io/xzcutable/mangalib --help` lists them). Flags win over `config.toml`. Settings the owner later changes in the app (site name, sign-ups) win over both.
+
+| Flag | What it does |
+|---|---|
+| `--site-name NAME` | Name in the browser tab and the app |
+| `--allow-new-users` / `--no-allow-new-users` | Let people create accounts |
+| `--auto-approve-users` | New accounts can read without waiting for an admin |
+| `--no-auto-update` | Don't check for or download updates on its own (the owner can still check in Settings) |
+| `--update-check-hours N` | How often to check for updates (default 6) |
+| `--url-prefix /manga` | Served at a sub-path by a reverse proxy |
+| `--behind-proxy` / `--no-behind-proxy` | Trust `X-Forwarded-*` headers (on in the image) |
+| `--cors-origins URL,URL` | Web pages allowed to call the API from a browser |
+| `--library PATH` | A library folder to add on first start (the image already uses `/var/manga`) |
+| `--port N`, `--host ADDR`, `--threads N` | Where and how the server listens inside the container |
+
+### Updating ###
+The server checks GitHub for new versions every few hours and downloads them in the background. Nothing changes until the owner opens **Settings → Server updates** and clicks **Apply and restart**. The server then backs up the database and restarts into the new version, which takes under a minute. People using the site see an "updating" screen and land back on their page. If the new version doesn't start, the server goes back to the old one and restores the backup.
+
+You can also update the image yourself: `docker pull ghcr.io/xzcutable/mangalib` and recreate the container (Compose: `docker compose pull && docker compose up -d`). Updates installed from Settings are kept in the database volume, and a newer image always wins over them.
+
 Notes:
 - **Phones and other computers** connect to `http://<this computer's IP>:5000`, in a browser or in the Android app ([releases](https://github.com/XZcutable/MangaLib/releases)).
-- **Data:** the database, cover cache and `config.toml` (with a random secret key) are kept in `./data`. Back it up; rebuilding or updating the container doesn't touch it.
+- **Data:** the database, cover cache, downloaded updates and database backups are in `/var/db`, and `config.toml` (with a random secret key) in `/var/config`. Compose keeps both in `./data`. Back them up; replacing the container doesn't touch them.
 - **Adding manga later:** copy it into the manga folder, then use Settings → Library → Scan.
-- **Logs:** `docker compose logs -f` shows the first-start scan and any warnings.
-- **Updating:** `git pull`, then `docker compose up -d --build`.
+- **Logs:** `docker logs -f mangalib` (or `docker compose logs -f`) shows the first-start scan and any warnings.
+- **Building the image yourself:** `docker compose -f compose.yml -f compose.build.yml up -d --build`.
 - **Classic interface:** still available at http://localhost:5000/classic/.
 
 ## Deployment or Development ##
@@ -50,6 +73,10 @@ The links explain how to install the server and application. But boils down to: 
  pip install -e .
 
 Deployment commands would look something like:
+> <b>myMangaLib's own launcher</b> (recommended; it can install updates from Settings): <br>
+mymangalib serve --host 0.0.0.0 --port 5000 --library /path/to/manga <br>
+(`python -m mymangalib serve ...` from a checkout. The same flags as the Docker image; `mymangalib --help` lists them.)
+
 > <b>Waitress:</b> <br>
 waitress-serve --host=0.0.0.0 --port=5000 --call mymangalib:create_app
 

@@ -14,6 +14,8 @@ EDITABLE = {
     "AUTO_APPROVE_NEW_USERS": "auto_approve_new_users",
     "HIDE_MANGA": "hide_manga",
     "HIDE_TITLES": "hide_titles",
+    # Automatic update checks. AUTO_UPDATE=false in the config (or --no-auto-update) overrides it.
+    "UPDATE_CHECKS": "auto_update",
 }
 # Text settings, the same way
 EDITABLE_TEXT = {
@@ -83,5 +85,15 @@ def _save(key: str, text: str):
         row.value = text
     db.session.commit()
 
+def auto_update_locked() -> bool:
+    """True when whoever started the server turned automatic updates off (AUTO_UPDATE=false)."""
+    return not current_app.config.get("AUTO_UPDATE", True)
+
+def auto_update_enabled() -> bool:
+    return not auto_update_locked() and bool(current_app.config.get("UPDATE_CHECKS", True))
+
 def as_json() -> dict:
-    return {**{name: get(key) for key, name in EDITABLE.items()}, "site_name": site_name()}
+    data = {**{name: get(key) for key, name in EDITABLE.items()}, "site_name": site_name()}
+    data["auto_update"] = auto_update_enabled()
+    data["auto_update_locked"] = auto_update_locked()
+    return data

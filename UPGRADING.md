@@ -72,9 +72,11 @@ From any other folder, `docker compose` stops with `no configuration file provid
 
    ```sh
    ls data/db/database.db data/config/config.toml    # both must exist here, or the server starts empty
-   docker compose up -d --build
+   docker compose up -d
    docker compose logs -f
    ```
+
+   This downloads the published image (`ghcr.io/xzcutable/mangalib`). To build it from the project folder instead, use `docker compose -f compose.yml -f compose.build.yml up -d --build`.
 
    If `ls` can't find them, step 2 ran in another folder. Move that `data` folder into the project folder first.
 
@@ -83,6 +85,10 @@ From any other folder, `docker compose` stops with `no configuration file provid
 8. **Check it**, using the checklist below. Then remove the old container: `docker rm <container>`.
 
 From now on, your data lives in `./data` and survives updates. Back that folder up.
+
+Later versions install from **Settings → Server updates** (see "Updating" in the [README](README.md#updating)), or with `docker compose pull && docker compose up -d`.
+
+**Coming from a 1.2.0 setup that built its own image** (`build: .` in `compose.yml`)? After `git pull`, `compose.yml` uses the published image instead. Run `docker compose pull && docker compose up -d`; your `./data` folder is used as before.
 
 ---
 

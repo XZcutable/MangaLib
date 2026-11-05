@@ -1,12 +1,20 @@
-// Builds a signed Android APK and publishes it as a GitHub release, which installed apps update from.
+// Releases a new version of myMangaLib (server and app share the version):
+//   - a signed Android APK, which installed apps update from
+//   - the server bundle (mymangalib-server-X.Y.Z.tar.gz), which running servers download and apply from Settings
+//   - the Docker image ghcr.io/xzcutable/mangalib, tagged X.Y.Z, X.Y, X and latest
 //
 //   pnpm release 1.2.0 --notes "What changed"     publish version 1.2.0
 //   pnpm release 1.2.0 --notes-file notes.md      notes from a file
-//   pnpm release 1.2.0 --dry-run                  build the APK only, publish nothing
+//   pnpm release 1.2.0 --dry-run                  build everything, publish nothing
+//   pnpm release 1.2.0 --skip-docker              don't build or push the Docker image
 //
-// Needs the signing key described in ~/.mymangalib/release.properties and, to publish, a GitHub
-// token with "Contents: read and write" on the releases repo, in GITHUB_TOKEN or ~/.mymangalib/github-token.
-import { execSync } from "node:child_process"
+// Needs the signing key described in ~/.mymangalib/release.properties and, to publish:
+//   - a GitHub token with "Contents: read and write" on the releases repo, in GITHUB_TOKEN or
+//     ~/.mymangalib/github-token
+//   - for the Docker image, a classic token with the write:packages scope (GHCR doesn't take fine-grained
+//     tokens), in GHCR_TOKEN or ~/.mymangalib/ghcr-token
+// Docker runs inside WSL on Windows (MYMANGALIB_WSL_DISTRO, default Ubuntu) and directly elsewhere.
+import { execSync, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
@@ -14,7 +22,9 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const REPO = process.env.MYMANGALIB_RELEASE_REPO || "XZcutable/MangaLib"
+const IMAGE = process.env.MYMANGALIB_IMAGE || "ghcr.io/xzcutable/mangalib"
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+const REPO_ROOT = resolve(ROOT, "..")
 const CONFIG_DIR = join(homedir(), ".mymangalib")
 const SIGNING_FILE = process.env.MYMANGALIB_SIGNING || join(CONFIG_DIR, "release.properties")
 
@@ -34,6 +44,7 @@ const option = (name) => {
 }
 const version = args.find((arg) => /^\d+\.\d+\.\d+$/.test(arg))
 const dryRun = args.includes("--dry-run")
+const skipDocker = args.includes("--skip-docker")
 if (!version) fail("Give the new version, e.g. pnpm release 1.2.0")
 const notes = option("--notes-file")
   ? readFileSync(resolve(option("--notes-file")), "utf8").trim()
@@ -55,6 +66,28 @@ if (compare(version, pkg.version) < 0) {
 }
 if (!existsSync(SIGNING_FILE)) fail(`No signing key settings at ${SIGNING_FILE}`)
 
+// Python for packing the server bundle: the project's .venv, or PYTHON
+const python =
+  process.env.PYTHON ||
+  [join(REPO_ROOT, ".venv", "Scripts", "python.exe"), join(REPO_ROOT, ".venv", "bin", "python")].find((path) =>
+    existsSync(path),
+  ) ||
+  "python3"
+
+// Docker: inside WSL on Windows (Docker isn't installed on Windows itself), directly elsewhere
+const wslDistro = process.env.MYMANGALIB_WSL_DISTRO || "Ubuntu"
+const toWslPath = (path) =>
+  path.replace(/^([A-Za-z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`).split("\\").join("/")
+const docker = (args, input) => {
+  const options = { cwd: REPO_ROOT, stdio: [input ? "pipe" : "inherit", "inherit", "inherit"], input }
+  const [command, commandArgs] =
+    process.platform === "win32"
+      ? ["wsl", ["-d", wslDistro, "--cd", toWslPath(REPO_ROOT), "--", "docker", ...args]]
+      : ["docker", args]
+  const result = spawnSync(command, commandArgs, options)
+  if (result.status !== 0) throw new Error(`docker ${args[0]} failed`)
+}
+
 let token
 if (!dryRun) {
   const tokenFile = join(CONFIG_DIR, "github-token")
@@ -62,17 +95,43 @@ if (!dryRun) {
   if (!token) fail(`No GitHub token. Put one in GITHUB_TOKEN or ${tokenFile}`)
 }
 
+let ghcrToken
+if (!dryRun && !skipDocker) {
+  const tokenFile = join(CONFIG_DIR, "ghcr-token")
+  ghcrToken = process.env.GHCR_TOKEN || (existsSync(tokenFile) ? readFileSync(tokenFile, "utf8").trim() : "")
+  if (!ghcrToken) {
+    fail(
+      "No token for the Docker image. Make a classic GitHub token with the write:packages scope and put it in " +
+        `GHCR_TOKEN or ${tokenFile}, or add --skip-docker.`,
+    )
+  }
+}
+
 const github = async (path, options = {}) => {
   const url = path.startsWith("https://") ? path : `https://api.github.com${path}`
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...options.headers,
-    },
-  })
+  const request = () =>
+    fetch(url, {
+      ...options,
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...options.headers,
+      },
+    })
+  // GitHub closes connections left idle during the build (HTTP/2 GOAWAY), and fetch then fails without
+  // an answer. A failure with no answer is retried on a new connection.
+  let response
+  for (let attempt = 1; ; attempt++) {
+    try {
+      response = await request()
+      break
+    } catch (error) {
+      if (attempt >= 3 || !options.retry) throw error
+      console.log(`  GitHub connection dropped (${error.cause?.message ?? error.message}); trying again`)
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
+    }
+  }
   const body = response.status === 204 ? null : await response.json().catch(() => null)
   if (!response.ok) {
     const error = new Error(`GitHub ${response.status}: ${body?.message ?? response.statusText}`)
@@ -91,12 +150,27 @@ if (!dryRun) {
   )
   if (existing) fail(`A release for v${version} already exists: ${existing.html_url}`)
   var defaultBranch = repo.default_branch
+
+  if (!skipDocker) {
+    step("Checking the Docker image token")
+    const response = await fetch("https://api.github.com/user", { headers: { Authorization: `Bearer ${ghcrToken}` } })
+    if (!response.ok) fail(`The Docker image token doesn't work (GitHub ${response.status})`)
+    const scopes = (response.headers.get("x-oauth-scopes") || "").split(",").map((scope) => scope.trim())
+    if (!scopes.includes("write:packages")) {
+      fail("The Docker image token needs the write:packages scope (a classic token; GHCR doesn't take fine-grained ones)")
+    }
+    var ghcrUser = (await response.json()).login
+  }
 }
 
 // --- Build ---
-step(`Setting the app version to ${version}`)
+step(`Setting the version to ${version} (app and server)`)
 pkg.version = version
 writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`)
+const pyprojectPath = join(REPO_ROOT, "pyproject.toml")
+const pyproject = readFileSync(pyprojectPath, "utf8")
+if (!/^version = ".*"\r?$/m.test(pyproject)) fail("No version line in pyproject.toml")
+writeFileSync(pyprojectPath, pyproject.replace(/^version = ".*"(\r?)$/m, `version = "${version}"$1`))
 
 step("Building the web app")
 // Vite directly (same as "pnpm build"), so the script works whichever pnpm version is installed
@@ -122,39 +196,88 @@ const apk = readFileSync(apkPath)
 const sha256 = createHash("sha256").update(apk).digest("hex")
 console.log(`\nBuilt ${apkPath}\n  ${(apk.length / 1024 / 1024).toFixed(1)} MB, sha256 ${sha256}`)
 
+step("Packing the server bundle")
+const bundleName = `mymangalib-server-${version}.tar.gz`
+const bundlePath = join(outDir, bundleName)
+run(`"${python}" -I "${join(REPO_ROOT, "scripts", "make_server_bundle.py")}" ${version} "${join(ROOT, "dist")}" "${bundlePath}"`)
+const bundle = readFileSync(bundlePath)
+const bundleSha256 = createHash("sha256").update(bundle).digest("hex")
+
+const imageTags = [version, `${major}.${minor}`, `${major}`, "latest"].map((tag) => `${IMAGE}:${tag}`)
+if (!skipDocker) {
+  step(`Building the Docker image ${IMAGE}:${version}`)
+  try {
+    docker(["build", "--build-arg", `VERSION=${version}`, ...imageTags.flatMap((tag) => ["-t", tag]), "."])
+  } catch (error) {
+    fail(`${error.message}. Is Docker running${process.platform === "win32" ? ` in WSL (${wslDistro})` : ""}?`)
+  }
+}
+
 if (dryRun) {
-  console.log("\nDry run: nothing was published. package.json now says", version)
+  console.log("\nDry run: nothing was published. package.json and pyproject.toml now say", version)
+  console.log(`Server bundle: ${bundlePath}`)
+  if (!skipDocker) console.log(`Docker image (local only): ${imageTags.join(", ")}`)
   process.exit(0)
 }
 
 // --- Publish: a draft first, so apps never see a release without its APK ---
 step(`Publishing v${version} to ${REPO}`)
-const release = await github(`/repos/${REPO}/releases`, {
-  method: "POST",
-  body: JSON.stringify({
-    tag_name: `v${version}`,
-    target_commitish: defaultBranch,
-    name: `myMangaLib ${version}`,
-    body: notes || `myMangaLib ${version}`,
-    draft: true,
-  }),
-})
+// A draft from a dropped connection may exist already; drafts can't be found by tag, so list them
+const findDraft = async () =>
+  (await github(`/repos/${REPO}/releases?per_page=20`, { retry: true })).find(
+    (candidate) => candidate.draft && candidate.tag_name === `v${version}`,
+  )
+const createDraft = () =>
+  github(`/repos/${REPO}/releases`, {
+    method: "POST",
+    body: JSON.stringify({
+      tag_name: `v${version}`,
+      target_commitish: defaultBranch,
+      name: `myMangaLib ${version}`,
+      body: notes || `myMangaLib ${version}`,
+      draft: true,
+    }),
+  })
+let release = await findDraft()
+for (let attempt = 1; !release; attempt++) {
+  try {
+    release = await createDraft()
+  } catch (error) {
+    if (error.status || attempt >= 3) fail(error.message)
+    console.log(`  GitHub connection dropped (${error.cause?.message ?? error.message}); trying again`)
+    await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
+    release = await findDraft()
+  }
+}
 try {
   const uploadUrl = release.upload_url.replace(/\{.*\}$/, "")
-  const asset = await github(`${uploadUrl}?name=${encodeURIComponent(fileName)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/vnd.android.package-archive" },
-    body: apk,
-  })
-  if (asset.digest && asset.digest !== `sha256:${sha256}`) throw new Error("GitHub's checksum doesn't match the APK")
+  const upload = async (name, type, data, checksum) => {
+    const asset = await github(`${uploadUrl}?name=${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: { "Content-Type": type },
+      body: data,
+    })
+    if (asset.digest && asset.digest !== `sha256:${checksum}`) throw new Error(`GitHub's checksum doesn't match ${name}`)
+  }
+  await upload(fileName, "application/vnd.android.package-archive", apk, sha256)
+  // Servers only apply a bundle whose checksum GitHub lists (the asset's digest)
+  await upload(bundleName, "application/gzip", bundle, bundleSha256)
+
+  if (!skipDocker) {
+    step(`Pushing ${imageTags.join(", ")}`)
+    docker(["login", "ghcr.io", "-u", ghcrUser, "--password-stdin"], ghcrToken)
+    for (const tag of imageTags) docker(["push", tag])
+  }
+
   const published = await github(`/repos/${REPO}/releases/${release.id}`, {
     method: "PATCH",
+    retry: true,
     body: JSON.stringify({ draft: false, make_latest: "true" }),
   })
   console.log(`\nPublished ${published.html_url}`)
-  console.log(`Installed apps will offer the update the next time they check.`)
-  console.log(`Remember to commit the version change in manga-site/package.json.`)
+  console.log(`Installed apps will offer the update the next time they check, and servers download it.`)
+  console.log(`Remember to commit the version change in manga-site/package.json and pyproject.toml.`)
 } catch (error) {
-  await github(`/repos/${REPO}/releases/${release.id}`, { method: "DELETE" }).catch(() => {})
+  await github(`/repos/${REPO}/releases/${release.id}`, { method: "DELETE", retry: true }).catch(() => {})
   fail(`${error.message}. The draft release was removed; nothing was published.`)
 }

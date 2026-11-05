@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { useLocation, useNavigate } from "react-router"
+import { Link, useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 import { useAuth } from "../context/AuthContext"
 import { ACCENTS, useTheme } from "../context/ThemeContext"
@@ -13,6 +13,7 @@ import { UsersSection } from "../components/settings/UsersSection"
 import { SuggestionsSection } from "../components/settings/SuggestionsSection"
 import { SettingSwitch } from "../components/settings/SettingSwitch"
 import { UpdatesSection } from "../components/settings/UpdatesSection"
+import { ServerUpdatesSection } from "../components/settings/ServerUpdatesSection"
 import { canSelfUpdate } from "../lib/updater"
 import { useServerFeatures } from "../lib/features"
 
@@ -62,6 +63,12 @@ export function Settings() {
     { id: "appearance", label: "Appearance" },
     { id: "reading", label: "Reading" },
     ...(user?.is_owner ? [{ id: "library", label: "Library" }] : []),
+    ...(user?.is_owner && features.serverUpdates
+      ? [{
+          id: "server-updates",
+          label: user.server_update?.status === "ready" ? "Server update ready" : "Server updates",
+        }]
+      : []),
     ...(user?.is_admin
       ? [
           { id: "users", label: user.pending_users ? `Users (${user.pending_users} waiting)` : "Users" },
@@ -82,9 +89,19 @@ export function Settings() {
       {sections.length > 3 && (
         <nav className="flex flex-wrap gap-2 mb-6" aria-label="Settings sections">
           {sections.map((section) => (
-            <a key={section.id} href={`#${section.id}`} className={s.chip(false)}>
+            // Buttons, not href="#id" links: the page's <base href> would send those to the home page
+            <button
+              key={section.id}
+              type="button"
+              className={s.chip(false)}
+              onClick={() => {
+                document.getElementById(section.id)?.scrollIntoView({ behavior: "smooth" })
+                const { pathname, search } = window.location
+                window.history.replaceState(window.history.state, "", `${pathname}${search}#${section.id}`)
+              }}
+            >
               {section.label}
-            </a>
+            </button>
           ))}
         </nav>
       )}
@@ -119,6 +136,9 @@ export function Settings() {
               Server: {server || window.location.origin}
               {serverInfo?.version && ` (myMangaLib ${serverInfo.version})`}
             </p>
+            <Link to="/about" className="inline-block mt-2 mr-4 text-sm text-brand-500 hover:text-brand-400">
+              About this app
+            </Link>
             {serverInfo?.classic_ui_path && (
               <a
                 href={`${serverBase()}${serverInfo.classic_ui_path}`}
@@ -211,6 +231,11 @@ export function Settings() {
       {user?.is_owner && (
         <div id="library" className="scroll-mt-20">
           <LibrarySection />
+        </div>
+      )}
+      {user?.is_owner && features.serverUpdates && (
+        <div id="server-updates" className="scroll-mt-20">
+          <ServerUpdatesSection />
         </div>
       )}
       {user?.is_admin && (

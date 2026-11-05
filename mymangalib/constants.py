@@ -74,6 +74,13 @@ URL_PREFIX=''
 
 # Web pages allowed to call /api/v1 from a browser. capacitor://localhost is the iOS app, http://localhost the Android app.
 CORS_ORIGINS=['capacitor://localhost', 'http://localhost', 'https://localhost']
+
+# Server updates. The server checks GitHub every UPDATE_CHECK_HOURS and downloads new versions in the
+# background; nothing is installed until the owner applies it in Settings. AUTO_UPDATE=false (or
+# `mymangalib serve --no-auto-update`) turns automatic checks off; the owner can still check by hand.
+AUTO_UPDATE=true
+UPDATE_CHECK_HOURS=6
+UPDATE_REPO='XZcutable/MangaLib'
 """
 from sqlalchemy import asc, desc
 class SQL:

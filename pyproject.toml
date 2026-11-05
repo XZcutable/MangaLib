@@ -1,10 +1,14 @@
 [project]
 name = "mymangalib"
-version = "1.0.0"
+version = "1.2.1"
 description = "Host and view your Manga locally"
+requires-python = ">=3.11"
 dependencies = [
-    "flask", "Flask-SQLAlchemy", "Flask-Cors", "PyMuPDF"
+    "flask", "Flask-SQLAlchemy", "Flask-Cors", "PyMuPDF", "waitress"
 ]
+
+[project.scripts]
+mymangalib = "mymangalib.cli:main"
 
 [build-system]
 requires = ["flit_core<4"]

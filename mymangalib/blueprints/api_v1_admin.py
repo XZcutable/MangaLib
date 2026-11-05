@@ -13,7 +13,7 @@ from ..auth import api_access, api_error, rename_user, valid_password_pattern
 from ..database import db
 from ..enum import Access
 from ..models import ContentTag, Manga, MetadataSuggestion, User, UserChapterData, UserMangaData
-from ..server import api as scanner, settings as library_settings, tokens, server_settings, jobs, repack
+from ..server import api as scanner, settings as library_settings, tokens, server_settings, jobs, repack, updater
 from ..server import metadata as series_metadata
 from .api import valid_tag_pattern
 from .api_v1 import account_json, bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
@@ -394,8 +394,45 @@ def update_config():
             error = server_settings.set_text(key, value)
             if error is not None:
                 return api_error(400, "bad_request", error)
+    if optional_bool(body, "auto_update") and server_settings.auto_update_locked():
+        return api_error(409, "auto_update_locked",
+                         "Automatic updates were turned off when the server was started (--no-auto-update)")
     for key, name in server_settings.EDITABLE.items():
         value = optional_bool(body, name)
         if value is not None:
             server_settings.set(key, value)
     return get_config()
+
+# --- Server updates (owner) ---
+# The server downloads new versions from GitHub Releases in the background and applies them only when
+# the owner asks. See server/updater.py.
+
+@bp.route("/admin/server/update")
+@api_access(Access.OWNER)
+def update_status():
+    return {"update": updater.get().as_json()}
+
+@bp.route("/admin/server/update/check", methods=["POST"])
+@api_access(Access.OWNER)
+def update_check():
+    # A manual check also downloads, unless automatic updates are off
+    automatic = server_settings.auto_update_enabled()
+    return {"update": updater.get().check(automatic=automatic)}
+
+@bp.route("/admin/server/update/download", methods=["POST"])
+@api_access(Access.OWNER)
+def update_download():
+    return {"update": updater.get().download()}
+
+@bp.route("/admin/server/update/apply", methods=["POST"])
+@api_access(Access.OWNER)
+def update_apply():
+    try:
+        return {"update": updater.get().apply()}
+    except updater.UpdateError as error:
+        return api_error(409, "update_not_ready", str(error))
+
+@bp.route("/admin/server/update", methods=["DELETE"])
+@api_access(Access.OWNER)
+def update_discard():
+    return {"update": updater.get().discard()}

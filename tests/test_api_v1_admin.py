@@ -189,7 +189,7 @@ def test_library_paths_browse_and_scan(app, client, auth, tmp_path):
 def test_server_config_toggles(client, auth):
     assert client.put("/api/v1/server/config", headers=auth, json={"hide_titles": True}).get_json() == {
         "allow_new_users": False, "auto_approve_new_users": False, "hide_manga": False, "hide_titles": True,
-        "site_name": "myMangaLib",
+        "site_name": "myMangaLib", "auto_update": True, "auto_update_locked": False,
     }
     assert client.get("/api/v1/server/info").get_json()["hide_titles"] is True
     client.put("/api/v1/server/config", headers=auth, json={"hide_titles": False})

@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext"
 import { AuthProvider } from "./context/AuthContext"
 import { UpdateProvider } from "./context/UpdateContext"
 import { DownloadsProvider } from "./context/DownloadsContext"
+import { UpdatingOverlay } from "./components/UpdatingOverlay"
 
 function ThemedToaster() {
   const { theme } = useTheme()
@@ -22,6 +23,7 @@ export default function App() {
           <UpdateProvider>
             <RouterProvider router={router} />
             <ThemedToaster />
+            <UpdatingOverlay />
           </UpdateProvider>
         </DownloadsProvider>
       </AuthProvider>

@@ -1,15 +1,19 @@
 services:
     mangalib:
-        build: .
-        image: mangalib
+        # Published with every release. Update with `docker compose pull && docker compose up -d`, or let the
+        # server download updates itself and apply them from Settings > Server updates.
+        # To build from this folder instead: docker compose -f compose.yml -f compose.build.yml up -d --build
+        image: ghcr.io/xzcutable/mangalib:latest
         ports:
             - "5000:5000"
         volumes:
-            # Database and config (the config, with a random secret key, is created on first start)
+            # Database, covers and downloaded updates; config.toml (with a random secret key, made on first start)
             - ./data/db:/var/db
             - ./data/config:/var/config
             # Your manga library. Change the left side to where your manga lives. It's added to the
             # library and scanned on first start; scan again from Settings > Library after adding manga.
             - ./manga:/var/manga:ro
+        # Optional flags (`docker compose run --rm mangalib --help` lists them), for example:
+        # command: ["--site-name", "Home library", "--allow-new-users", "--no-auto-update"]
         # The new interface is at http://localhost:5000 and the classic one at http://localhost:5000/classic/
         restart: unless-stopped
