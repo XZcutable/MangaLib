@@ -4,7 +4,7 @@ import { useStyles } from "../../hooks/useStyles"
 import { api } from "../../lib/api"
 
 // Browse the server's folders and pick one. Folders shown are on the server, not this device.
-export function FolderPicker({ onPick, onClose }) {
+export function FolderPicker({ onPick, onClose, title = "Choose a folder on the server", start = "" }) {
   const s = useStyles()
   const [listing, setListing] = useState(null)
   const [typed, setTyped] = useState("")
@@ -29,8 +29,8 @@ export function FolderPicker({ onPick, onClose }) {
   }, [])
 
   useEffect(() => {
-    open("")
-  }, [open])
+    open(start)
+  }, [open, start])
 
   useEffect(() => {
     const onKey = (event) => event.key === "Escape" && onClose()
@@ -53,7 +53,7 @@ export function FolderPicker({ onPick, onClose }) {
         }`}
       >
         <div className="flex items-center justify-between p-4 pb-2">
-          <h2 className={s.dark ? "text-white" : "text-gray-900"}>Choose a folder on the server</h2>
+          <h2 className={s.dark ? "text-white" : "text-gray-900"}>{title}</h2>
           <button onClick={onClose} className={`p-1 ${s.muted}`} aria-label="Close">
             <X className="w-5 h-5" />
           </button>

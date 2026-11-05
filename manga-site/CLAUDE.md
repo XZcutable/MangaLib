@@ -2,7 +2,7 @@
 
 # Notes for this project (local development)
 
-AGENTS.md describes the Figma Make environment. Locally, no dev server is running until you start one. Project-wide rules (commits, secrets, backend) are in `../CLAUDE.md`.
+AGENTS.md has the basics. Project-wide rules (commits, secrets, backend) are in `../CLAUDE.md`.
 
 ## Toolchain (Windows)
 - pnpm is pinned with `"packageManager": "pnpm@10.34.3"`. The global pnpm is 12, which fails with `ERR_PNPM_VERIFY_DEPS_BEFORE_RUN`; the pin makes it switch automatically.
@@ -35,7 +35,7 @@ AGENTS.md describes the Figma Make environment. Locally, no dev server is runnin
 ## Versions, releases and the auto-updater
 - `package.json` `version` drives Android `versionName`; `versionCode` = major*10000 + minor*100 + patch, so minor and patch go up to 99 (`android/app/build.gradle`).
 - Release signing reads `~/.mymangalib/release.properties` (or `MYMANGALIB_SIGNING`). Without it, `assembleRelease` produces an unsigned APK.
-- Publish: `pnpm release X.Y.Z --notes "..."` or `--notes-file f.md`; `--dry-run` only builds into `release/` (gitignored). `scripts/release.mjs`:
+- Publish: `pnpm release X.Y.Z --notes "..."` or `--notes-file f.md`; `--dry-run` only builds into `release/` (gitignored). `../scripts/release.mjs` (repo root):
   1. Checks the token and that the tag is new.
   2. Bumps `package.json` and builds.
   3. Makes a draft release, uploads the APK, then publishes it (or deletes the draft on failure).

@@ -15,7 +15,7 @@ This guide is for servers running myMangaLib from before the new interface and m
 
 ## Before you start
 
-1. **Find your library folder as the server sees it.** Classic interface → Settings → Config → Local Paths (for example `/var/manga`). Every page is stored with its full path, so the upgraded server must see your manga at the **same path**.
+1. **Find your library folder as the server sees it.** Classic interface → Settings → Config → Local Paths (for example `/var/manga`). Every page is stored with its full path, so the upgraded server must see your manga at the **same path**, or be told where it went (Docker step 5).
 2. **Note your owner username and password.** Accounts carry over unchanged.
 3. **Back up the database and config** (steps below). The upgrade can be rolled back only if you have them.
 
@@ -45,9 +45,9 @@ From any other folder, `docker compose` stops with `no configuration file provid
 2. **Copy the database and config out of it**, from the project folder:
 
    ```sh
-   mkdir -p data/db data/config
-   docker cp <container>:/usr/local/var/mymangalib-instance/database.db data/db/database.db
-   docker cp <container>:/var/config/config.toml data/config/config.toml
+   mkdir -p data
+   docker cp <container>:/usr/local/var/mymangalib-instance/database.db data/database.db
+   docker cp <container>:/var/config/config.toml data/config.toml
    ```
 
    If you added your own volumes for these, copy from those instead. Keep a second copy of both files somewhere safe; that's your backup.
@@ -59,8 +59,9 @@ From any other folder, `docker compose` stops with `no configuration file provid
 5. **Point `compose.yml` at your manga.** In `- ./manga:/var/manga:ro`:
    - **Left side:** the folder on your computer that holds your manga.
    - **Right side:** the path from "Before you start", step 1. The default is `/var/manga`; change it if your old path was different, for example `- /srv/manga:/manga:ro`.
+   - Or keep `/var/manga` and tell the server where the old path went: add `command: ["--library-moved", "/srv/manga=/var/manga"]`. On the first start it points every manga there (it's skipped once done).
 
-6. **Replace the old secret key.** Configs created by the original version contain `SECRET_KEY='REPLACE ME'`, which lets anyone forge a login. In `data/config/config.toml`, set it to a random value:
+6. **Replace the old secret key.** Configs created by the original version contain `SECRET_KEY='REPLACE ME'`, which lets anyone forge a login. In `data/config.toml`, set it to a random value:
 
    ```sh
    python3 -c "import secrets; print(secrets.token_hex(32))"
@@ -71,7 +72,7 @@ From any other folder, `docker compose` stops with `no configuration file provid
 7. **Start the new version**, from the project folder:
 
    ```sh
-   ls data/db/database.db data/config/config.toml    # both must exist here, or the server starts empty
+   ls data/database.db data/config.toml    # both must exist here, or the server starts empty
    docker compose up -d
    docker compose logs -f
    ```
@@ -92,6 +93,25 @@ Later versions install from **Settings → Server updates** (see "Updating" in t
 
 ---
 
+## One data folder
+
+Docker images up to 1.2 kept data in two volumes, `/var/db` (database, covers, updates) and `/var/config` (`config.toml`). Newer images use one, `/data`. Old setups keep working without changes: the server looks for an existing database in `/var/db`, and in `./data/db` + `./data/config` from the old `compose.yml`, before starting fresh. `docker compose logs` prints which folders it uses (`Data: ...`).
+
+To switch an existing Compose setup to the single folder:
+
+1. `docker compose down`
+2. Move the files up one level:
+
+   ```sh
+   mv data/db/* data/ && mv data/config/config.toml data/ && rmdir data/db data/config
+   ```
+
+3. Use the current `compose.yml` (volume `./data:/data`), then `docker compose up -d`. The log should say `Data: Using /data`.
+
+With `docker run` and named volumes, keep `-v mangalib-db:/var/db -v mangalib-config:/var/config` as they are; that layout stays supported.
+
+---
+
 ## Without Docker (Python install)
 
 1. **Stop the server.**
@@ -102,8 +122,7 @@ Later versions install from **Settings → Server updates** (see "Updating" in t
 
    ```sh
    git pull
-   pip install -r requirements.txt     # adds Flask-Cors
-   pip install -e .                    # only if you installed the package before
+   pip install -e .                    # installs the dependencies too (adds Flask-Cors)
    ```
 
    Python 3.11 or newer is required.

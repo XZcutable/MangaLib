@@ -4,9 +4,10 @@
     python scripts/make_server_bundle.py <version> <built front end folder> <output .tar.gz>
 
 The bundle holds the mymangalib package, the built front end, pyproject.toml, requirements.txt and
-manifest.json. Called by manga-site/scripts/release.mjs.
+manifest.json. requirements.txt is made from pyproject.toml's dependencies: installed servers read it to
+install anything new before they switch to the bundle. Called by scripts/release.mjs.
 """
-import io, json, os, re, sys, tarfile, time
+import io, json, os, re, sys, tarfile, time, tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,6 +42,10 @@ def clean(info: tarfile.TarInfo) -> tarfile.TarInfo:
     return info
 
 
+def requirements(pyproject: str) -> str:
+    return "".join(f"{dependency}\n" for dependency in tomllib.loads(pyproject)["project"]["dependencies"])
+
+
 def main(version: str, frontend: str, output: str):
     frontend_dir = Path(frontend)
     if not (frontend_dir / "index.html").is_file():
@@ -57,7 +62,7 @@ def main(version: str, frontend: str, output: str):
         pyproject = re.sub(r'^version\s*=\s*"[^"]*"', f'version = "{version}"',
                            (ROOT / "pyproject.toml").read_text(encoding="utf-8"), count=1, flags=re.MULTILINE)
         add_bytes(archive, "pyproject.toml", pyproject.encode())
-        archive.add(ROOT / "requirements.txt", arcname="requirements.txt", filter=clean)
+        add_bytes(archive, "requirements.txt", requirements(pyproject).encode())
         add_tree(archive, ROOT / "mymangalib", "mymangalib")
         add_tree(archive, frontend_dir, "frontend")
     print(f"Wrote {output} ({os.path.getsize(output) / 1024 / 1024:.1f} MB)")

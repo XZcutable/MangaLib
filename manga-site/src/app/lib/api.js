@@ -148,8 +148,11 @@ export const api = {
   rescanManga: (id) => request(`/manga/${id}/rescan`, { method: "POST" }),
   crunchManga: (id, chapters) => request(`/manga/${id}/crunch`, { method: "POST", body: chapters ? { chapters } : {} }),
   unpackManga: (id, chapters) => request(`/manga/${id}/unpack`, { method: "POST", body: chapters ? { chapters } : {} }),
+  moveManga: (id, libraryPath) => request(`/manga/${id}/move`, { method: "POST", body: { library_path: libraryPath } }),
   library: () => request("/library"),
   addLibraryPath: (path) => request("/library/paths", { method: "POST", body: { path } }),
+  // The folder's files are now at `to`: points its manga there (nothing on disk changes)
+  moveLibraryPath: (from, to) => request("/library/paths", { method: "PUT", body: { from, to } }),
   removeLibraryPath: (path) =>
     request(`/library/paths${query({ path })}`, { method: "DELETE" }),
   browseFolders: (dir) => request(`/library/browse${query({ dir })}`),

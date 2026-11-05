@@ -7,9 +7,9 @@ services:
         ports:
             - "5000:5000"
         volumes:
-            # Database, covers and downloaded updates; config.toml (with a random secret key, made on first start)
-            - ./data/db:/var/db
-            - ./data/config:/var/config
+            # config.toml (with a random secret key, made on first start), the database, covers and downloaded
+            # updates. Back up this folder. Older setups with ./data/db and ./data/config keep working.
+            - ./data:/data
             # Your manga library. Change the left side to where your manga lives. It's added to the
             # library and scanned on first start; scan again from Settings > Library after adding manga.
             - ./manga:/var/manga:ro

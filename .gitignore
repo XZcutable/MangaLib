@@ -13,7 +13,8 @@ dist/
 build/
 *.egg-info/
 
-*.toml
+# Local server config (made on first start; holds the secret key)
+config.toml
 
 # Docker compose data and library mounts
 /data/

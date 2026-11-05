@@ -17,9 +17,9 @@ from ..models import Manga, Chapter, Page, ContentTag, UserMangaData, User, Path
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-from ..server import api, settings, library, server_settings
+from ..server import scanner, library_paths, library, server_settings
 
-from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
+from ..queries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 from ..server.search import create_search_query
 
 FETCH_BATCH_SIZE = 30
@@ -53,7 +53,7 @@ def scanPaths():
             else:
                 paths = actual_paths_to_scan
 
-    api.scan_library(paths)
+    scanner.scan_library(paths)
     flash("Path scanned", 'success')
     return {'result': 'success'}
 
@@ -66,7 +66,7 @@ def rescan():
         flash(f"Manga {manga_id} not found", "error")
     else:
         db.session.begin_nested()
-        (success, error) = api.rescan_manga(manga)
+        (success, error) = scanner.rescan_manga(manga)
         if success:
             flash("Rescanned Manga", "success")
             db.session.commit()
@@ -85,7 +85,7 @@ def addPath():
     path = os.path.normpath(path).replace('\\', '/')
 
     try:
-        settings.add_path(path)
+        library_paths.add_path(path)
         result = { 'success': True }
         flash("Path Added", 'success')
     except ValueError as error:
@@ -101,7 +101,7 @@ def removePath():
     path = os.path.normpath(path).replace('\\', '/')
 
     try:
-        settings.remove_path(path)
+        library_paths.remove_path(path)
         result = { 'success': True }
         flash("Path Removed", 'success')
     except ValueError as error:
@@ -113,7 +113,7 @@ def removePath():
 @owner_access
 def getPaths():
     return {
-        'paths': settings.get_paths()
+        'paths': library_paths.get_paths()
     }
     
 @bp.route('/list-dir')
@@ -122,7 +122,7 @@ def listDirs():
     dir: str = request.args['dir']
     if not dir.endswith("/"):
         dir += "/"
-    return {"dir": dir, "folders": api.lsDirs(dir)}
+    return {"dir": dir, "folders": scanner.lsDirs(dir)}
     
 @bp.route('/open-dir/<int:manga_id>')
 @owner_access

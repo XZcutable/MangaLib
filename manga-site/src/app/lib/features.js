@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext"
 // What the connected server supports, from GET /server/info "api_version". An older server is
 // missing newer routes, so the app hides those features instead of showing errors.
 // While the version isn't known (offline, still loading) everything is assumed to work.
-export const APP_API_VERSION = 3
+export const APP_API_VERSION = 4
 
 export function useServerFeatures() {
   const { serverInfo } = useAuth()
@@ -18,5 +18,7 @@ export function useServerFeatures() {
     seriesDetails: v2,
     // 3: the owner installs server updates from Settings
     serverUpdates: !known || version >= 3,
+    // 4: the owner moves library folders and series between them
+    moveFiles: !known || version >= 4,
   }
 }

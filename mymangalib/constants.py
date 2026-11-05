@@ -63,6 +63,10 @@ SITE_NAME='myMangaLib'
 # they're added and scanned. After that, manage folders in Settings > Library.
 LIBRARY_PATHS=[]
 
+# A library folder that moved (or is now mounted somewhere else), e.g. {'/mnt/media/manga' = '/var/manga'}.
+# Done once at startup: the manga keep their reading progress. Settings > Library can do the same.
+LIBRARY_MOVES={}
+
 # Folder of the built new front end (manga-site/dist). When set, it's served at / and the
 # classic UI moves to /classic. Leave empty to keep the classic UI at /.
 FRONTEND_PATH=''

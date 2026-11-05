@@ -7,7 +7,7 @@ from .constants import ENV
 from .version import __version__
 from . import auth, database, frontend
 from .server import server_settings, updater
-from .server import api as scanner
+from .server import scanner, library_paths
 from .blueprints import manga
 
 import os, tomllib, secrets
@@ -81,6 +81,7 @@ def create_app(config_file=None):
     updater.init_app(app)
     manga.init_app(app)
     settings.init_app(app)
+    library_paths.apply_configured_moves(app)  # Before the scan, so moved manga aren't added again
     scanner.add_configured_paths(app)
 
     app.register_blueprint(auth.bp)

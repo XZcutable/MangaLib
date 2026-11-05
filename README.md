@@ -6,7 +6,7 @@ Needs Docker (Docker Desktop on Windows and macOS). One command starts a server;
 
 ```sh
 docker run -d --name mangalib --restart unless-stopped -p 5000:5000 \
-  -v mangalib-db:/var/db -v mangalib-config:/var/config \
+  -v mangalib-data:/data \
   -v /path/to/manga:/var/manga:ro \
   ghcr.io/xzcutable/mangalib --site-name "My Library"
 ```
@@ -31,20 +31,26 @@ Anything after the image name is a flag (`docker run --rm ghcr.io/xzcutable/mang
 | `--behind-proxy` / `--no-behind-proxy` | Trust `X-Forwarded-*` headers (on in the image) |
 | `--cors-origins URL,URL` | Web pages allowed to call the API from a browser |
 | `--library PATH` | A library folder to add on first start (the image already uses `/var/manga`) |
+| `--library-moved OLD=NEW` | A library folder now mounted at `NEW` instead of `OLD`; the manga keep their reading progress (see [Moving the library](#moving-the-library)) |
 | `--port N`, `--host ADDR`, `--threads N` | Where and how the server listens inside the container |
 
 ### Updating ###
 The server checks GitHub for new versions every few hours and downloads them in the background. Nothing changes until the owner opens **Settings → Server updates** and clicks **Apply and restart**. The server then backs up the database and restarts into the new version, which takes under a minute. People using the site see an "updating" screen and land back on their page. If the new version doesn't start, the server goes back to the old one and restores the backup.
 
-You can also update the image yourself: `docker pull ghcr.io/xzcutable/mangalib` and recreate the container (Compose: `docker compose pull && docker compose up -d`). Updates installed from Settings are kept in the database volume, and a newer image always wins over them.
+You can also update the image yourself: `docker pull ghcr.io/xzcutable/mangalib` and recreate the container (Compose: `docker compose pull && docker compose up -d`). Updates installed from Settings are kept in the data volume, and a newer image always wins over them.
 
 Notes:
 - **Phones and other computers** connect to `http://<this computer's IP>:5000`, in a browser or in the Android app ([releases](https://github.com/XZcutable/MangaLib/releases)).
-- **Data:** the database, cover cache, downloaded updates and database backups are in `/var/db`, and `config.toml` (with a random secret key) in `/var/config`. Compose keeps both in `./data`. Back them up; replacing the container doesn't touch them.
+- **Data:** `config.toml` (with a random secret key), the database, cover cache, downloaded updates and database backups are all in `/data`. Compose keeps it in `./data`. Back that folder up; replacing the container doesn't touch it. Containers set up with the older `/var/db` and `/var/config` volumes keep using them; see [UPGRADING.md](UPGRADING.md#one-data-folder) to switch.
 - **Adding manga later:** copy it into the manga folder, then use Settings → Library → Scan.
 - **Logs:** `docker logs -f mangalib` (or `docker compose logs -f`) shows the first-start scan and any warnings.
 - **Building the image yourself:** `docker compose -f compose.yml -f compose.build.yml up -d --build`.
 - **Classic interface:** still available at http://localhost:5000/classic/.
+
+### Moving the library ###
+Manga are stored with their full path, so the server has to be told when files move. Reading progress, scores, tags and read marks carry over either way.
+- **A whole library folder moved** (new disk, new mount path): move the files, then use **Settings → Library →** the move icon next to the folder, and pick where it is now. In Docker you can instead change the mount and start once with `--library-moved /old/path=/var/manga` (or `LIBRARY_MOVES={'/old/path' = '/var/manga'}` in `config.toml`). It's skipped once done, so it can stay.
+- **One series to another library folder:** open the series, then **Manage → Move to another folder**. The server moves the files itself (copying first when the folders are on different disks). The library must be mounted read-write for this; the example `compose.yml` mounts it `:ro`.
 
 ## Deployment or Development ##
 To setup, first you must clone the project and have python installed. Some systems may use python3, but this will assume just 'python' will work. 
@@ -57,8 +63,8 @@ It is assumed the venv was created in the root directory of the project.
 2\. Then activate the venv:
 `.\.venv\Scripts\activate` on windows or `. .venv/bin/activate` for linux
 
-3\. Then you need to install Flask and Flask-SQLAlchemy, this is why a venv is recommened:
-`pip install -r requirements.txt`
+3\. Then install the server and its dependencies (Flask and friends), this is why a venv is recommened:
+`pip install -e .`
 
 4\. Finally run the server with a command like: <br>
 `flask --app mymangalib run --host=0.0.0.0`
@@ -233,7 +239,7 @@ This is the starting name; a name saved in Settings wins over it.
 | What | Where |
 |---|---|
 | Default name on the server | `DEFAULT_SITE_NAME` in `mymangalib/server/server_settings.py`, and `SITE_NAME` in `DEFAULT_CONFIG` in `mymangalib/constants.py` (written into new configs) |
-| Tab title before the app has reached the server | `"title"` in `manga-site/.figma/make/site.json`, and `DEFAULT_SITE_NAME` in `manga-site/src/app/context/AuthContext.jsx` |
+| Tab title before the app has reached the server | `<title>` in `manga-site/index.html`, and `DEFAULT_SITE_NAME` in `manga-site/src/app/context/AuthContext.jsx` |
 | Name under the Android app's icon | `appName` in `manga-site/capacitor.config.json` and `app_name` in `manga-site/android/app/src/main/res/values/strings.xml` |
 
 Changes to `manga-site` take effect after rebuilding: `docker compose up -d --build` for Docker, or `pnpm build` in `manga-site/`. The Android app picks them up in its next release.

@@ -9,16 +9,13 @@ from typing import Optional, Final
 
 from .constants import ENV
 
-import os, zipfile, pymupdf
+import os
 
 from sqlalchemy import Select, select, func, exc, inspect, text
 
 from .models import db_engine, Manga, Chapter, Page, MangaMetadata, UserMangaData, User
 
-from .helpers import sort_paths, release_year_from_names
-
-SUPPORTED_IMAGE_TYPES: Final[tuple] = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
-SUPPORTED_ARCHIVE_TYPES: Final[tuple] = ('.cbz', '.zip', '.pdf')
+from .helpers import release_year_from_names
 
 class Manga_session(scoped_session):
     session: Session
@@ -104,44 +101,6 @@ class db:
             chapter = Chapter(number=number, path=chapter_path, archive_type=archive_type)
             chapter.title = title
             return chapter
-        
-        def from_archive(chapter: "Chapter", archive_path: str, archive_ext: str):
-            files = []
-            if archive_ext == '.cbz' or archive_ext == '.zip':
-                with zipfile.ZipFile(archive_path, 'r') as zip_file:
-                    # iterates through all files and folders. treating all as one chapter but is more of a volume
-                    for entry in zip_file.infolist():
-                        if entry.is_dir():
-                            pass
-                        else:
-                            entry_ext = os.path.splitext(entry.filename)[1].lower()
-                            if entry_ext in SUPPORTED_IMAGE_TYPES:
-                                files.append(entry.filename)
-                    
-                    sort_paths(files)
-                    next_page_number = 1
-                    for file in files:
-                        page: Page = db.Page.create(file_name=file, number=next_page_number)
-                        next_page_number += 1
-                        chapter.pages.append(page)
-            elif archive_ext == '.pdf':
-                pdf = pymupdf.open(archive_path)
-                for page_index in range(len(pdf)):
-                    page = pdf.load_page(page_index)
-                    image_list = [xref[0] for xref in page.get_images(full=True)]
-
-                    for xref in image_list:
-                        files.append(xref)
-
-                next_page_number = 1
-                for xref in files:
-                    page: Page = db.Page.create(file_name=f"{xref}", number=next_page_number)
-                    next_page_number += 1
-                    chapter.pages.append(page)
-            else:
-                print(f"{archive_ext} is not yet supported.")
-
-            return len(files)
 
     class UserMangaData:
         def getOrCreate(userID: int, manga: "Manga"):
@@ -177,6 +136,7 @@ def init_app(app: Flask):
         with app.app_context():
             db_engine.create_all()
             add_missing_columns()
+            add_missing_indexes()
             fill_missing_release_years()
             from .server.metadata import fill_missing_from_files
             fill_missing_from_files()
@@ -192,6 +152,18 @@ def add_missing_columns():
                     column_type = column.type.compile(dialect=db_engine.engine.dialect)
                     print(f"Adding column {table.name}.{column.name}")
                     connection.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}'))
+
+def add_missing_indexes():
+    """create_all() skips tables that already exist, indexes included. This adds the indexes the models
+    declare to an existing database. It changes no data, and older versions simply ignore them."""
+    inspector = inspect(db_engine.engine)
+    with db_engine.engine.begin() as connection:
+        for table in db_engine.metadata.sorted_tables:
+            existing = {index["name"] for index in inspector.get_indexes(table.name)}
+            for index in table.indexes:
+                if index.name not in existing:
+                    print(f"Adding index {index.name}")
+                    index.create(bind=connection, checkfirst=True)
 
 def fill_missing_release_years():
     """Works out release years for manga scanned before they were tracked, from the names already stored."""

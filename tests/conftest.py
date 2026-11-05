@@ -4,7 +4,7 @@ import pytest
 
 from mymangalib import create_app
 from mymangalib.database import db
-from mymangalib.server import api as server_api
+from mymangalib.server import scanner
 
 # Smallest valid PNG (1x1 pixel)
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
@@ -18,7 +18,7 @@ def add_volume(root: str, manga: str, file_name: str, pages: int = 3):
 
 def scan(app, library_path: str):
     with app.app_context():
-        for manga in server_api.scan_manga_path(library_path):
+        for manga in scanner.scan_manga_path(library_path):
             db.session.add(manga)
         db.session.commit()
 

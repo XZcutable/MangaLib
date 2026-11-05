@@ -4,9 +4,10 @@ import { toast } from "sonner"
 import { useAuth } from "../context/AuthContext"
 import { useStyles } from "../hooks/useStyles"
 import { api } from "../lib/api"
+import { useServerFeatures } from "../lib/features"
 import { waitForJob } from "../lib/metadata"
 
-// Admin tools on the manga page: rename and tags. The owner also gets rescan, folder location and remove.
+// Admin tools on the manga page: rename and tags. The owner also gets rescan, moving, converting and remove.
 export function MangaManagePanel({ manga, onChanged }) {
   const s = useStyles()
   const { user } = useAuth()
@@ -15,11 +16,39 @@ export function MangaManagePanel({ manga, onChanged }) {
   const [allTags, setAllTags] = useState(null)
   const [selected, setSelected] = useState(() => new Set(manga.tags.map((tag) => tag.tag)))
   const [busy, setBusy] = useState(false)
-  const [job, setJob] = useState(null) // a crunch or unpack in progress
+  const [job, setJob] = useState(null) // a crunch, unpack or move in progress
+  const features = useServerFeatures()
+  const [folders, setFolders] = useState(null) // library folders, for moving the series
+  const [target, setTarget] = useState("")
 
   useEffect(() => {
     api.tags().then(({ tags }) => setAllTags(tags)).catch(() => setAllTags([]))
   }, [])
+
+  const canMove = user?.is_owner && features.moveFiles
+  useEffect(() => {
+    if (canMove) api.library().then(({ paths }) => setFolders(paths)).catch(() => setFolders([]))
+  }, [canMove])
+  // The library folder the series is in now; the others are where it can move to
+  const storedPath = manga.path?.replace(/\\/g, "/") ?? ""
+  const currentFolder = folders?.find((folder) => storedPath.startsWith(folder.endsWith("/") ? folder : `${folder}/`))
+  const otherFolders = folders?.filter((folder) => folder !== currentFolder) ?? []
+  const otherKey = otherFolders.join("\n")
+  useEffect(() => {
+    if (!otherFolders.includes(target)) setTarget(otherFolders[0] ?? "")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otherKey])
+
+  const moveFiles = async () => {
+    const message = `Move the files of "${manga.title}" to ${target}? Reading progress, scores and read marks carry over. Copying to another disk can take a while.`
+    if (!confirm(message)) return
+    try {
+      const { job: started } = await api.moveManga(manga.id, target)
+      follow(started)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
 
   useEffect(() => {
     setTitle(manga.title)
@@ -194,6 +223,44 @@ export function MangaManagePanel({ manga, onChanged }) {
               </button>
             </div>
 
+            {job && (
+              <div>
+                <div className={`h-2 rounded-full overflow-hidden ${s.dark ? "bg-gray-800" : "bg-gray-200"}`}>
+                  <div
+                    className={`h-full bg-brand-600 transition-[width] ${job.total ? "" : "w-1/3 animate-pulse"}`}
+                    style={job.total ? { width: `${Math.round((job.done / job.total) * 100)}%` } : undefined}
+                  />
+                </div>
+                <p className={`text-xs mt-1 ${s.muted}`}>
+                  {{ crunch: "Crunching", unpack: "Unpacking", move: "Moving" }[job.kind] ?? "Working"}
+                  {job.total ? ` ${job.done} of ${job.total}` : ""}…
+                </p>
+              </div>
+            )}
+
+            {canMove && otherFolders.length > 0 && (
+              <div className="pt-2 space-y-3">
+                <h3 className={s.subheading}>Move to another folder</h3>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className={`${s.input} flex-1 min-w-0 font-mono text-sm`}
+                    value={target}
+                    onChange={(event) => setTarget(event.target.value)}
+                    aria-label="Library folder to move to"
+                  >
+                    {otherFolders.map((folder) => (
+                      <option key={folder} value={folder}>
+                        {folder}
+                      </option>
+                    ))}
+                  </select>
+                  <button className={s.button} disabled={busy || job || !target} onClick={moveFiles}>
+                    Move
+                  </button>
+                </div>
+              </div>
+            )}
+
             {manga.repack && (
               <div className="pt-2 space-y-3">
                 <h3 className={s.subheading}>Convert</h3>
@@ -201,20 +268,7 @@ export function MangaManagePanel({ manga, onChanged }) {
                   Crunch packs folders of page images into .cbz files. Unpack does the opposite. Reading
                   progress, scores and read marks carry over.
                 </p>
-                {job ? (
-                  <div>
-                    <div className={`h-2 rounded-full overflow-hidden ${s.dark ? "bg-gray-800" : "bg-gray-200"}`}>
-                      <div
-                        className={`h-full bg-brand-600 transition-[width] ${job.total ? "" : "w-1/3 animate-pulse"}`}
-                        style={job.total ? { width: `${Math.round((job.done / job.total) * 100)}%` } : undefined}
-                      />
-                    </div>
-                    <p className={`text-xs mt-1 ${s.muted}`}>
-                      {job.kind === "crunch" ? "Crunching" : "Unpacking"}
-                      {job.total ? ` ${job.done} of ${job.total}` : ""}…
-                    </p>
-                  </div>
-                ) : (
+                {!job && (
                   <div className="flex flex-wrap gap-3">
                     <button
                       className={s.button}

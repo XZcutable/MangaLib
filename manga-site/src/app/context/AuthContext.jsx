@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { api, ApiError, configure, normalizeServerUrl } from "../lib/api"
 import { getItem, setItem, isNative } from "../lib/storage"
 
-// The default site name (the <title> in .figma/make/site.json)
+// The default site name (the <title> in index.html)
 const DEFAULT_SITE_NAME = "myMangaLib"
 
 const SERVER_KEY = "server"

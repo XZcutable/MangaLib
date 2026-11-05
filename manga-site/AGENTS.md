@@ -1,18 +1,14 @@
 # Manga Site
 
-React + Vite + Tailwind CSS project running inside Figma Make.
+The myMangaLib app: React + Vite + Tailwind CSS. It runs in the browser and, through Capacitor, as the Android app.
 
 ## Development Server
 
-A Vite development server is always running on `$PORT` (default 8443). Source changes
-are reflected through hot reload.
+`pnpm dev` starts Vite on `$PORT` (default 8443) and forwards `/api` to a myMangaLib server at
+`http://127.0.0.1:5000` (override with `MANGALIB_SERVER`). Nothing runs until you start it.
 
 ## Key Files
 
 - `src/main.jsx` - Browser entry point
-- `vite.figma.config.js` - Figma Make wrapper configuration
-- `.mise.toml` - Toolchain versions
-
-## Project Guidelines
-
-Read and always follow the instructions in the [project guidelines](guidelines/Guidelines.md) unless the user requests otherwise.
+- `vite.config.js` - Build configuration (relative asset paths, app version, dev proxy)
+- `index.html` - Page shell, including the default `<title>`

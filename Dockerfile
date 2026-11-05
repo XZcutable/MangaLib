@@ -10,34 +10,33 @@ RUN pnpm build
 FROM python:3.11-bookworm
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /var/db
-RUN mkdir /var/manga
-RUN mkdir /var/config
+RUN mkdir /data /var/manga
 
 WORKDIR /mangalib
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+# Dependencies first (from pyproject.toml), so a code change doesn't reinstall them
+COPY pyproject.toml pyproject.toml
+RUN python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']))" \
+    > /tmp/requirements.txt && pip install -r /tmp/requirements.txt && rm /tmp/requirements.txt
 
 # PYTHONUNBUFFERED: the server's messages (scan results, warnings) show up in "docker compose logs" right away
-# FLASK_UPDATE_PATH: updates installed from Settings live next to the database, so they survive a new container
+# FLASK_DATA_DIR: config.toml, the database, covers and updates installed from Settings, all in one volume.
+#   Containers made with the older /var/db + /var/config volumes keep using them (`mymangalib serve` checks).
 ENV PYTHONUNBUFFERED=1 \
 FLASK_HOST=0.0.0.0 \
 FLASK_PORT=5000 \
-FLASK_UPDATE_PATH="/var/db/updates" \
 FLASK_ENV_CONFIG=true \
 FLASK_BEHIND_PROXY=true \
 FLASK_CREATE_MISSING_CONFIG=true \
-FLASK_CONFIG_PATH="/var/config/config.toml" \
-FLASK_DATABASE_PATH="/var/db/database.db" \
-FLASK_THUMBNAIL_CACHE_PATH="/var/db/covers" \
+FLASK_DATA_DIR="/data" \
+MYMANGALIB_DOCKER=1 \
 FLASK_FRONTEND_PATH="/mangalib/frontend" \
 FLASK_LIBRARY_PATHS='["/var/manga"]'
 
-# Mount these so data survives rebuilding the container (see compose.yml)
-VOLUME ["/var/db", "/var/config"]
+# Mount /data so data survives replacing the container (see compose.yml). The older /var/db and /var/config
+# aren't declared any more: a volume mounted there was mounted on purpose, which is how the server spots it.
+VOLUME ["/data"]
 
 RUN mkdir /mangalib/mymangalib
-COPY pyproject.toml pyproject.toml
 COPY ./mymangalib /mangalib/mymangalib
 RUN pip install .
 

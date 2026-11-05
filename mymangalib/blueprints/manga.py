@@ -7,7 +7,7 @@ from ..models import Manga, Chapter, Page, UserMangaData
 from ..database import db
 from ..auth import get_role_context
 from ..constants import VAR, HTML, ROUTE, ENDPOINT
-from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
+from ..queries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 
 from sqlalchemy import func, select, exc
 

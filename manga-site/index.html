@@ -1,13 +1,17 @@
 <!doctype html>
-<html lang="<!-- figma:lang -->">
+<html lang="en">
   <head>
-    <!-- figma:head-start -->
     <meta charset="UTF-8" />
     <meta name="color-scheme" content="light dark" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- The server rewrites this to the path it's reached at (e.g. /manga/), so a sub-path behind a proxy works -->
     <base href="/" />
-    <title><!-- figma:title --></title>
+    <!-- Shown until the app reaches the server; keep in step with DEFAULT_SITE_NAME in src/app/context/AuthContext.jsx -->
+    <title>myMangaLib</title>
+    <meta name="description" content="Discover and read your favorite manga with personalized features like ongoing series tracking, recommended reads, and easy navigation for an enhanced experience." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta property="og:title" content="myMangaLib" />
+    <meta property="og:description" content="Discover and read your favorite manga with personalized features like ongoing series tracking, recommended reads, and easy navigation for an enhanced experience." />
     <style>
       html,
       body {
@@ -18,12 +22,9 @@
         height: 100%;
       }
     </style>
-    <!-- figma:head-end -->
   </head>
   <body>
-    <!-- figma:body-start -->
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <!-- figma:body-end -->
   </body>
 </html>

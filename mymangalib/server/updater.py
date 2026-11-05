@@ -1,6 +1,6 @@
 """Server updates from GitHub Releases.
 
-Each release has a server bundle, `mymangalib-server-X.Y.Z.tar.gz` (made by manga-site/scripts/release.mjs):
+Each release has a server bundle, `mymangalib-server-X.Y.Z.tar.gz` (made by scripts/release.mjs):
 the mymangalib package, the built front end, requirements.txt and manifest.json. The updater:
 
 1. checks the latest release every UPDATE_CHECK_HOURS (when automatic updates are on),

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
-import { FolderPlus, RefreshCw, Trash2 } from "lucide-react"
+import { FolderInput, FolderPlus, RefreshCw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "../../context/AuthContext"
+import { useServerFeatures } from "../../lib/features"
 import { useStyles } from "../../hooks/useStyles"
 import { api } from "../../lib/api"
 import { FolderPicker } from "./FolderPicker"
@@ -20,6 +21,8 @@ export function LibrarySection() {
   const [config, setConfig] = useState(null)
   const [picking, setPicking] = useState(false)
   const [scanning, setScanning] = useState(null)
+  const [moving, setMoving] = useState(null) // the folder whose new location is being picked
+  const features = useServerFeatures()
 
   const load = useCallback(() => {
     api.library().then(({ paths }) => setPaths(paths)).catch((error) => toast.error(error.message))
@@ -44,6 +47,28 @@ export function LibrarySection() {
       setPaths((await api.addLibraryPath(path)).paths)
       toast.success("Folder added. Scanning it now…")
       await scan(path)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const moveTo = async (to) => {
+    const from = moving
+    setMoving(null)
+    const message = `Use "${to}" in place of "${from}"? Do this after moving the files there (or mounting them there). The series keep their reading progress. Nothing on disk changes.`
+    if (!confirm(message)) return
+    try {
+      const result = await api.moveLibraryPath(from, to)
+      setPaths(result.paths)
+      if (result.missing) {
+        const examples = result.missing_titles.slice(0, 3).join(", ")
+        toast.warning(
+          `${result.missing} of ${result.moved} series weren't found in the new folder (e.g. ${examples}). If it's the wrong folder, move it back.`,
+          { duration: 15000 },
+        )
+      } else {
+        toast.success(`Folder moved: ${result.moved} series point to ${result.path}`)
+      }
     } catch (error) {
       toast.error(error.message)
     }
@@ -129,6 +154,16 @@ export function LibrarySection() {
               >
                 <RefreshCw className={`w-4 h-4 ${scanning === path ? "animate-spin" : ""}`} />
               </button>
+              {features.moveFiles && (
+                <button
+                  className={`p-2 rounded-md ${s.muted} hover:text-brand-500`}
+                  onClick={() => setMoving(path)}
+                  aria-label={`${path} moved`}
+                  title="Moved: point this folder to its new location"
+                >
+                  <FolderInput className="w-4 h-4" />
+                </button>
+              )}
               <button
                 className={`p-2 rounded-md ${s.muted} hover:text-red-500`}
                 onClick={() => removePath(path)}
@@ -185,6 +220,13 @@ export function LibrarySection() {
       )}
 
       {picking && <FolderPicker onPick={addPath} onClose={() => setPicking(false)} />}
+      {moving && (
+        <FolderPicker
+          title="Where is this folder now?"
+          onPick={moveTo}
+          onClose={() => setMoving(null)}
+        />
+      )}
     </section>
   )
 }

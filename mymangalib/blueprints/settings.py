@@ -1,7 +1,7 @@
 from flask import (
     Blueprint, g, render_template, Flask
 )
-from ..server.settings import update_paths
+from ..server.library_paths import update_paths
 
 from ..auth import get_role_context
 

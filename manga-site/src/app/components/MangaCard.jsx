@@ -1,7 +1,7 @@
 import { Link } from "react-router"
 import { BookCheck, Heart, Star } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { ImageWithFallback } from "./figma/ImageWithFallback"
+import { ImageWithFallback } from "./ImageWithFallback"
 import { useTheme } from "../context/ThemeContext"
 import { useAuth } from "../context/AuthContext"
 import { imageUrl, parseServerDate } from "../lib/api"

@@ -6,7 +6,7 @@ from sqlalchemy import Select, select, func
 from ..database import db
 from ..models import Manga, Chapter, Page, UserMangaData, UserChapterData
 from ..constants import SQL
-from ..quries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
+from ..queries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 from .search import create_search_query
 
 # "updated": most recently given new chapters or added. "newest": most recent release year first,

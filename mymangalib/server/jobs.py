@@ -86,3 +86,7 @@ def active_for(manga_id: int) -> Optional[dict]:
         if job["manga_id"] == manga_id and job["status"] in ("queued", "running"):
             return job
     return None
+
+def any_active() -> bool:
+    """Whether any job is queued or running, for changes that affect every manga's files."""
+    return any(_jobs[job_id]["status"] in ("queued", "running") for job_id in _order)

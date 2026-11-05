@@ -15,7 +15,7 @@ import {
   TriangleAlert,
 } from "lucide-react"
 import { toast } from "sonner"
-import { ImageWithFallback } from "../components/figma/ImageWithFallback"
+import { ImageWithFallback } from "../components/ImageWithFallback"
 import { StatusMessage } from "../components/StatusMessage"
 import { useTheme } from "../context/ThemeContext"
 import { useAuth } from "../context/AuthContext"

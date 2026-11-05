@@ -25,12 +25,16 @@ def build_parser() -> argparse.ArgumentParser:
     server.add_argument("--port", type=int, help="Port to listen on (default 5000)")
     server.add_argument("--threads", type=int, help="Request threads (default 8)")
     server.add_argument("--data-dir", metavar="DIR",
-                        help="Keep the database, config.toml, covers and updates in this folder")
+                        help="Keep the database, config.toml, covers and updates in this folder "
+                             "(the Docker image uses /data)")
     server.add_argument("--config", metavar="FILE", help="Path to config.toml")
 
     library = parser.add_argument_group("library")
     library.add_argument("--library", metavar="PATH", action="append",
                          help="A manga folder to add and scan on the first start. Repeat for more folders.")
+    library.add_argument("--library-moved", metavar="OLD=NEW", action="append",
+                         help="A library folder now at NEW (e.g. a new mount) instead of OLD. Done once at startup; "
+                              "the manga keep their reading progress. Repeat for more folders.")
     library.add_argument("--site-name", help="Name shown in the browser tab and the app")
 
     access = parser.add_argument_group("access")
@@ -63,14 +67,20 @@ def flags_to_env(args: argparse.Namespace) -> dict[str, str]:
     if args.data_dir:
         data_dir = os.path.abspath(args.data_dir)
         os.makedirs(data_dir, exist_ok=True)
-        put("DATABASE_PATH", os.path.join(data_dir, "database.db"))
-        put("CONFIG_PATH", os.path.join(data_dir, "config.toml"))
-        put("THUMBNAIL_CACHE_PATH", os.path.join(data_dir, "covers"))
-        put("UPDATE_PATH", os.path.join(data_dir, "updates"))
+        for key, value in data_paths(data_dir).items():
+            put(key, value)
     if args.config:
         put("CONFIG_PATH", os.path.abspath(args.config))
     if args.library:
         put("LIBRARY_PATHS", [os.path.abspath(path) for path in args.library])
+    if args.library_moved:
+        moves = {}
+        for move in args.library_moved:
+            old, separator, new = move.partition("=")
+            if not separator or not old.strip() or not new.strip():
+                raise SystemExit(f"--library-moved needs OLD=NEW, got '{move}'")
+            moves[old.strip()] = new.strip()
+        put("LIBRARY_MOVES", moves)
     put("SITE_NAME", args.site_name)
     put("ALLOW_NEW_USERS", args.allow_new_users)
     put("AUTO_APPROVE_NEW_USERS", args.auto_approve_users)
@@ -82,6 +92,69 @@ def flags_to_env(args: argparse.Namespace) -> dict[str, str]:
         put("AUTO_UPDATE", False)
     put("UPDATE_CHECK_HOURS", args.update_check_hours)
     return env
+
+
+def data_paths(data_dir: str) -> dict[str, str]:
+    """Everything the server keeps, in one folder."""
+    return {
+        "DATABASE_PATH": os.path.join(data_dir, "database.db"),
+        "CONFIG_PATH": os.path.join(data_dir, "config.toml"),
+        "THUMBNAIL_CACHE_PATH": os.path.join(data_dir, "covers"),
+        "UPDATE_PATH": os.path.join(data_dir, "updates"),
+    }
+
+
+# Docker images up to 1.2 kept data in two volumes: /var/db (database, covers, updates) and /var/config
+# (config.toml). Compose put them in ./data/db and ./data/config, so a new compose file that mounts ./data
+# at /data finds them at /data/db and /data/config.
+def split_paths(db_dir: str, config_dir: str) -> dict[str, str]:
+    return {
+        "DATABASE_PATH": os.path.join(db_dir, "database.db"),
+        "CONFIG_PATH": os.path.join(config_dir, "config.toml"),
+        "THUMBNAIL_CACHE_PATH": os.path.join(db_dir, "covers"),
+        "UPDATE_PATH": os.path.join(db_dir, "updates"),
+    }
+
+
+def docker_data_paths(data_dir: str, old_root: str = "/var", ismount=os.path.ismount) -> tuple[dict[str, str], str]:
+    """Where a Docker container keeps its data, and why. An existing database wins wherever it is, so
+    upgrading the image never starts a server with an empty library."""
+    old_volumes = split_paths(os.path.join(old_root, "db"), os.path.join(old_root, "config"))
+    old_compose = split_paths(os.path.join(data_dir, "db"), os.path.join(data_dir, "config"))
+    new = data_paths(data_dir)
+    has_database = lambda paths: os.path.isfile(paths["DATABASE_PATH"])
+
+    if has_database(new):
+        if has_database(old_volumes):
+            return new, f"Using {data_dir}. There's also an older database in {old_root}/db, which isn't used."
+        return new, f"Using {data_dir}"
+    if has_database(old_compose):
+        return old_compose, f"Using {data_dir}/db and {data_dir}/config (the older two-folder layout)"
+    if has_database(old_volumes):
+        return old_volumes, (f"Using the older volumes {old_root}/db and {old_root}/config. "
+                             f"They keep working; see UPGRADING.md to move to a single {data_dir} volume.")
+    # A new server. The image only declares /data, so a volume at /var/db was mounted on purpose
+    # (an older compose file or docker run command)
+    if ismount(os.path.join(old_root, "db")):
+        return old_volumes, f"Using the mounted {old_root}/db and {old_root}/config"
+    return new, f"Using {data_dir}"
+
+
+def apply_default_data_dir() -> None:
+    """FLASK_DATA_DIR (set by the Docker image): fills in the paths that weren't set some other way."""
+    data_dir = env_value("DATA_DIR")
+    if not data_dir:
+        return
+    data_dir = os.path.abspath(str(data_dir))
+    if os.environ.get("MYMANGALIB_DOCKER"):
+        paths, reason = docker_data_paths(data_dir)
+        print(f"Data: {reason}", flush=True)
+    else:
+        paths = data_paths(data_dir)
+    for key, value in paths.items():
+        os.environ.setdefault(f"FLASK_{key}", json.dumps(value))
+    for key in ("DATABASE_PATH", "CONFIG_PATH"):
+        os.makedirs(os.path.dirname(os.path.abspath(str(env_value(key)))), exist_ok=True)
 
 
 def env_value(key: str, default=None):
@@ -134,6 +207,8 @@ def main(argv: list[str] | None = None):
         return 0
 
     os.environ.update(flags_to_env(args))
+    if not args.data_dir:
+        apply_default_data_dir()  # After the flags, so FLASK_* variables set by hand still win
     host = args.host or env_value("HOST") or "127.0.0.1"
     port = args.port or env_value("PORT") or 5000
     threads = args.threads or env_value("THREADS") or 8

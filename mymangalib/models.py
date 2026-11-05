@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import ForeignKey, ForeignKeyConstraint
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass, mapped_column, Mapped, mapped_column, relationship
 
 from datetime import datetime, timezone
@@ -213,13 +213,14 @@ class Manga(Model):
     id:Mapped[int_pk] = mapped_column(init=False, unique=True)
     title:Mapped[str]
     original_title:Mapped[str]
-    path: Mapped[str]
+    path: Mapped[str] = mapped_column(index=True)  # Scans look series up by their folder
 
     manga_metadata:Mapped["MangaMetadata"] = relationship(cascade="all, delete-orphan")
 
     chapters:Mapped[List["Chapter"]] = relationship(default_factory=list, back_populates="manga", cascade="all, delete-orphan")
 
     date_uploaded:Mapped[str] = mapped_column(default=None)
+    # Unused, always "". Kept because older versions still write it, so dropping it would break a rollback.
     relative_path:Mapped[str] = mapped_column(default="")
     # Earliest year found in the file names, e.g. "v01 (2019)". None when the names have no year.
     release_year:Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
@@ -283,6 +284,9 @@ class Page(Model):
         ForeignKeyConstraint(
             [manga_id, chapter_number], ["chapter.manga_id", "chapter.number"]
         ),
+        # The primary key starts with the page number, so it can't find a chapter's pages. Without this,
+        # every page lookup reads the whole table.
+        Index("ix_page_chapter", "manga_id", "chapter_number"),
     )
 
     def __repr__(self):

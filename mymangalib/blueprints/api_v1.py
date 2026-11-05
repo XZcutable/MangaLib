@@ -25,7 +25,8 @@ bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 # Bump when routes or fields are added, so the app can tell what an older server lacks.
 # 2: ratings, chapter read marks, series details and suggestions, crunch/unpack, reading hints.
 # 3: server updates (/admin/server/update), restart_in in /server/info.
-API_VERSION = 3
+# 4: moving library folders (PUT /library/paths) and series (POST /manga/<id>/move).
+API_VERSION = 4
 IMAGE_MAX_AGE = 10*24*60*60
 MAX_BATCH_SIZE = 100
 DEFAULT_CORS_ORIGINS = [

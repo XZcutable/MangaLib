@@ -11,7 +11,7 @@ from sqlalchemy import select
 from ..database import db
 from ..models import Manga, Chapter, UserMangaData, UserChapterData
 from . import comicinfo, metadata
-from . import api as scanner
+from . import scanner
 
 ARCHIVES = (".cbz", ".zip")
 

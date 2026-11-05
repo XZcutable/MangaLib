@@ -13,7 +13,7 @@ from ..auth import api_access, api_error, rename_user, valid_password_pattern
 from ..database import db
 from ..enum import Access
 from ..models import ContentTag, Manga, MetadataSuggestion, User, UserChapterData, UserMangaData
-from ..server import api as scanner, settings as library_settings, tokens, server_settings, jobs, repack, updater
+from ..server import scanner, library_paths, move, tokens, server_settings, jobs, repack, updater
 from ..server import metadata as series_metadata
 from .api import valid_tag_pattern
 from .api_v1 import account_json, bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
@@ -305,12 +305,29 @@ def unpack_manga(manga_id: int):
     """Extracts .cbz/.zip chapters into image folders. {"chapters": [1, 2]} limits it to those chapters."""
     return start_repack(manga_id, "unpack")
 
+@bp.route("/manga/<int:manga_id>/move", methods=["POST"])
+@api_access(Access.OWNER)
+def move_manga(manga_id: int):
+    """{"library_path": folder}: moves the series' files into another library folder. Returns a job."""
+    manga = get_manga_or_404(manga_id)
+    if jobs.active_for(manga.id):
+        return api_error(409, "busy", "This series is already being changed. Wait for that to finish.")
+    target = json_body().get("library_path")
+    if not isinstance(target, str) or not target.strip():
+        return api_error(400, "bad_request", "library_path is required")
+    try:
+        move.check(manga, target)
+    except move.MoveError as error:
+        return api_error(400, "cant_move", str(error))
+    job = jobs.submit("move", manga.id, lambda job: move.run(manga_id, target, job))
+    return {"job": job}, 202
+
 # --- Library folders and scanning (owner) ---
 
 @bp.route("/library")
 @api_access(Access.OWNER)
 def library():
-    return {"paths": sorted(library_settings.get_paths())}
+    return {"paths": sorted(library_paths.get_paths())}
 
 @bp.route("/library/paths", methods=["POST"])
 @api_access(Access.OWNER)
@@ -319,20 +336,37 @@ def add_library_path():
     if not isinstance(path, str) or not path.strip():
         return api_error(400, "bad_request", "path is required")
     try:
-        library_settings.add_path(normalize_path(path.strip()))
+        library_paths.add_path(normalize_path(path.strip()))
     except ValueError as error:
         return api_error(400, "bad_path", str(error))
-    return {"paths": sorted(library_settings.get_paths())}, 201
+    return {"paths": sorted(library_paths.get_paths())}, 201
 
 @bp.route("/library/paths", methods=["DELETE"])
 @api_access(Access.OWNER)
 def remove_library_path():
     path = request.args.get("path", "")
     try:
-        library_settings.remove_path(normalize_path(path))
+        library_paths.remove_path(normalize_path(path))
     except ValueError as error:
         return api_error(404, "not_found", str(error))
-    return {"paths": sorted(library_settings.get_paths())}
+    return {"paths": sorted(library_paths.get_paths())}
+
+@bp.route("/library/paths", methods=["PUT"])
+@api_access(Access.OWNER)
+def move_library_path():
+    """{"from": old, "to": new}: the folder's files are now at `new` (moved, or mounted elsewhere).
+    The manga are pointed there and keep their ids. Files aren't touched."""
+    body = json_body()
+    old, new = body.get("from"), body.get("to")
+    if not isinstance(old, str) or not old.strip() or not isinstance(new, str) or not new.strip():
+        return api_error(400, "bad_request", "from and to are required")
+    if jobs.any_active():
+        return api_error(409, "busy", "Files are being changed. Wait for that to finish.")
+    try:
+        result = library_paths.move_library(old, new)
+    except ValueError as error:
+        return api_error(400, "bad_path", str(error))
+    return {**result, "paths": sorted(library_paths.get_paths())}
 
 @bp.route("/library/browse")
 @api_access(Access.OWNER)
@@ -365,7 +399,7 @@ def browse_folders():
 @api_access(Access.OWNER)
 def scan():
     """Scans every library folder, or one with {"path": ...}, for new manga and new chapters."""
-    paths = library_settings.get_paths()
+    paths = library_paths.get_paths()
     path = json_body().get("path")
     if path is not None:
         if path not in paths:

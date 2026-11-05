@@ -1,7 +1,7 @@
 """Where server updates live on disk, shared by the supervisor (which picks the code to run) and the
 updater (which downloads and applies updates). Neither imports Flask here, so the supervisor stays small.
 
-<update dir>/              In Docker: /var/db/updates, next to the database
+<update dir>/              In Docker: /data/updates (/var/db/updates in older containers), next to the database
     state.json             The updater's status, shown in Settings
     downloads/             Downloads in progress (<name>.part) and finished bundles
     versions/<version>/    Unpacked updates: mymangalib/, frontend/, deps/, manifest.json

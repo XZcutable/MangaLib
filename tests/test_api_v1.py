@@ -16,7 +16,7 @@ def manga_id_by_title(client, auth, title):
 
 def test_server_info_is_public_and_reports_setup(client):
     info = client.get("/api/v1/server/info").get_json()
-    assert info["api_version"] == 3
+    assert info["api_version"] == 4
     assert info["needs_setup"] is True
     assert info["registration_open"] is True
 
