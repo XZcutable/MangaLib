@@ -104,6 +104,10 @@ public class OfflineDownloader {
         return current;
     }
 
+    public synchronized boolean idle() {
+        return queue.isEmpty() && current == null;
+    }
+
     public synchronized int waiting() {
         return queue.size();
     }
@@ -228,7 +232,7 @@ public class OfflineDownloader {
     }
 
     private void stopService() {
-        context.stopService(new Intent(context, DownloadService.class));
+        DownloadService.stopWhenIdle(context);
     }
 
     /** Bytes used by everything under the folder. */

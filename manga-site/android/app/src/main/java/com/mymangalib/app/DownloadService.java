@@ -9,7 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 
@@ -22,6 +24,8 @@ public class DownloadService extends Service {
     private static final String CHANNEL = "downloads";
     private static final int NOTIFICATION_ID = 7301;
     private static long lastUpdate = 0;
+    // Set once startForeground() has run; only touched on the main thread.
+    private static DownloadService running;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -31,7 +35,27 @@ public class DownloadService extends Service {
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
+        running = this;
+        // The queue may have emptied before Android got here (job failed or was already on disk).
+        if (OfflineDownloader.get(this).idle()) stopSelf();
         return START_NOT_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (running == this) running = null;
+        super.onDestroy();
+    }
+
+    /**
+     * Stops the service once nothing is downloading. Never calls stopService() directly:
+     * stopping a service started with startForegroundService() before it reached
+     * startForeground() makes Android kill the app.
+     */
+    static void stopWhenIdle(Context context) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (running != null && OfflineDownloader.get(context).idle()) running.stopSelf();
+        });
     }
 
     @Override
