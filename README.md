@@ -87,7 +87,7 @@ You need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Window
 ```sh
 docker run -d --name mangalib --restart unless-stopped -p 5000:5000 \
   -v mangalib-data:/data \
-  -v /path/to/manga:/var/manga:ro \
+  -v /path/to/manga:/var/manga \
   ghcr.io/xzcutable/mangalib --site-name "My Library"
 ```
 
