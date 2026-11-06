@@ -1,5 +1,6 @@
-// Offline downloads (Android app only). The native Offline plugin (android/.../OfflinePlugin.java)
-// fetches page images into app storage; this module decides what to fetch and remembers what's on
+// Offline downloads. In the Android app the native Offline plugin (android/.../OfflinePlugin.java)
+// fetches page images into app storage; in a browser over HTTPS, lib/offlineWeb.js does the same with
+// Cache Storage. This module decides what to fetch and remembers what's on
 // the phone, per server, in Preferences:
 //   { manga: { [id]: { title, cover, info, chapters: { [number]: { state, done, total, files, chapter, error } } } } }
 // state is "queued", "downloading", "done" or "failed". files are page file names in page order.
@@ -9,9 +10,17 @@
 import { Capacitor, registerPlugin } from "@capacitor/core"
 import { api, ApiError, imageUrl, serverBase } from "./api"
 import { getItem, setItem, isNative } from "./storage"
+import { BASE_PATH } from "./base"
+import { offlineWeb, webOfflineSupported } from "./offlineWeb"
 
-const Offline = isNative ? registerPlugin("Offline") : null
-export const offlineAvailable = isNative
+const Offline = isNative ? registerPlugin("Offline") : webOfflineSupported ? offlineWeb : null
+export const offlineAvailable = Boolean(Offline)
+// Downloads would work here over HTTPS (a browser on a plain-http address)
+export const offlineNeedsHttps = !isNative && !webOfflineSupported
+export const HTTPS_NOTICE =
+  "Downloads in the browser need a secure (https://) address. Reach this server through an HTTPS proxy, or use the Android app."
+// What the downloads are on, for messages ("Delete from this phone")
+export const deviceName = isNative ? "phone" : "device"
 
 let root = null // absolute path of the downloads folder on the phone
 let manifests = {} // serverKey -> manifest
@@ -43,6 +52,7 @@ function manifest() {
 }
 
 let saveTimer = null
+let pendingSave = null
 function changed({ save = true } = {}) {
   listeners.forEach((listener) => listener())
   if (!save) return
@@ -51,7 +61,21 @@ function changed({ save = true } = {}) {
   if (!data) return
   // Progress events come quickly; write the manifest at most every half second
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => setItem(manifestKey(key), JSON.stringify(data)).catch(() => {}), 500)
+  pendingSave = () => {
+    pendingSave = null
+    setItem(manifestKey(key), JSON.stringify(data)).catch(() => {})
+  }
+  saveTimer = setTimeout(pendingSave, 500)
+}
+
+// In a browser the page can be reloaded or closed before the timer runs
+if (typeof window !== "undefined") {
+  const saveNow = () => {
+    clearTimeout(saveTimer)
+    pendingSave?.()
+  }
+  window.addEventListener("pagehide", saveNow)
+  document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && saveNow())
 }
 
 export function subscribe(listener) {
@@ -77,7 +101,7 @@ let activeJobs = new Set()
 // Calls made while it loads share one load, so a later one can't replace changes made meanwhile.
 let loading = {} // serverKey -> promise
 export function loadCurrentServer() {
-  if (!isNative) return Promise.resolve()
+  if (!offlineAvailable) return Promise.resolve()
   const key = serverKey()
   if (manifests[key]) return Promise.resolve()
   loading[key] ??= loadServer(key).finally(() => delete loading[key])
@@ -102,7 +126,7 @@ async function loadServer(key) {
 
 // Loads the saved list and listens to the plugin. Call once the server address is known.
 export function init() {
-  if (!isNative) {
+  if (!offlineAvailable) {
     ready = true
     return Promise.resolve()
   }
@@ -164,8 +188,11 @@ export function chapterState(mangaId, number) {
   return manifest().manga[mangaId]?.chapters[number] ?? null
 }
 
+// Natively a file in app storage; in a browser a URL the service worker answers from Cache Storage
 const fileUrl = (mangaId, chapter, name) =>
-  Capacitor.convertFileSrc(`${root}/${folderFor(mangaId, chapter)}/${name}`)
+  isNative
+    ? Capacitor.convertFileSrc(`${root}/${folderFor(mangaId, chapter)}/${name}`)
+    : `${BASE_PATH}/__offline/${folderFor(mangaId, chapter)}/${encodeURIComponent(name)}`
 
 export function coverUrl(mangaId) {
   const manga = manifest().manga[mangaId]
@@ -341,7 +368,7 @@ export async function download(manga, numbers) {
 // Starts again whatever was queued when the app closed. Needs the server.
 export async function resume() {
   await init()
-  if (!isNative) return
+  if (!offlineAvailable) return
   await loadCurrentServer()
   for (const [mangaId, manga] of Object.entries(manifest().manga)) {
     for (const [number, entry] of Object.entries(manga.chapters)) {
@@ -391,7 +418,7 @@ export async function remove(mangaId, numbers = null) {
 }
 
 export async function usage(mangaId) {
-  if (!isNative) return 0
+  if (!offlineAvailable) return 0
   try {
     const { bytes } = await Offline.usage(
       mangaId === undefined ? {} : { folder: `${serverKey()}/m${mangaId}` },
@@ -410,7 +437,7 @@ export async function saveProgress(mangaId, chapter, page, isLastPage = false) {
   try {
     await api.saveProgress(mangaId, chapter, page)
   } catch (error) {
-    if (!isNative || !(error instanceof ApiError) || error.status !== 0) return
+    if (!offlineAvailable || !(error instanceof ApiError) || error.status !== 0) return
     const key = syncKey(serverKey())
     const queue = JSON.parse((await getItem(key)) ?? "[]").filter(
       (item) => item.manga !== mangaId || item.last,
@@ -436,7 +463,7 @@ function rememberOfflineProgress(mangaId, chapter, page, isLastPage) {
 
 let flushing = false
 export async function flushProgress() {
-  if (!isNative || flushing) return
+  if (!offlineAvailable || flushing) return
   flushing = true
   try {
     const key = syncKey(serverKey())

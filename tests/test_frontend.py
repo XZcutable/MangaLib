@@ -4,11 +4,15 @@ from conftest import PASSWORD, make_app, register
 
 INDEX = '<!doctype html><html><head><base href="/" /><title>myMangaLib app</title></head></html>'
 
+MANIFEST = '{"name": "myMangaLib", "short_name": "myMangaLib", "start_url": "./", "scope": "./"}'
+
 def frontend_app(tmp_path, extra_config: str = ""):
     dist = tmp_path / "dist"
     (dist / "assets").mkdir(parents=True)
     (dist / "index.html").write_text(INDEX)
     (dist / "assets" / "index-abc123.js").write_text("console.log('app')")
+    (dist / "manifest.webmanifest").write_text(MANIFEST)
+    (dist / "sw.js").write_text("self.addEventListener('fetch', () => {})")
     return make_app(tmp_path, f'FRONTEND_PATH="{dist.as_posix()}"\n{extra_config}')
 
 @pytest.fixture
@@ -26,6 +30,27 @@ def test_assets_are_cached_long_term(client):
     response = client.get("/assets/index-abc123.js")
     assert response.get_data(as_text=True) == "console.log('app')"
     assert "max-age=31536000" in response.headers["Cache-Control"]
+
+def test_index_html_itself_gets_the_base_tag(client):
+    # The service worker stores this copy to open the app offline
+    response = client.get("/index.html")
+    assert response.get_data(as_text=True) == INDEX
+    assert response.headers["Cache-Control"] == "no-cache"
+
+def test_service_worker_is_not_cached(client):
+    response = client.get("/sw.js")
+    assert response.status_code == 200
+    assert "max-age=0" in response.headers["Cache-Control"] or "no-cache" in response.headers["Cache-Control"]
+
+def test_manifest_has_the_site_name(tmp_path):
+    client = frontend_app(tmp_path, "SITE_NAME='Home Shelf'").test_client()
+    response = client.get("/manifest.webmanifest")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("application/manifest+json")
+    assert response.headers["Cache-Control"] == "no-cache"
+    manifest = response.get_json(force=True)
+    assert manifest["name"] == "Home Shelf" and manifest["short_name"] == "Home Shelf"
+    assert manifest["start_url"] == "./"
 
 def test_files_outside_the_build_are_not_served(client):
     for path in ("/../config.toml", "/assets/../../config.toml", "/assets/..%2f..%2fconfig.toml", "/..%5cconfig.toml"):
@@ -61,6 +86,8 @@ def check_sub_path(client, prefix: str, headers: dict):
     page = client.get(f"{prefix}/read/1/1/1", headers=headers).get_data(as_text=True)
     assert '<base href="/manga/" />' in page and page.count("<base") == 1
     assert client.get(f"{prefix}/assets/index-abc123.js", headers=headers).status_code == 200
+    assert '<base href="/manga/" />' in client.get(f"{prefix}/index.html", headers=headers).get_data(as_text=True)
+    assert client.get(f"{prefix}/manifest.webmanifest", headers=headers).get_json(force=True)["scope"] == "./"
 
     register(client, "owner")
     token = client.post(f"{prefix}/api/v1/auth/login", headers=headers,

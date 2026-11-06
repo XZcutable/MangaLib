@@ -5,7 +5,7 @@ Turned on by setting FRONTEND_PATH to the built front end folder. Without it the
 Also handles running under a sub-path behind a reverse proxy (e.g. https://example.com/manga/), from
 URL_PREFIX or the proxy's X-Forwarded-Prefix header (with BEHIND_PROXY).
 """
-import os, re
+import json, os, re
 
 from flask import Flask, request, send_from_directory
 from markupsafe import escape
@@ -13,6 +13,8 @@ from markupsafe import escape
 CLASSIC_PREFIX = "/classic"
 # Paths the server answers itself instead of the front end. The classic pages link to /static directly.
 PASSTHROUGH_PREFIXES = ("/api/", "/static/")
+# The web app manifest carries the owner's site name, so the server (which has the settings) answers it
+MANIFEST_PATH = "/manifest.webmanifest"
 ONE_YEAR = 365 * 24 * 60 * 60
 
 class FrontendMiddleware:
@@ -23,7 +25,7 @@ class FrontendMiddleware:
     def __call__(self, environ, start_response):
         path = environ.get("PATH_INFO") or "/"
 
-        if path.startswith(PASSTHROUGH_PREFIXES):
+        if path.startswith(PASSTHROUGH_PREFIXES) or path == MANIFEST_PATH:
             return self.server(environ, start_response)
 
         if path == CLASSIC_PREFIX or path.startswith(CLASSIC_PREFIX + "/"):
@@ -42,7 +44,8 @@ def create_frontend_app(frontend_dir: str) -> Flask:
     @app.route("/<path:path>")
     def serve(path: str):
         file_path = os.path.join(frontend_dir, path)
-        if path and os.path.isfile(file_path):
+        # index.html itself also needs the <base> tag: the service worker keeps a copy of it to open offline
+        if path and path != "index.html" and os.path.isfile(file_path):
             # Vite puts a content hash in asset file names, so they can be cached for good
             max_age = ONE_YEAR if path.startswith("assets/") else 0
             return send_from_directory(frontend_dir, path, max_age=max_age)
@@ -61,6 +64,20 @@ def index_page(frontend_dir: str):
     base_tag = f'<base href="{escape(request.script_root)}/" />'
     html = BASE_TAG.sub(base_tag, html, count=1) if BASE_TAG.search(html) else html.replace("<head>", f"<head>{base_tag}", 1)
     return html, 200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache"}
+
+def manifest_response(frontend_dir: str):
+    """The built manifest.webmanifest with the owner's site name. Its URLs are relative, so they follow the
+    path the server is reached at."""
+    from .server import server_settings
+    try:
+        with open(os.path.join(frontend_dir, "manifest.webmanifest"), encoding="utf-8") as file:
+            manifest = json.load(file)
+    except (OSError, ValueError):
+        return "Not found", 404
+    name = server_settings.site_name()
+    manifest["name"] = name
+    manifest["short_name"] = name
+    return json.dumps(manifest), 200, {"Content-Type": "application/manifest+json", "Cache-Control": "no-cache"}
 
 class UrlPrefixMiddleware:
     """For a proxy that passes /manga/... through unchanged: serves the app at that prefix. Requests outside
@@ -97,4 +114,5 @@ def install(app: Flask):
         return
     print(f"Serving the new front end from {frontend_dir}; the classic UI is at {CLASSIC_PREFIX}/")
     app.wsgi_app = FrontendMiddleware(app.wsgi_app, frontend_dir)
+    app.add_url_rule(MANIFEST_PATH, "web_app_manifest", lambda: manifest_response(frontend_dir))
     app.config["CLASSIC_UI_PATH"] = CLASSIC_PREFIX + "/"

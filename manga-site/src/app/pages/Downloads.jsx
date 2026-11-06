@@ -26,7 +26,8 @@ function downloadBadge(item) {
   }
   if (failed) return `${failed} failed`
   const total = item.info?.chapters?.length
-  return total ? `${done} of ${total} on phone` : `${done} on phone`
+  const where = `on ${offline.deviceName}`
+  return total ? `${done} of ${total} ${where}` : `${done} ${where}`
 }
 
 // Series saved on this phone for offline reading, as a grid of covers. Tapping one opens the
@@ -43,7 +44,9 @@ export function Downloads() {
   if (!available) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <p className={s.muted}>Downloads are available in the Android app.</p>
+        <p className={s.muted}>
+          {offline.offlineNeedsHttps ? offline.HTTPS_NOTICE : "Downloads are available in the Android app."}
+        </p>
       </div>
     )
   }

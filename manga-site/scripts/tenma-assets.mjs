@@ -11,7 +11,7 @@
 // Output:
 //   src/assets/tenma/<pose>.webp        art shown by <Tenma pose="..."> (picked up automatically)
 //   src/assets/backgrounds/banner(-dark).webp  the page background (layout: src/app/lib/scenes.js)
-//   public/favicon.png, public/apple-touch-icon.png
+//   public/favicon.png, public/apple-touch-icon.png, public/icons/* (installed web app)
 //   android launcher icons (mipmap-*) and splash screens (drawable-*)
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -112,6 +112,14 @@ async function writeIcons(found) {
   await sharp(await masked(await headSquare(found, 128, 1), 128, 28)).toFile(join(site, "public/favicon.png"))
   await sharp(await headSquare(found, 180, 0.95)).toFile(join(site, "public/apple-touch-icon.png"))
   console.log("icon public/favicon.png, public/apple-touch-icon.png")
+  // Installed web app (manifest in vite.config.js). The maskable one keeps her inside the middle 80%,
+  // which is all a round or squircle mask is sure to show
+  mkdirSync(join(site, "public/icons"), { recursive: true })
+  for (const size of [192, 512]) {
+    await sharp(await headSquare(found, size, 0.95)).toFile(join(site, `public/icons/icon-${size}.png`))
+  }
+  await sharp(await headSquare(found, 512, 0.62)).toFile(join(site, "public/icons/maskable-512.png"))
+  console.log("icon public/icons/icon-192.png, icon-512.png, maskable-512.png")
 
   if (!existsSync(res)) return
   const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 }

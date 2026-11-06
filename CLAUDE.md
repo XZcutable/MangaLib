@@ -16,7 +16,7 @@ Android releases are published to https://github.com/XZcutable/MangaLib/releases
 - Run (Windows, repo root): `.venv/Scripts/python -m flask --app mymangalib run --port 5000 --host 127.0.0.1`. Use `--host 0.0.0.0` when a phone needs to reach it.
 - Tests: `.venv/Scripts/python -m pytest` (all should pass). Fixtures in `tests/conftest.py`: `make_app`, `scan`, `add_volume`.
 - Config: `config.toml` (defaults in `ENV.DEFAULT_CONFIG`, `mymangalib/constants.py`). Any key can be overridden with a `FLASK_<KEY>` env var (`from_prefixed_env`), e.g. `FLASK_CONFIG_PATH`, `FLASK_DATABASE_PATH`, `FLASK_FRONTEND_PATH`, `FLASK_CORS_ORIGINS`.
-- `FRONTEND_PATH` set to a built `manga-site/dist` serves the new UI at `/` and moves the classic UI to `/classic` (`mymangalib/frontend.py`).
+- `FRONTEND_PATH` set to a built `manga-site/dist` serves the new UI at `/` and moves the classic UI to `/classic` (`mymangalib/frontend.py`). It also serves `/manifest.webmanifest` from the build with the site name filled in (no login needed; exempted at the top of `auth.before_app_request`). `index.html` always goes through `index_page()`, even when requested by name, because the PWA service worker stores that copy.
 - Sub-paths (`https://example.com/manga/`): the prefix arrives as `SCRIPT_NAME`, from `X-Forwarded-Prefix` (ProxyFix) or `URL_PREFIX` (`UrlPrefixMiddleware`). Rules that keep it working:
   - `frontend.py` writes `<base href="{script_root}/">` into `index.html`, and the app is built with relative asset paths (`base: "./"`).
   - The app reads the prefix from `document.baseURI` (`lib/base.js`) for the router `basename` and API calls.

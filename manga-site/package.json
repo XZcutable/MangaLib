@@ -8,7 +8,6 @@
     "build": "vite build",
     "dev": "vite --host 0.0.0.0",
     "preview": "vite preview",
-    "format": "oxfmt",
     "app:sync": "pnpm build && cap sync",
     "app:android": "pnpm build && cap sync android && cap open android",
     "app:ios": "pnpm build && cap sync ios && cap open ios",
@@ -83,10 +82,14 @@
     "@capacitor/cli": "^7.6.10",
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
-    "oxfmt": "^0.2.0",
     "sharp": "0.34.4",
     "tailwindcss": "4.1.12",
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "vite-plugin-pwa": "2.0.0",
+    "workbox-build": "7.4.1",
+    "workbox-core": "7.4.1",
+    "workbox-precaching": "7.4.1",
+    "workbox-window": "7.4.1"
   },
   "peerDependencies": {
     "react": "18.3.1",

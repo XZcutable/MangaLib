@@ -132,6 +132,9 @@ def load_api_user():
 
 @bp.before_app_request
 def before_app_request():
+    # The web app manifest (frontend.py) holds only the site name and icons; browsers fetch it without a login
+    if request.endpoint == "web_app_manifest":
+        return None
     if request.path.startswith(API_V1_PREFIX):
         return load_api_user()
 

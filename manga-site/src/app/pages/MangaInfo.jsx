@@ -139,7 +139,7 @@ export function MangaInfo() {
   const chapterDownload = async (chapter) => {
     const state = offline.chapterState(manga.id, chapter.number)
     if (state?.state === "done") {
-      if (confirm(`Delete chapter ${chapter.number} from this phone?`)) offline.remove(manga.id, [chapter.number])
+      if (confirm(`Delete chapter ${chapter.number} from this ${offline.deviceName}?`)) offline.remove(manga.id, [chapter.number])
     } else if (state?.state === "failed") {
       offline.retry(manga.id, chapter.number)
     } else if (!state) {
@@ -213,7 +213,7 @@ export function MangaInfo() {
           </p>
           {local && (
             <p className="mb-4 text-sm text-amber-500">
-              Offline: {onPhone.size} {onPhone.size === 1 ? "chapter is" : "chapters are"} on this phone.
+              Offline: {onPhone.size} {onPhone.size === 1 ? "chapter is" : "chapters are"} on this {offline.deviceName}.
             </p>
           )}
 
@@ -302,6 +302,17 @@ export function MangaInfo() {
               <BookCheck className="w-4 h-4" />
               {user.is_read ? "Read" : "Mark read"}
             </button>
+            {offline.offlineNeedsHttps && (
+              // Browsers only keep pages for offline reading on a secure address; say so instead of hiding it
+              <button
+                type="button"
+                onClick={() => toast.info(offline.HTTPS_NOTICE, { duration: 8000 })}
+                className={toggleButton(false)}
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </button>
+            )}
             {downloads.available && (
               <div className="relative">
                 <button
@@ -336,7 +347,7 @@ export function MangaInfo() {
                             dark ? "text-gray-200 hover:bg-gray-700" : "text-gray-800 hover:bg-gray-100"
                           }`}
                         >
-                          {label} ({missing.length ? `${missing.length} to download` : "all on this phone"})
+                          {label} ({missing.length ? `${missing.length} to download` : `all on this ${offline.deviceName}`})
                         </button>
                       )
                     })}
@@ -345,15 +356,15 @@ export function MangaInfo() {
                         type="button"
                         onClick={async () => {
                           setDownloadMenu(false)
-                          if (!confirm(`Delete the downloaded chapters of "${manga.title}" from this phone?`)) return
+                          if (!confirm(`Delete the downloaded chapters of "${manga.title}" from this ${offline.deviceName}?`)) return
                           await offline.remove(manga.id)
-                          toast.success("Deleted from this phone")
+                          toast.success(`Deleted from this ${offline.deviceName}`)
                         }}
                         className={`w-full text-left px-4 py-2 text-sm text-red-500 ${
                           dark ? "hover:bg-gray-700" : "hover:bg-gray-100"
                         }`}
                       >
-                        Delete from this phone
+                        Delete from this {offline.deviceName}
                       </button>
                     )}
                   </div>
@@ -444,7 +455,7 @@ export function MangaInfo() {
                   {current
                     ? `Page ${page} of ${chapter.page_count}`
                     : !canOpen
-                      ? "Not on phone"
+                      ? `Not on ${offline.deviceName}`
                       : `${chapter.page_count} pages`}
                 </span>
               </RowLink>
@@ -456,7 +467,7 @@ export function MangaInfo() {
                 />
               )}
               {local && onPhone.has(chapter.number) && (
-                <span className="shrink-0 px-4 py-3" title="On this phone">
+                <span className="shrink-0 px-4 py-3" title={`On this ${offline.deviceName}`}>
                   <CircleCheck className="w-5 h-5 text-brand-500" />
                 </span>
               )}
@@ -568,7 +579,7 @@ function ChapterDownload({ state, muted, onClick }) {
   const percent = state?.total ? Math.round((state.done / state.total) * 100) : 0
   const label =
     status === "done"
-      ? "Downloaded. Tap to delete from this phone"
+      ? `Downloaded. Tap to delete from this ${offline.deviceName}`
       : status === "failed"
         ? `Download failed: ${state.error ?? ""}. Tap to try again`
         : status
