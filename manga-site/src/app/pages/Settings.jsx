@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 import { useAuth } from "../context/AuthContext"
-import { ACCENTS, useTheme } from "../context/ThemeContext"
+import { ACCENTS, PAGE_BACKGROUNDS, useTheme } from "../context/ThemeContext"
 import { useStyles } from "../hooks/useStyles"
 import { api, parseServerDate, serverBase } from "../lib/api"
 import { getLocal, setLocal, isNative } from "../lib/storage"
@@ -22,7 +22,7 @@ import { useServerFeatures } from "../lib/features"
 const formatDate = (value) => (value ? parseServerDate(value).toLocaleString() : "never")
 
 export function Settings() {
-  const { toggleTheme, accent, setAccent, showMascot, setShowMascot } = useTheme()
+  const { toggleTheme, accent, setAccent, pageBackground, setPageBackground } = useTheme()
   const { user, server, servers, serverInfo, logout } = useAuth()
   // On the web, only once a server other than this site has been added
   const showServers = isNative || servers.some((entry) => entry.url)
@@ -196,12 +196,35 @@ export function Settings() {
               })}
             </div>
           </div>
-          <SettingSwitch
-            label="Tenma in the background"
-            description="A faint figure of Tenma, the mascot, in the corner of the page."
-            checked={showMascot}
-            onChange={setShowMascot}
-          />
+          <div className="py-3">
+            <p className={s.text}>Page background</p>
+            <p className={`text-sm mt-0.5 mb-3 ${s.muted}`}>
+              {PAGE_BACKGROUNDS.find((option) => option.id === pageBackground)?.description}
+            </p>
+            <div className="flex flex-wrap gap-3" role="radiogroup" aria-label="Page background">
+              {PAGE_BACKGROUNDS.map((option) => {
+                const selected = option.id === pageBackground
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setPageBackground(option.id)}
+                    className={`px-4 py-2 rounded-full border transition-colors ${
+                      selected
+                        ? "border-brand-500 bg-brand-600/15"
+                        : s.dark
+                          ? "border-gray-700 hover:bg-gray-800"
+                          : "border-gray-300 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span className={s.text}>{option.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </section>
 

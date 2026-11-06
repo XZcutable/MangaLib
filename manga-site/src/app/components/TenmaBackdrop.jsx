@@ -4,10 +4,9 @@ import { hasTenmaPose, tenmaArt } from "./Tenma"
 // A faint Tenma figure in the corner of the page, behind everything. It uses her outline as a mask
 // filled with the accent color, so it follows the accent and never competes with covers or text.
 // The parent needs `isolate` so the figure sits above the page background but below the content.
-// Turned off in Settings → Appearance.
+// Shown when Settings → Appearance → Page background is "Simple" (components/PageBackground.jsx).
 export function TenmaBackdrop() {
-  const { theme, showMascot } = useTheme()
-  if (!showMascot) return null
+  const { theme } = useTheme()
   // The line-art "silhouette" pose is made for this; until it exists, the main pose's outline is used
   const src = tenmaArt(hasTenmaPose("silhouette") ? "silhouette" : "main")
   if (!src) return null

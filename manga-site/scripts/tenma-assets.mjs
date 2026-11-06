@@ -6,9 +6,11 @@
 //   Tenma/<pose>.png          other approved poses, transparent background (names in Tenma/poses.toml);
 //                             Tenma/source/<pose>.png works too
 //   Tenma/icon.png            optional chibi head for the app icon; without it the head is cut from the main pose
+//   Tenma/backgrounds/banner.png       the page background (16:9), banner-dark.png for dark mode
 //
 // Output:
 //   src/assets/tenma/<pose>.webp        art shown by <Tenma pose="..."> (picked up automatically)
+//   src/assets/backgrounds/banner(-dark).webp  the page background (layout: src/app/lib/scenes.js)
 //   public/favicon.png, public/apple-touch-icon.png
 //   android launcher icons (mipmap-*) and splash screens (drawable-*)
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs"
@@ -20,6 +22,8 @@ const site = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const tenmaDir = resolve(site, "../Tenma")
 const sourceDir = join(tenmaDir, "source")
 const artOut = join(site, "src/assets/tenma")
+const backgroundsIn = join(tenmaDir, "backgrounds")
+const backgroundsOut = join(site, "src/assets/backgrounds")
 const res = join(site, "android/app/src/main/res")
 
 // Tenma colors (brand-600 and brand-950 of the "tenma" accent in src/styles/brand.css)
@@ -140,6 +144,31 @@ async function writeSplashes(found) {
   console.log("splash android drawable-*/splash.png")
 }
 
+// The page background. Other images in Tenma/backgrounds aren't used. Where an image has a transparent
+// part (the banner's middle), the edge of that part is softened: a hard cut edge looks jagged against
+// the page background behind it.
+async function writeBackgrounds() {
+  if (!existsSync(backgroundsIn)) return
+  rmSync(backgroundsOut, { recursive: true, force: true })
+  mkdirSync(backgroundsOut, { recursive: true })
+  for (const file of readdirSync(backgroundsIn)) {
+    const name = file.toLowerCase().replace(/\.png$/, "")
+    if (name !== "banner" && name !== "banner-dark") continue
+    const input = join(backgroundsIn, file)
+    let image = sharp(input).resize({ width: 1920, withoutEnlargement: true })
+    if ((await sharp(input).metadata()).hasAlpha) {
+      const { data, info } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+      const alpha = await sharp(data, { raw: info }).extractChannel(3).blur(10).raw().toBuffer()
+      // Only ever lower the alpha, so pixels that were fully transparent stay hidden
+      for (let i = 0; i < alpha.length; i++) data[i * 4 + 3] = Math.min(data[i * 4 + 3], alpha[i])
+      image = sharp(data, { raw: info })
+    }
+    const out = join(backgroundsOut, `${name}.webp`)
+    await image.webp({ quality: 82, alphaQuality: 90, effort: 6 }).toFile(out)
+    console.log(`bg   ${name}.webp  ${Math.round(statSync(out).size / 1024)} KB`)
+  }
+}
+
 const found = poses()
 if (!found.has("main")) {
   console.error(`No art found: expected ${join(tenmaDir, "Tenma.png")}`)
@@ -148,3 +177,4 @@ if (!found.has("main")) {
 await writeArt(found)
 await writeIcons(found)
 await writeSplashes(found)
+await writeBackgrounds()

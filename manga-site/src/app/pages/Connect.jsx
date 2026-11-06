@@ -7,6 +7,8 @@ import { useDownloads } from "../context/DownloadsContext"
 import { isNative } from "../lib/storage"
 import { normalizeServerUrl } from "../lib/api"
 import { Tenma } from "../components/Tenma"
+import { PageBackground, useScene } from "../components/PageBackground"
+
 
 // Server address (mobile app), login and registration.
 // Opened with state { addServer: true } (from Settings) it asks for another server while logged in.
@@ -28,6 +30,7 @@ export function Connect() {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
 
+  const scene = useScene()
   const info = auth.serverInfo
   const askServer = auth.status === "needs-server" || editingServer
 
@@ -117,8 +120,9 @@ export function Connect() {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center px-4 py-10 ${dark ? "bg-gray-950" : "bg-gray-50"}`}
+      className={`relative isolate min-h-screen flex items-center justify-center px-4 py-10 ${dark ? "bg-gray-950" : "bg-gray-50"}`}
     >
+      <PageBackground scene={scene} />
       {/* The form stays centered. Tenma greets people: small above it on phones; on wider screens she
           stands to its left, outside the layout, so she doesn't push the form off center. */}
       <div className="relative w-full max-w-sm flex flex-col items-center">

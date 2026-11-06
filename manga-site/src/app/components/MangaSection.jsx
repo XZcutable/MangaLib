@@ -68,30 +68,33 @@ export function MangaSection({
       ) : isEmpty ? (
         <StatusMessage message={emptyMessage} pose={emptyPose} />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-          {items.map((item) => (
-            <MangaCard
-              key={item.id}
-              manga={item}
-              showProgress={showProgress}
-              showUpdated={showUpdated}
-            />
-          ))}
-          {list?.loading &&
-            Array.from({ length: items.length ? 5 : 10 }, (_, index) => (
-              <div key={`loading-${index}`} className="animate-pulse">
-                <div
-                  className={`aspect-[2/3] rounded-lg mb-3 ${
-                    theme === "dark" ? "bg-gray-800" : "bg-gray-200"
-                  }`}
-                />
-                <div
-                  className={`h-4 rounded w-3/4 ${
-                    theme === "dark" ? "bg-gray-800" : "bg-gray-200"
-                  }`}
-                />
-              </div>
+        // Columns follow the room the grid has (a scene can narrow the page), not the screen width
+        <div className="@container">
+          <div className="grid grid-cols-2 @lg:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-5 gap-4 sm:gap-6">
+            {items.map((item) => (
+              <MangaCard
+                key={item.id}
+                manga={item}
+                showProgress={showProgress}
+                showUpdated={showUpdated}
+              />
             ))}
+            {list?.loading &&
+              Array.from({ length: items.length ? 5 : 10 }, (_, index) => (
+                <div key={`loading-${index}`} className="animate-pulse">
+                  <div
+                    className={`aspect-[2/3] rounded-lg mb-3 ${
+                      theme === "dark" ? "bg-gray-800" : "bg-gray-200"
+                    }`}
+                  />
+                  <div
+                    className={`h-4 rounded w-3/4 ${
+                      theme === "dark" ? "bg-gray-800" : "bg-gray-200"
+                    }`}
+                  />
+                </div>
+              ))}
+          </div>
         </div>
       )}
       {infinite && list?.hasMore && <div ref={sentinelRef} className="h-1" />}

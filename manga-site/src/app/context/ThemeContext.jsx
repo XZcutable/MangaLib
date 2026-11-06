@@ -11,6 +11,12 @@ export const ACCENTS = [
 
 const DEFAULT_ACCENT = "tenma"
 
+export const PAGE_BACKGROUNDS = [
+  { id: "illustrated", label: "Illustrated", description: "An illustrated frame around the pages, on screens wide enough for it." },
+  { id: "simple", label: "Simple", description: "A faint outline of Tenma in the corner." },
+  { id: "plain", label: "Plain", description: "Just the background color." },
+]
+
 const ThemeContext = createContext(undefined)
 
 export function ThemeProvider({ children }) {
@@ -23,11 +29,14 @@ export function ThemeProvider({ children }) {
     return initial
   })
 
-  // Tenma's figure in the page background (components/TenmaBackdrop.jsx)
-  const [showMascot, setShowMascot] = useState(() => getLocal("showMascot", "true") !== "false")
+  // What's behind the pages (components/PageBackground.jsx)
+  const [pageBackground, setPageBackground] = useState(() => {
+    const saved = getLocal("pageBackground", "illustrated")
+    return PAGE_BACKGROUNDS.some((option) => option.id === saved) ? saved : "illustrated"
+  })
 
   useEffect(() => setLocal("theme", theme), [theme])
-  useEffect(() => setLocal("showMascot", String(showMascot)), [showMascot])
+  useEffect(() => setLocal("pageBackground", pageBackground), [pageBackground])
   useEffect(() => {
     setLocal("accent", accent)
     document.documentElement.dataset.accent = accent
@@ -36,7 +45,7 @@ export function ThemeProvider({ children }) {
   const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"))
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, accent, setAccent: setAccentState, showMascot, setShowMascot }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, accent, setAccent: setAccentState, pageBackground, setPageBackground }}>
       {children}
     </ThemeContext.Provider>
   )
