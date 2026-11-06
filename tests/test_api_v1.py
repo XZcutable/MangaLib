@@ -16,7 +16,7 @@ def manga_id_by_title(client, auth, title):
 
 def test_server_info_is_public_and_reports_setup(client):
     info = client.get("/api/v1/server/info").get_json()
-    assert info["api_version"] == 4
+    assert info["api_version"] == 5
     assert info["needs_setup"] is True
     assert info["registration_open"] is True
 
@@ -173,7 +173,7 @@ def test_manga_info_and_chapter(client, auth):
     chapter = client.get(f"/api/v1/manga/{alpha}/chapters/1", headers=auth).get_json()
     assert chapter["page_count"] == 3
     assert chapter["previous_chapter"] is None and chapter["next_chapter"] == 2
-    assert chapter["pages"][0]["image_url"] == f"/api/v1/manga/{alpha}/chapters/1/pages/1/image"
+    assert chapter["pages"][0]["image_url"].startswith(f"/api/v1/manga/{alpha}/chapters/1/pages/1/image?v=")
 
     assert client.get(f"/api/v1/manga/{alpha}/chapters/9", headers=auth).status_code == 404
     assert client.get("/api/v1/manga/999", headers=auth).status_code == 404

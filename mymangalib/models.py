@@ -208,6 +208,23 @@ class MetadataSuggestion(Model):
     reviewed_by:Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
     reviewed_when:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
 
+# An old page image a crunch packed into `archive` but couldn't delete (e.g. a file in use on Windows).
+# The scanner leaves `folder` out while rows point at it, so the images don't come back as a chapter.
+class PendingDeletion(Model):
+    __tablename__ = "pending_deletion"
+    id: Mapped[int_pk] = mapped_column(init=False)
+    path: Mapped[str] = mapped_column(unique=True)
+    folder: Mapped[str] = mapped_column(index=True)
+    archive: Mapped[str]
+    remove_folder: Mapped[bool]  # Remove the folder once it's empty (not for a manga's own folder)
+    manga_title: Mapped[str] = mapped_column(default="")
+    error: Mapped[str] = mapped_column(default="")
+    created: Mapped[Optional[str]] = mapped_column(default=None)
+
+    def toJson(self):
+        return {"id": self.id, "path": self.path, "manga_title": self.manga_title,
+                "error": self.error, "created": self.created}
+
 class Manga(Model):
     __tablename__ = "manga"
     id:Mapped[int_pk] = mapped_column(init=False, unique=True)

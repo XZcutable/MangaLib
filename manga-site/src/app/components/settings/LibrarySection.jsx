@@ -5,7 +5,9 @@ import { useAuth } from "../../context/AuthContext"
 import { useServerFeatures } from "../../lib/features"
 import { useStyles } from "../../hooks/useStyles"
 import { api } from "../../lib/api"
+import { CrunchAll } from "./CrunchAll"
 import { FolderPicker } from "./FolderPicker"
+import { LeftoverFiles } from "./LeftoverFiles"
 import { SettingSwitch } from "./SettingSwitch"
 
 const scanSummary = ({ added, updated }) =>
@@ -22,10 +24,20 @@ export function LibrarySection() {
   const [picking, setPicking] = useState(false)
   const [scanning, setScanning] = useState(null)
   const [moving, setMoving] = useState(null) // the folder whose new location is being picked
+  const [crunchJob, setCrunchJob] = useState(null) // a "crunch all series" already running
+  const [leftovers, setLeftovers] = useState(0) // old images a crunch couldn't delete
+  const [crunches, setCrunches] = useState(0) // crunches finished here, to look for new leftovers
   const features = useServerFeatures()
 
   const load = useCallback(() => {
-    api.library().then(({ paths }) => setPaths(paths)).catch((error) => toast.error(error.message))
+    api
+      .library()
+      .then(({ paths, crunch_job, leftover_files }) => {
+        setPaths(paths)
+        setCrunchJob(crunch_job ?? null)
+        setLeftovers(leftover_files ?? 0)
+      })
+      .catch((error) => toast.error(error.message))
     api.serverConfig().then(setConfig).catch(() => {})
   }, [])
   useEffect(load, [load])
@@ -176,6 +188,11 @@ export function LibrarySection() {
           ))}
         </ul>
       )}
+
+      {features.crunchAll && paths?.length > 0 && (
+        <CrunchAll runningJob={crunchJob} onFinished={() => setCrunches((count) => count + 1)} />
+      )}
+      {features.crunchAll && <LeftoverFiles count={leftovers} reloadKey={crunches} />}
 
       {config && (
         <div className="mt-6">

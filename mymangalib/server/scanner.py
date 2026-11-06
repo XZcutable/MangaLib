@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Final
 import os, zipfile, pymupdf
 from ..helpers import sort_paths, release_year_from_names
-from . import metadata
+from . import metadata, disposal
 
 SUPPORTED_IMAGE_TYPES: Final[tuple] = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 SUPPORTED_ARCHIVE_TYPES: Final[tuple] = ('.cbz', '.zip', '.pdf')
@@ -132,7 +132,9 @@ def count_chapter_entries(manga_path: str) -> int:
         entries += 1
     return entries
 
-def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
+def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False, skip: set[str] | None = None):
+    """`skip`: normalized chapter paths to leave out (the manga's own path leaves out its loose images).
+    A crunch uses it to rescan before deleting the folders it has just packed."""
     manga: Manga = db.Manga.getOrCreate(title=manga_name, manga_path=manga_path)
 
     if manga.new:
@@ -143,6 +145,8 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
 
     previous_chapter_count = len(manga.chapters)
     manga.chapters = []
+    # Old images a crunch couldn't delete are already in an archive; don't add them back as a chapter
+    skip = (skip or set()) | disposal.pending_folders()
 
     chapter_order: list[str] = lsDirs(manga_path)
     chapter_archives: list[str] = lsFiles(manga_path, filters=SUPPORTED_ARCHIVE_TYPES)
@@ -155,6 +159,8 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
     next_chapter_number = 1
     for chapter_name in chapter_order:
         chapter_path = os.path.join(manga_path, chapter_name)
+        if skip and os.path.normpath(chapter_path) in skip:
+            continue
         # print(f"Scanning chapter: {chapter_path}")
 
         chapter: Chapter = None
@@ -192,12 +198,12 @@ def scan_manga(manga_path: str, manga_name: str, rescan_exisitng: bool = False):
     return manga
             
 
-def rescan_manga(manga: Manga) -> tuple[bool, str | None]:
+def rescan_manga(manga: Manga, skip: set[str] | None = None) -> tuple[bool, str | None]:
     """Rebuilds the chapters and pages of one existing manga from its folder or archive.
-    Returns (success, error message)."""
+    `skip` is passed to scan_manga. Returns (success, error message)."""
     manga_name = os.path.basename(os.path.normpath(manga.path))
     if os.path.isdir(manga.path):
-        result = scan_manga(manga_path=manga.path, manga_name=manga_name, rescan_exisitng=True)
+        result = scan_manga(manga_path=manga.path, manga_name=manga_name, rescan_exisitng=True, skip=skip)
     elif os.path.isfile(manga.path):
         result = scan_archive_as_manga(manga.path, manga_name, rescan_exisitng=True)
     else:

@@ -13,7 +13,7 @@ from ..auth import api_access, api_error, rename_user, valid_password_pattern
 from ..database import db
 from ..enum import Access
 from ..models import ContentTag, Manga, MetadataSuggestion, User, UserChapterData, UserMangaData
-from ..server import scanner, library_paths, move, tokens, server_settings, jobs, repack, updater
+from ..server import scanner, library_paths, move, tokens, server_settings, jobs, repack, updater, disposal
 from ..server import metadata as series_metadata
 from .api import valid_tag_pattern
 from .api_v1 import account_json, bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
@@ -279,10 +279,18 @@ def rescan_manga(manga_id: int):
 
 # --- Crunching and unpacking (owner) ---
 
+def series_busy(manga_id: int):
+    """A 409 error when the series' files are being changed, or None."""
+    if jobs.library_job():
+        return api_error(409, "busy", "The whole library is being crunched. Wait for that to finish.")
+    if jobs.active_for(manga_id):
+        return api_error(409, "busy", "This series is already being changed. Wait for that to finish.")
+    return None
+
 def start_repack(manga_id: int, kind: str):
     manga = get_manga_or_404(manga_id)
-    if jobs.active_for(manga.id):
-        return api_error(409, "busy", "This series is already being changed. Wait for that to finish.")
+    if busy := series_busy(manga.id):
+        return busy
     numbers = json_body().get("chapters")
     if numbers is not None and (not isinstance(numbers, list) or not all(isinstance(n, int) and not isinstance(n, bool) for n in numbers)):
         return api_error(400, "bad_request", "chapters must be a list of chapter numbers")
@@ -310,8 +318,8 @@ def unpack_manga(manga_id: int):
 def move_manga(manga_id: int):
     """{"library_path": folder}: moves the series' files into another library folder. Returns a job."""
     manga = get_manga_or_404(manga_id)
-    if jobs.active_for(manga.id):
-        return api_error(409, "busy", "This series is already being changed. Wait for that to finish.")
+    if busy := series_busy(manga.id):
+        return busy
     target = json_body().get("library_path")
     if not isinstance(target, str) or not target.strip():
         return api_error(400, "bad_request", "library_path is required")
@@ -327,7 +335,46 @@ def move_manga(manga_id: int):
 @bp.route("/library")
 @api_access(Access.OWNER)
 def library():
-    return {"paths": sorted(library_paths.get_paths())}
+    # crunch_job: a running "crunch all series", so Settings can show its progress after a reload
+    # leftover_files: old images a crunch couldn't delete (GET /library/leftovers lists them)
+    return {"paths": sorted(library_paths.get_paths()), "crunch_job": jobs.library_job(),
+            "leftover_files": disposal.count()}
+
+@bp.route("/library/leftovers")
+@api_access(Access.OWNER)
+def leftover_files():
+    """Old page images a crunch packed but couldn't delete, waiting to be deleted."""
+    return {"files": disposal.listing()}
+
+@bp.route("/library/leftovers/delete", methods=["POST"])
+@api_access(Access.OWNER)
+def delete_leftover_files():
+    """Tries to delete them again. Returns {deleted, kept, files: still waiting}."""
+    return disposal.retry()
+
+@bp.route("/library/crunch/preview", methods=["POST"])
+@api_access(Access.OWNER)
+def crunch_all_preview():
+    """What crunching every series would do: the series and chapters, skipped series and why, sizes and disk space.
+    Changes nothing."""
+    return {**repack.crunch_preview(), "job": jobs.library_job()}
+
+@bp.route("/library/crunch", methods=["POST"])
+@api_access(Access.OWNER)
+def crunch_all():
+    """{"manga_ids": [...]} from the preview: crunches those series one after another, as one job."""
+    ids = json_body().get("manga_ids")
+    if not isinstance(ids, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids):
+        return api_error(400, "bad_request", "manga_ids must be a list of manga ids")
+    if jobs.any_active():
+        return api_error(409, "busy", "Files are being changed right now. Wait for that to finish.")
+    eligible = repack.eligible_for_crunch_all(list(dict.fromkeys(ids)))
+    if not eligible:
+        return api_error(400, "nothing_to_do", "No image folders to crunch")
+    chosen = [manga_id for manga_id, _count in eligible]
+    total = sum(count for _id, count in eligible)
+    job = jobs.submit("crunch_all", None, lambda job: repack.crunch_all(chosen, job), total=total)
+    return {"job": job}, 202
 
 @bp.route("/library/paths", methods=["POST"])
 @api_access(Access.OWNER)
@@ -461,6 +508,9 @@ def update_download():
 @bp.route("/admin/server/update/apply", methods=["POST"])
 @api_access(Access.OWNER)
 def update_apply():
+    if jobs.any_active():
+        # A restart would stop it partway; the files would be safe, but the work would be lost
+        return api_error(409, "busy", "Files are being changed right now (for example a crunch). Apply the update when that's finished.")
     try:
         return {"update": updater.get().apply()}
     except updater.UpdateError as error:

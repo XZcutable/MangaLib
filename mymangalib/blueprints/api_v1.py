@@ -4,7 +4,7 @@ Every route takes and returns JSON, authenticates with `Authorization: Bearer <t
 (from POST /auth/login), and reports errors as {"error": {"code", "message"}}.
 Image routes also accept the token as ?t= because <img> tags can't send headers.
 """
-import os
+import hashlib, os
 
 from flask import Flask, Blueprint, request, g, current_app, url_for, abort, send_file
 from werkzeug.exceptions import HTTPException
@@ -26,7 +26,9 @@ bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 # 2: ratings, chapter read marks, series details and suggestions, crunch/unpack, reading hints.
 # 3: server updates (/admin/server/update), restart_in in /server/info.
 # 4: moving library folders (PUT /library/paths) and series (POST /manga/<id>/move).
-API_VERSION = 4
+# 5: crunching every series (POST /library/crunch/preview, POST /library/crunch) and its leftover files
+#    (GET /library/leftovers, POST /library/leftovers/delete).
+API_VERSION = 5
 IMAGE_MAX_AGE = 10*24*60*60
 MAX_BATCH_SIZE = 100
 DEFAULT_CORS_ORIGINS = [
@@ -86,8 +88,11 @@ def api_path(endpoint: str, **values) -> str:
 def cover_url(manga_id: int) -> str:
     return api_path("api_v1.cover", manga_id=manga_id)
 
-def page_image_url(manga_id: int, chapter_number: int, page_number: int) -> str:
-    return api_path("api_v1.page_image", manga_id=manga_id, chapter_number=chapter_number, page_number=page_number)
+def page_image_url(manga_id: int, chapter_number: int, page_number: int, chapter_path: str) -> str:
+    """Images are cached by URL for days. A crunch, unpack or move can give a chapter number to different
+    files, so the URL carries a short key of the chapter's path: a cached page never shows up for the wrong chapter."""
+    key = hashlib.sha1(chapter_path.encode("utf-8")).hexdigest()[:8]
+    return api_path("api_v1.page_image", manga_id=manga_id, chapter_number=chapter_number, page_number=page_number, v=key)
 
 def paged_response(query, offset: int, limit: int) -> dict:
     """One batch of a (id, title) query, with cover URLs and the user's reading state."""
@@ -335,7 +340,7 @@ def chapter_info(manga_id: int, chapter_number: int):
         "previous_chapter": chapter_numbers[index - 1] if index > 0 else None,
         "next_chapter": chapter_numbers[index + 1] if index + 1 < len(chapter_numbers) else None,
         "pages": [
-            {"number": number, "image_url": page_image_url(manga.id, chapter.number, number)} for number in page_numbers
+            {"number": number, "image_url": page_image_url(manga.id, chapter.number, number, chapter.path)} for number in page_numbers
         ],
     }
 

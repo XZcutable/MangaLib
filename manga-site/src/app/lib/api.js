@@ -157,6 +157,10 @@ export const api = {
   unpackManga: (id, chapters) => request(`/manga/${id}/unpack`, { method: "POST", body: chapters ? { chapters } : {} }),
   moveManga: (id, libraryPath) => request(`/manga/${id}/move`, { method: "POST", body: { library_path: libraryPath } }),
   library: () => request("/library"),
+  crunchPreview: () => request("/library/crunch/preview", { method: "POST", body: {} }),
+  crunchAll: (mangaIds) => request("/library/crunch", { method: "POST", body: { manga_ids: mangaIds } }),
+  leftoverFiles: () => request("/library/leftovers"),
+  deleteLeftoverFiles: () => request("/library/leftovers/delete", { method: "POST" }),
   addLibraryPath: (path) => request("/library/paths", { method: "POST", body: { path } }),
   // The folder's files are now at `to`: points its manga there (nothing on disk changes)
   moveLibraryPath: (from, to) => request("/library/paths", { method: "PUT", body: { from, to } }),
