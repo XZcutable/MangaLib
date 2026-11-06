@@ -2,6 +2,7 @@
 name = "mymangalib"
 version = "1.7.0"
 description = "Host and view your Manga locally"
+license = { text = "CC-BY-NC-SA-4.0" }
 requires-python = ">=3.11"
 dependencies = [
     "flask", "Flask-SQLAlchemy", "Flask-Cors", "PyMuPDF", "waitress"

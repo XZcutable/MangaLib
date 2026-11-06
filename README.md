@@ -1,8 +1,88 @@
-# MyMangaLibrary #
-MyMangaLibrary is self hosted manga reading website. It aims to give users the features they expect from a manga reading websites while also keeping control of their data. It also strives to be flexible enough to allow a savy user to share their collections with others or customize their own experience without having to write the backend.
+<p align="center">
+  <img src="Tenma/simple-tenma.png" alt="Tenma, the myMangaLib mascot, waving hello" width="220">
+</p>
 
-## Quick start with Docker ##
-Needs Docker (Docker Desktop on Windows and macOS). One command starts a server; change `/path/to/manga` to where your manga lives:
+<h1 align="center">myMangaLib</h1>
+
+<p align="center">
+  <b>Your manga, on your server, on any screen.</b><br>
+  A self-hosted manga library with a web app, an installable browser app and an Android app.
+</p>
+
+<p align="center">
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#key-features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#things-to-keep-in-mind">Keep in mind</a> ·
+  <a href="#developing">Developing</a> ·
+  <a href="#license">License</a>
+</p>
+
+![The myMangaLib home page with "Jump back in" covers](screenshots/desktop-home.png)
+
+## About
+
+myMangaLib turns a folder of manga on your own computer into a reading site that feels like the big manga websites, without handing your collection or your reading history to anyone else. Point it at your files, open it in a browser or on your phone, and pick up where you left off. Share it with family and friends with their own accounts, or keep it to yourself.
+
+It's light enough for a Raspberry Pi: it has been run with over 1,000 titles and 76,000 pages on a Pi 5 that was also running other services.
+
+## Key features
+
+**Reading**
+- A reader built for phones and desktops: tap zones, swipes, arrow keys and WASD.
+- Right-to-left or left-to-right, page-by-page or a vertical webtoon scroll, and several ways to fit the page to the screen.
+- Your place is saved as you read, on every device.
+
+**Your library**
+- Reads `.cbz`/`.zip` archives, PDFs and folders of images (`.jpg`, `.png`, `.webp`, `.gif`, `.jfif`).
+- Series details (summary, year, writer, artist, genres, reading direction) from `ComicInfo.xml`, editable in the app.
+- Search, tags and ready-made lists: Recently Updated, New Releases, Top Rated, Unread, Random, plus your Favorites, To Read queue, History and Bookmarks.
+- Ratings out of 10 and read marks for every chapter.
+
+**On the go**
+- An Android app that connects to your server, remembers several servers and can be locked with your face, fingerprint or screen lock.
+- Downloads for offline reading, in the Android app and in the browser (the site installs as an app).
+- The Android app and the server both update themselves from GitHub Releases, after you say yes.
+
+**Sharing and managing**
+- Multiple accounts with owner, admin, moderator and reader roles. New sign-ups can wait for approval.
+- Readers can suggest corrections to series details; admins approve them, and the changes are written back into the files.
+- Owner tools in Settings: scan for new manga, move a library or a single series to another folder, pack loose images into `.cbz` files ("crunch") and back, rename the site, and install server updates with automatic rollback.
+- Light and dark themes, accent colors and illustrated backgrounds.
+
+**Hosting**
+- One Docker command to run it. Works behind nginx, Caddy, Traefik and friends, at its own address or a sub-path, and alongside proxy logins like Authelia, Authentik or Cloudflare Access.
+- The original "classic" interface is still there at `/classic/`.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="screenshots/desktop-series.png" alt="A series page with summary, genres, score and chapter list"></td>
+    <td width="50%"><img src="screenshots/desktop-reader.png" alt="The reader with its controls showing"></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/desktop-all-light.png" alt="The All Manga grid in the light theme"></td>
+    <td><img src="screenshots/desktop-settings.png" alt="Library settings for the owner"></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="screenshots/phone-home.png" alt="Home on a phone" width="200"></td>
+    <td><img src="screenshots/phone-series.png" alt="A series page on a phone" width="200"></td>
+    <td><img src="screenshots/phone-reader.png" alt="Reading on a phone" width="200"></td>
+    <td><img src="screenshots/phone-favorites.png" alt="Favorites on a phone" width="200"></td>
+  </tr>
+</table>
+
+<sub>The manga in these screenshots are made up for the demo, starring Tenma.</sub>
+
+## Getting started
+
+### 1. Start the server
+
+You need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Windows and macOS). Change `/path/to/manga` to the folder that holds your manga:
 
 ```sh
 docker run -d --name mangalib --restart unless-stopped -p 5000:5000 \
@@ -11,279 +91,133 @@ docker run -d --name mangalib --restart unless-stopped -p 5000:5000 \
   ghcr.io/xzcutable/mangalib --site-name "My Library"
 ```
 
-Then open http://localhost:5000 and create the owner account. Your manga is already there: the library folder is added and scanned on first start.
+**Or with Docker Compose:** put your manga in a `manga` folder next to [compose.yml](compose.yml) (or change `./manga` in it), then run `docker compose up -d`.
 
-Or with Compose: put your manga in a `manga` folder next to [compose.yml](compose.yml) (or change `./manga` in it), then run `docker compose up -d`. Settings you'd pass as flags go in its `command:` line.
+No Docker? See [Installing without Docker](docs/manual-install.md).
 
-**Already running an older version?** Follow [UPGRADING.md](UPGRADING.md) first. The original Docker setup kept its database inside the container, so it has to be copied out before upgrading.
+### 2. Create the owner account
 
-### Options ###
-Anything after the image name is a flag (`docker run --rm ghcr.io/xzcutable/mangalib --help` lists them). Flags win over `config.toml`. Settings the owner later changes in the app (site name, sign-ups) win over both.
+Open http://localhost:5000. The first account you create is the **owner**, who can change every setting. Your manga is already there: the mounted folder is added and scanned on first start.
+
+### 3. Organize your manga
+
+One folder (or one archive) per series, with each volume or chapter as a `.cbz`, a `.pdf` or a folder of images:
+
+```
+manga/
+├── Starlight Courier/
+│   ├── Starlight Courier v01.cbz
+│   └── Starlight Courier v02.cbz
+└── Paper Dragons/
+    ├── Chapter 1/   (001.jpg, 002.jpg, ...)
+    └── Chapter 2/
+```
+
+Added more later? Copy it in, then **Settings → Library → Scan all**. More in [Your library](docs/library.md).
+
+### 4. Read on your phone
+
+- **Android:** install the app from [GitHub Releases](https://github.com/XZcutable/MangaLib/releases) and enter your server's address, for example `192.168.1.20:5000`.
+- **Any phone or tablet:** open `http://<your computer's IP>:5000` in the browser. It can be installed to the home screen like an app.
+
+### 5. Stay up to date
+
+The server checks for new versions every few hours and downloads them in the background. Nothing changes until the owner clicks **Settings → Server updates → Apply and restart**. If the new version fails to start, it goes back to the old one. You can also `docker pull ghcr.io/xzcutable/mangalib` and recreate the container.
+
+**Running a version from before the new interface?** Follow [UPGRADING.md](UPGRADING.md) first: the original Docker setup kept its database inside the container, so it has to be copied out before upgrading.
+
+### Common options
+
+Anything after the image name is a flag. The ones you're most likely to want:
 
 | Flag | What it does |
 |---|---|
 | `--site-name NAME` | Name in the browser tab and the app |
-| `--allow-new-users` / `--no-allow-new-users` | Let people create accounts |
-| `--auto-approve-users` | New accounts can read without waiting for an admin |
-| `--no-auto-update` | Don't check for or download updates on its own (the owner can still check in Settings) |
-| `--update-check-hours N` | How often to check for updates (default 6) |
+| `--allow-new-users` / `--no-allow-new-users` | Let people create their own accounts |
+| `--auto-approve-users` | New accounts can read without waiting for approval |
+| `--no-auto-update` | Don't check for updates on its own |
 | `--url-prefix /manga` | Served at a sub-path by a reverse proxy |
-| `--behind-proxy` / `--no-behind-proxy` | Trust `X-Forwarded-*` headers (on in the image) |
-| `--cors-origins URL,URL` | Web pages allowed to call the API from a browser |
-| `--library PATH` | A library folder to add on first start (the image already uses `/var/manga`) |
-| `--library-moved OLD=NEW` | A library folder now mounted at `NEW` instead of `OLD`; the manga keep their reading progress (see [Moving the library](#moving-the-library)) |
-| `--port N`, `--host ADDR`, `--threads N` | Where and how the server listens inside the container |
 
-### Updating ###
-The server checks GitHub for new versions every few hours and downloads them in the background. Nothing changes until the owner opens **Settings → Server updates** and clicks **Apply and restart**. The server then backs up the database and restarts into the new version, which takes under a minute. People using the site see an "updating" screen and land back on their page. If the new version doesn't start, the server goes back to the old one and restores the backup.
+All flags, `config.toml` and environment variables: [Configuration](docs/configuration.md).
 
-You can also update the image yourself: `docker pull ghcr.io/xzcutable/mangalib` and recreate the container (Compose: `docker compose pull && docker compose up -d`). Updates installed from Settings are kept in the data volume, and a newer image always wins over them.
+## Things to keep in mind
 
-Notes:
-- **Phones and other computers** connect to `http://<this computer's IP>:5000`, in a browser or in the Android app ([releases](https://github.com/XZcutable/MangaLib/releases)).
-- **Data:** `config.toml` (with a random secret key), the database, cover cache, downloaded updates and database backups are all in `/data`. Compose keeps it in `./data`. Back that folder up; replacing the container doesn't touch it. Containers set up with the older `/var/db` and `/var/config` volumes keep using them; see [UPGRADING.md](UPGRADING.md#one-data-folder) to switch.
-- **Adding manga later:** copy it into the manga folder, then use Settings → Library → Scan.
-- **Logs:** `docker logs -f mangalib` (or `docker compose logs -f`) shows the first-start scan and any warnings.
-- **Building the image yourself:** `docker compose -f compose.yml -f compose.build.yml up -d --build`.
-- **Classic interface:** still available at http://localhost:5000/classic/.
+- **Back up `/data`.** It holds the database (accounts, progress, ratings), the config and the server's own database backups. Compose keeps it in `./data`. Replacing the container doesn't touch it.
+- **Create the owner account right away,** before the server is reachable by anyone else. Whoever signs up first becomes the owner.
+- **Use HTTPS for anything reachable from the internet.** Put the server behind a reverse proxy ([guide](docs/reverse-proxy.md)). Plain HTTP is fine on a home network.
+- **A proxy login page blocks the Android app.** Leave `/api/v1/` outside it; the server protects that path itself ([how](docs/reverse-proxy.md#with-a-proxy-login-basic-auth-authelia-authentik-cloudflare-access)).
+- **Tell the server when files move.** Series are stored by their full path. Use **Settings → Library →** move, or `--library-moved`, and progress carries over. Adding the same files under a second path makes every series show up twice.
+- **A read-only mount (`:ro`) is safe but limits the owner tools.** Moving series, crunching and writing series details back into files need write access.
+- **Android only, for now.** There's no iOS app yet; iPhone users can use the browser. Installing the APK asks you to allow "Install unknown apps".
+- **Only host manga you have the right to.** myMangaLib doesn't come with or download any manga.
+- **The classic interface** is still at `/classic/` if you prefer it.
 
-### Moving the library ###
-Manga are stored with their full path, so the server has to be told when files move. Reading progress, scores, tags and read marks carry over either way.
-- **A whole library folder moved** (new disk, new mount path): move the files, then use **Settings → Library →** the move icon next to the folder, and pick where it is now. In Docker you can instead change the mount and start once with `--library-moved /old/path=/var/manga` (or `LIBRARY_MOVES={'/old/path' = '/var/manga'}` in `config.toml`). It's skipped once done, so it can stay.
-- **One series to another library folder:** open the series, then **Manage → Move to another folder**. The server moves the files itself (copying first when the folders are on different disks). The library must be mounted read-write for this; the example `compose.yml` mounts it `:ro`.
+## Documentation
 
-## Deployment or Development ##
-To setup, first you must clone the project and have python installed. Some systems may use python3, but this will assume just 'python' will work. 
+| Guide | What's in it |
+|---|---|
+| [Configuration](docs/configuration.md) | Every flag, `config.toml`, the data folder, updates, renaming the site |
+| [Your library](docs/library.md) | Folder layout, scanning, moving folders, crunch and unpack |
+| [Reverse proxy](docs/reverse-proxy.md) | nginx, Caddy and Traefik setups, sub-paths, proxy logins |
+| [Installing without Docker](docs/manual-install.md) | Python install, `mymangalib serve`, Waitress and Gunicorn |
+| [The JSON API](docs/api.md) | Tokens and the `/api/v1` routes the apps use |
+| [Upgrading](UPGRADING.md) | Moving from the original version |
+| [The app](manga-site/README.md) | Building the web and Android app, releases |
 
-1\. While not technically necessary, it is recommened to first create a venv. To setup the venv environment run: <br>
-`python -m venv .venv`
+## Developing
 
-It is assumed the venv was created in the root directory of the project.
+<img src="Tenma/simple-computer.png" alt="Tenma coding on a laptop" width="200" align="right">
 
-2\. Then activate the venv:
-`.\.venv\Scripts\activate` on windows or `. .venv/bin/activate` for linux
+| Folder | What's there |
+|---|---|
+| `mymangalib/` | The server: Python, Flask and SQLite |
+| `mymangalib/templates/` | The classic interface (Jinja templates) |
+| `manga-site/` | The new interface: React, run in the browser and as the Android app through Capacitor |
+| `tests/` | Server tests (pytest) |
+| `scripts/` | Release and packaging scripts |
+| `Tenma/` | The mascot's drawings |
 
-3\. Then install the server and its dependencies (Flask and friends), this is why a venv is recommened:
-`pip install -e .`
-
-4\. Finally run the server with a command like: <br>
-`flask --app mymangalib run --host=0.0.0.0`
-
-Depending on your needs, the command may be different.
-
-To deploy, you'd follow the same steps except for the last one. You'd need to choose a [WSGI Server](https://flask.palletsprojects.com/en/stable/deploying/). The ones I tested are [Gunicorn](https://flask.palletsprojects.com/en/stable/deploying/gunicorn/) and [Waitress](https://flask.palletsprojects.com/en/stable/deploying/waitress/). But I find I perfer Gunicorn because it supports passing a string on startup, but waitress works if you don't need that.
-
-The links explain how to install the server and application. But boils down to: <br>
-> pip install \<server\>
-<br>
- pip install -e .
-
-Deployment commands would look something like:
-> <b>myMangaLib's own launcher</b> (recommended; it can install updates from Settings): <br>
-mymangalib serve --host 0.0.0.0 --port 5000 --library /path/to/manga <br>
-(`python -m mymangalib serve ...` from a checkout. The same flags as the Docker image; `mymangalib --help` lists them.)
-
-> <b>Waitress:</b> <br>
-waitress-serve --host=0.0.0.0 --port=5000 --call mymangalib:create_app
-
-> <b>Gunicorn:</b> <br>
-gunicorn -w 2 --bind=0.0.0.0:5000 'mymangalib:create_app()'
-
-And then running the server with something like (for Linux): <br>
-`(waitress-serve --host=0.0.0.0 --port=5000 mymangalib:app > /dev/null 2>&1 &)`
-
-That will run the server in the background.
-
-# Mobile app and new front end #
-`manga-site/` holds the new front end. It runs in a browser and as an Android/iOS app. See [manga-site/README.md](manga-site/README.md).
-
-It uses the JSON API under `/api/v1`, which logs in with tokens instead of cookies:
+**Server** (Python 3.11+), from the project folder:
 
 ```sh
-curl -X POST http://localhost:5000/api/v1/auth/login -H "Content-Type: application/json" \
-     -d '{"username": "me", "password": "...", "device": "curl"}'
-# -> {"token": "...", "user": {...}}
-curl http://localhost:5000/api/v1/manga?list=all -H "Authorization: Bearer <token>"
+python -m venv .venv
+.venv/Scripts/activate        # Windows; on Linux and macOS: . .venv/bin/activate
+pip install -e .
+flask --app mymangalib run --port 5000
+python -m pytest              # run the tests
 ```
 
-Run the API tests with `pytest tests`.
+**App** (Node.js and [pnpm](https://pnpm.io/)), in a second terminal:
 
-## Serving the new interface ##
-Set `FRONTEND_PATH` in `config.toml` (or the `FLASK_FRONTEND_PATH` environment variable) to the built front end, for example `manga-site/dist` after running `pnpm build` in `manga-site/`. The server then shows the new interface at `/` and moves the classic one to `/classic/`. Leave it empty to keep the classic interface at `/`.
-
-The Docker image builds the front end and turns this on. Owners manage library folders, scanning, users and tags in the new interface under Settings; the classic interface stays available at `/classic/` in the meantime.
-
-## Running behind a reverse proxy ##
-The server works behind nginx, Caddy, Traefik and similar proxies, with or without HTTPS. Set `BEHIND_PROXY=true` in `config.toml` (the Docker image already does). Leave it off when the server is reached directly, so clients can't fake their address.
-
-**Its own address** (`https://manga.example.com`): forward everything to the server. With nginx:
-
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:5000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_read_timeout 600s;
-}
+```sh
+cd manga-site
+pnpm install
+pnpm dev                      # http://localhost:8443, talks to the server on port 5000
 ```
 
-**A sub-path** (`https://example.com/manga/`): the new interface, the app and the classic interface all work there. Pick one of two setups:
+The Android build, releases and how the app fits together are in [manga-site/README.md](manga-site/README.md).
 
-- **The proxy removes `/manga`** (note the `/` at the end of `proxy_pass`) and says so with `X-Forwarded-Prefix`. Needs `BEHIND_PROXY=true`.
+**Docker image from your copy:** `docker compose -f compose.yml -f compose.build.yml up -d --build`.
 
-  ```nginx
-  location /manga/ {
-      proxy_pass http://127.0.0.1:5000/;
-      proxy_set_header Host $host;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Prefix /manga;
-      proxy_read_timeout 600s;
-  }
-  ```
+**Contributing:** bug reports and merge requests are welcome. By contributing you agree that your changes are released under this project's [license](#license).
 
-- **The proxy passes `/manga/...` through unchanged** (no `/` at the end of `proxy_pass`). Tell the server with `URL_PREFIX='/manga'` in `config.toml` (`FLASK_URL_PREFIX=/manga` for Docker).
+<br clear="right">
 
-  ```nginx
-  location /manga/ {
-      proxy_pass http://127.0.0.1:5000;
-      proxy_set_header Host $host;
-      proxy_read_timeout 600s;
-  }
-  ```
+## Credits
 
-In the Android app, the server address is the full one, e.g. `https://example.com/manga`. With either setup the server still answers on its own address too (e.g. `http://192.168.1.20:5000` at home).
+- **Made by** [XZcutable](https://github.com/XZcutable).
+- **Tenma**, the mascot, was designed by XZcutable; her poses were drawn with AI image tools from the original design.
+- **Built with** [Flask](https://flask.palletsprojects.com/), [SQLAlchemy](https://www.sqlalchemy.org/), [PyMuPDF](https://pymupdf.readthedocs.io/), [Waitress](https://docs.pylonsproject.org/projects/waitress/), [React](https://react.dev/), [Vite](https://vite.dev/), [Tailwind CSS](https://tailwindcss.com/), [Capacitor](https://capacitorjs.com/), [Radix UI](https://www.radix-ui.com/) and [shadcn/ui](https://ui.shadcn.com/).
+- **Icons** from [Lucide](https://lucide.dev/) (new interface) and [Font Awesome](https://fontawesome.com/) (classic interface).
+- **Photos** from [Unsplash](https://unsplash.com/license).
 
-Good to know:
-- **`proxy_read_timeout`:** "Scan" in Settings waits until the scan is done. A first scan of a big library can take longer than nginx's default 60 seconds; the scan still finishes, but the page shows an error.
-- **Pass the `Authorization` header** (most proxies do by default). The app logs in with it.
-- **A proxy login in front of the server** needs `/api/v1/` left out of it (below).
+## License
 
-### With a proxy login (basic auth, Authelia, Authentik, Cloudflare Access) ###
-A login page in the proxy blocks the Android app: it can't fill in a browser login page or keep the proxy's cookie. Leave `/api/v1/` out of the proxy login, and keep the rest of the site behind it.
+Copyright © 2025–2026 XZcutable. myMangaLib, including its code, the Tenma artwork and the documentation, is released under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license. In plain words:
 
-This is safe:
-- **The server protects `/api/v1/` itself.** Everything there needs a myMangaLib login token, except checking that the server exists, logging in, and signing up (only when sign-ups are on).
-- **The app only uses `/api/v1/`.**
-- **The browser still needs the proxy login.** The web interface and the classic interface stay behind it, and the web interface's own API calls work as before.
+- ✅ **You can** use it, run it, share it and change it.
+- 📝 **Give credit:** name XZcutable as the author and link to this project and the license.
+- 🚫 **No commercial use:** you can't sell it, charge for access to it, or use it to make money. Ask first if you'd like to.
+- 🔁 **Share alike:** if you share a changed version, it must be under this same license.
 
-Your proxy's setting for this:
-
-- **nginx (basic auth):**
-
-  ```nginx
-  location / {
-      auth_basic "Manga";
-      auth_basic_user_file /etc/nginx/htpasswd;
-      proxy_pass http://127.0.0.1:5000;
-  }
-  location /api/v1/ {
-      auth_basic off;
-      proxy_pass http://127.0.0.1:5000;
-  }
-  ```
-
-- **Caddy:**
-
-  ```caddy
-  manga.example.com {
-      @needs_login not path /api/v1/*
-      basic_auth @needs_login {
-          family <password hash from "caddy hash-password">
-      }
-      reverse_proxy 127.0.0.1:5000
-  }
-  ```
-
-  For Authelia or Authentik, put the same `@needs_login` matcher on `forward_auth`.
-
-- **Authelia:** a `bypass` rule above the site's other rules:
-
-  ```yaml
-  access_control:
-    rules:
-      - domain: manga.example.com
-        resources: ['^/api/v1/']
-        policy: bypass
-      - domain: manga.example.com
-        policy: one_factor
-  ```
-
-- **Authentik:** in the proxy provider, add `^/api/v1/` to **Unauthenticated Paths**.
-
-- **Cloudflare Access:** add a second Access application for `manga.example.com/api/v1` with a policy whose action is **Bypass** (include: Everyone). The more specific path wins over the site's application.
-
-- **Traefik:** a second router for `/api/v1` without the auth middleware:
-
-  ```yaml
-  - "traefik.http.routers.manga-api.rule=Host(`manga.example.com`) && PathPrefix(`/api/v1`)"
-  - "traefik.http.routers.manga-api.priority=100"   # checked before the site's router, which has the auth middleware
-  ```
-
-With a sub-path, add it to the path (`/manga/api/v1/`).
-
-## Changing the site name ##
-The site is called "myMangaLib" by default. The name appears in the browser tab, on the login screen and at the bottom of every page, in both interfaces.
-
-**As the owner, in the app:** Settings → Library → Display → **Site name**, then **Save**. It takes effect straight away for everyone and is kept after restarts. Leave it empty to go back to the default.
-
-**In the config:** set `SITE_NAME` in `config.toml` (or the `FLASK_SITE_NAME` environment variable), then restart:
-
-```toml
-SITE_NAME='My Manga'
-```
-
-This is the starting name; a name saved in Settings wins over it.
-
-**In the code**, to change the default for everyone who builds from your copy:
-
-| What | Where |
-|---|---|
-| Default name on the server | `DEFAULT_SITE_NAME` in `mymangalib/server/server_settings.py`, and `SITE_NAME` in `DEFAULT_CONFIG` in `mymangalib/constants.py` (written into new configs) |
-| Tab title before the app has reached the server | `<title>` in `manga-site/index.html`, and `DEFAULT_SITE_NAME` in `manga-site/src/app/context/AuthContext.jsx` |
-| Name under the Android app's icon | `appName` in `manga-site/capacitor.config.json` and `app_name` in `manga-site/android/app/src/main/res/values/strings.xml` |
-
-Changes to `manga-site` take effect after rebuilding: `docker compose up -d --build` for Docker, or `pnpm build` in `manga-site/`. The Android app picks them up in its next release.
-
-Don't change `"name": "myMangaLib"` in `server_info()` in `mymangalib/blueprints/api_v1.py`. The app checks it to recognize a myMangaLib server. If it changes, the app refuses to connect.
-
-# Onboarding #
-After the server is running, going to the url will take you to the simple onbaording process of making an Owner Account. After creating the account you will be taken to the login page. The home page will be empty but will select a random amount of registered titles when avaiable.
-
-<details>
-<summary><i>Screenshots</i></summary>
-
-![Owner Creation](<screenshots/owner creation.png>)
-![First View](screenshots/home.png)
-
-
-</details>
-
-# Adding Manga #
-As the Owner, navigate to the settings. Under `Settings`, go to `Config`. Under `Local Paths`, click `Add Path`. A Folder Picker will pop up and you will navigate to the parent folder that holds all your manga. The path is now is now added. You can either start a scan by clicking `Scan Paths` or by clicking the Path and clciking `Ok` when prompted to rescan. If cancel is selected, you will be asked if you want to remove the Path.
-
-<details>
-<summary><i>Screenshots</i></summary>
-
-![Settings](<screenshots/settings nav.png>)
-
-![Config](screenshots/config.png)
-
-![Select Path](<screenshots/select path.png>)
-
-![Example](screenshots/example.png)
-
-</details>
-
-# Manga Structure #
-THe structure for Manga is very easy. It starts with a folder in one of the paths you created and images inside of that folder or a subfolder. The ordering is the same way Windows Explorer does it. The current supported image types are ['.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif']. CBZ files are also supported and do not require a folder, but can be stored in one.
-
-## Technical Requirements ##
-This project aims to be as effcient and demand little of the host machine. It was developed and ran on a Raspberry Pi5 running Debian 12. That Pi5 was also hosting a Nginx server, a proxy, and HomeAssisant and suffered no performance issues. The application is constantly stress tested and performed smoothly with over a 1000 titles with 76,000 pages hosted on the device itself, external harddrive and remote network location. Python 3.11.2 was used when testing the application.
-
-## Implemented Features ##
-- CBZ, PDF, and ['.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif'] support
-- User creation and login
-- Manga progress
-- Manga Tags
-- Random Titles on homepage, Latest, All, Radmon and Unread
-- Search title, tags and status (Needs doucmentation)
+The full terms are in [LICENSE](LICENSE). Libraries and assets from other projects keep their own licenses; notably, PyMuPDF is licensed under the [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html).
