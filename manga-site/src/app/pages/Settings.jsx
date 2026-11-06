@@ -17,6 +17,8 @@ import { UpdatesSection } from "../components/settings/UpdatesSection"
 import { ServerUpdatesSection } from "../components/settings/ServerUpdatesSection"
 import { ServersSection } from "../components/settings/ServersSection"
 import { canSelfUpdate } from "../lib/updater"
+import { canUseAppLock } from "../lib/appLock"
+import { AppLockSection } from "../components/settings/AppLockSection"
 import { useServerFeatures } from "../lib/features"
 
 const formatDate = (value) => (value ? parseServerDate(value).toLocaleString() : "never")
@@ -68,6 +70,7 @@ export function Settings() {
     ...(showServers ? [{ id: "servers", label: "Servers" }] : []),
     { id: "appearance", label: "Appearance" },
     { id: "reading", label: "Reading" },
+    ...(canUseAppLock ? [{ id: "app-lock", label: "App lock" }] : []),
     ...(user?.is_owner ? [{ id: "library", label: "Library" }] : []),
     ...(user?.is_owner && features.serverUpdates
       ? [{
@@ -296,6 +299,8 @@ export function Settings() {
           button in the reader changes it for a series.
         </p>
       </section>
+
+      {canUseAppLock && <AppLockSection />}
 
       {user?.is_owner && (
         <div id="library" className="scroll-mt-20">

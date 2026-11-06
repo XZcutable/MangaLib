@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // Plugins that live in this app (not in npm packages) are registered here
         registerPlugin(ApkUpdaterPlugin.class);
         registerPlugin(OfflinePlugin.class);
+        registerPlugin(AppLockPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

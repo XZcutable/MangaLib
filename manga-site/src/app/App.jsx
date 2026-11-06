@@ -8,10 +8,25 @@ import { AuthProvider } from "./context/AuthContext"
 import { UpdateProvider } from "./context/UpdateContext"
 import { DownloadsProvider } from "./context/DownloadsContext"
 import { UpdatingOverlay } from "./components/UpdatingOverlay"
+import { AppLockProvider, useAppLock } from "./context/AppLockContext"
+import { LockScreen } from "./components/LockScreen"
 
 function ThemedToaster() {
   const { theme } = useTheme()
   return <Toaster theme={theme} position="bottom-center" />
+}
+
+// While locked, the app stays mounted (the reader keeps its page) but can't be reached
+function Lockable({ children }) {
+  const { locked } = useAppLock()
+  return (
+    <>
+      <div inert={locked ? "" : undefined} aria-hidden={locked ? true : undefined}>
+        {children}
+      </div>
+      <LockScreen />
+    </>
+  )
 }
 
 export default function App() {
@@ -19,13 +34,17 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <DownloadsProvider>
-          <UpdateProvider>
-            <RouterProvider router={router} />
-            <ThemedToaster />
-            <UpdatingOverlay />
-          </UpdateProvider>
-        </DownloadsProvider>
+        <AppLockProvider>
+          <DownloadsProvider>
+            <UpdateProvider>
+              <Lockable>
+                <RouterProvider router={router} />
+                <ThemedToaster />
+                <UpdatingOverlay />
+              </Lockable>
+            </UpdateProvider>
+          </DownloadsProvider>
+        </AppLockProvider>
       </AuthProvider>
     </ThemeProvider>
   )
