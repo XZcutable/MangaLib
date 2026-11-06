@@ -24,6 +24,9 @@ export default defineConfig(({ mode }) => ({
       filename: "sw.js",
       injectRegister: false,
       manifestFilename: "manifest.webmanifest",
+      // Browsers fetch the manifest without cookies unless told to. Behind a login proxy (Cloudflare
+      // Access) that gets the login page instead, and the app can't be installed.
+      useCredentials: true,
       // Relative URLs follow the path the server is reached at, so one build works under /manga/ too
       manifest: {
         name: "myMangaLib",

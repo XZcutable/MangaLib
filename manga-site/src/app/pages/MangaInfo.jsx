@@ -43,6 +43,8 @@ export function MangaInfo() {
   const [editing, setEditing] = useState(false)
   const [showFullSummary, setShowFullSummary] = useState(false)
   const [downloadMenu, setDownloadMenu] = useState(false)
+  // Shift of the download menu from its button, so it stays on screen when the button is near the edge
+  const [menuShift, setMenuShift] = useState(0)
   const downloads = useDownloads()
   const features = useServerFeatures()
 
@@ -317,7 +319,13 @@ export function MangaInfo() {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setDownloadMenu((open) => !open)}
+                  onClick={(event) => {
+                    const { left } = event.currentTarget.getBoundingClientRect()
+                    const room = document.documentElement.clientWidth - MENU_MARGIN
+                    const width = Math.min(MENU_WIDTH, room - MENU_MARGIN)
+                    setMenuShift(Math.max(MENU_MARGIN - left, Math.min(0, room - left - width)))
+                    setDownloadMenu((open) => !open)
+                  }}
                   className={toggleButton(false)}
                   aria-expanded={downloadMenu}
                 >
@@ -326,7 +334,8 @@ export function MangaInfo() {
                 </button>
                 {downloadMenu && (
                   <div
-                    className={`absolute z-20 mt-2 w-60 rounded-md border shadow-lg py-1 ${
+                    style={{ left: menuShift, width: `min(${MENU_WIDTH}px, calc(100vw - ${MENU_MARGIN * 2}px))` }}
+                    className={`absolute z-20 mt-2 rounded-md border shadow-lg py-1 ${
                       dark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
                     }`}
                   >
@@ -572,6 +581,10 @@ function SeriesDetails({ metadata, dark, muted, showFull, onToggleFull }) {
     </div>
   )
 }
+
+// The series page's download menu: its width, and the space it keeps from the screen edges
+const MENU_WIDTH = 240
+const MENU_MARGIN = 16
 
 // Download state of one chapter: tap to download, retry, or delete it from the phone
 function ChapterDownload({ state, muted, onClick }) {
