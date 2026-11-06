@@ -3,6 +3,7 @@
 // the phone, per server, in Preferences:
 //   { manga: { [id]: { title, cover, info, chapters: { [number]: { state, done, total, files, chapter, error } } } } }
 // state is "queued", "downloading", "done" or "failed". files are page file names in page order.
+// info is a trimmed copy of GET /manga/:id (see savedInfo), so the series page works offline.
 // Reading progress saved while offline is queued and sent when the server answers again.
 
 import { Capacitor, registerPlugin } from "@capacitor/core"
@@ -34,20 +35,22 @@ const syncKey = (key) => `offline-sync:${key}`
 const folderFor = (mangaId, chapter) => `${serverKey()}/m${mangaId}/${chapter === "cover" ? "cover" : `c${chapter}`}`
 const jobId = (mangaId, chapter) => `${serverKey()}:${mangaId}:${chapter}`
 
+// The current server's list. Until it's loaded from Preferences this is an empty stand-in that
+// isn't kept, so an early read can't replace (and later save over) the saved list. Code that
+// changes the list awaits loadCurrentServer() first.
 function manifest() {
-  const key = serverKey()
-  if (!manifests[key]) manifests[key] = { manga: {} }
-  return manifests[key]
+  return manifests[serverKey()] ?? { manga: {} }
 }
 
 let saveTimer = null
 function changed({ save = true } = {}) {
   listeners.forEach((listener) => listener())
   if (!save) return
-  // Progress events come quickly; write the manifest at most every half second
-  clearTimeout(saveTimer)
   const key = serverKey()
   const data = manifests[key]
+  if (!data) return
+  // Progress events come quickly; write the manifest at most every half second
+  clearTimeout(saveTimer)
   saveTimer = setTimeout(() => setItem(manifestKey(key), JSON.stringify(data)).catch(() => {}), 500)
 }
 
@@ -70,11 +73,18 @@ function entryFor(id) {
 
 let activeJobs = new Set()
 
-// Loads the saved list for the server the app is connected to (again after changing server)
-export async function loadCurrentServer() {
-  if (!isNative) return
+// Loads the saved list for the server the app is connected to (again after changing server).
+// Calls made while it loads share one load, so a later one can't replace changes made meanwhile.
+let loading = {} // serverKey -> promise
+export function loadCurrentServer() {
+  if (!isNative) return Promise.resolve()
   const key = serverKey()
-  if (manifests[key]) return
+  if (manifests[key]) return Promise.resolve()
+  loading[key] ??= loadServer(key).finally(() => delete loading[key])
+  return loading[key]
+}
+
+async function loadServer(key) {
   try {
     const saved = await getItem(manifestKey(key))
     manifests[key] = saved ? JSON.parse(saved) : { manga: {} }
@@ -167,6 +177,41 @@ export function mangaInfo(mangaId) {
   return manifest().manga[mangaId]?.info ?? null
 }
 
+// The series page's GET /manga/:id data from what's saved on the phone, for reading offline.
+// Series downloaded by older app versions only saved titles and chapter numbers.
+export function offlineManga(mangaId) {
+  const manga = manifest().manga[mangaId]
+  if (!manga) return null
+  const info = manga.info ?? {}
+  const chapters = info.chapters ?? []
+  return {
+    id: Number(mangaId),
+    title: info.title ?? manga.title,
+    cover_url: null,
+    release_year: info.release_year ?? null,
+    total_chapters: chapters.length,
+    progress: info.progress ?? 0,
+    metadata: info.metadata ?? null,
+    tags: info.tags ?? [],
+    rating: null,
+    reading_hint: info.reading_hint ?? null,
+    chapters: chapters.map((chapter) => ({ is_read: false, ...chapter })),
+    user: info.user ?? { last_seen: null, is_read: false, is_favorite: false, is_queued: false },
+    resume: info.resume ?? { chapter: 1, page: 1 },
+    offline: true,
+  }
+}
+
+// Number of the chapters saved on the phone and ready to read, in order
+export function downloadedChapters(mangaId) {
+  const manga = manifest().manga[mangaId]
+  if (!manga) return []
+  return Object.entries(manga.chapters)
+    .filter(([, entry]) => entry.state === "done")
+    .map(([number]) => Number(number))
+    .sort((a, b) => a - b)
+}
+
 // A downloaded chapter shaped like GET /manga/:id/chapters/:n, with local page URLs.
 // Previous and next point at downloaded chapters only when `offlineOnly` is set.
 export function localChapter(mangaId, number, { offlineOnly = false } = {}) {
@@ -228,19 +273,44 @@ async function enqueueChapter(mangaId, number) {
   })
 }
 
+// What's kept of GET /manga/:id for the offline series page and reader
+const savedInfo = (manga) => ({
+  id: manga.id,
+  title: manga.title,
+  release_year: manga.release_year ?? null,
+  progress: manga.progress ?? 0,
+  metadata: manga.metadata ?? null,
+  tags: manga.tags ?? [],
+  user: manga.user ?? null,
+  resume: manga.resume ?? null,
+  chapters: manga.chapters.map(({ number, title, page_count, is_read }) => ({
+    number,
+    title,
+    page_count,
+    is_read: Boolean(is_read),
+  })),
+  reading_hint: manga.reading_hint ?? null,
+})
+
+// Keeps the saved details of a downloaded series up to date (read marks, resume point, new
+// chapters). Called when the series page loads online. Does nothing for other series.
+export function refreshInfo(manga) {
+  const saved = manifest().manga[manga.id]
+  if (!saved) return
+  saved.title = manga.title
+  saved.info = savedInfo(manga)
+  changed()
+}
+
 // Downloads chapters of a manga (`manga` is the GET /manga/:id response)
 export async function download(manga, numbers) {
   await init()
+  await loadCurrentServer()
   await askForNotifications()
   const all = manifest().manga
   const saved = (all[manga.id] ??= { title: manga.title, cover: null, chapters: {} })
   saved.title = manga.title
-  saved.info = {
-    id: manga.id,
-    title: manga.title,
-    chapters: manga.chapters.map(({ number, title, page_count }) => ({ number, title, page_count })),
-    reading_hint: manga.reading_hint ?? null,
-  }
+  saved.info = savedInfo(manga)
   for (const number of numbers) {
     const entry = saved.chapters[number]
     if (entry?.state === "done" || entry?.state === "downloading") continue
@@ -272,6 +342,7 @@ export async function download(manga, numbers) {
 export async function resume() {
   await init()
   if (!isNative) return
+  await loadCurrentServer()
   for (const [mangaId, manga] of Object.entries(manifest().manga)) {
     for (const [number, entry] of Object.entries(manga.chapters)) {
       if (entry.state !== "queued") continue
@@ -302,6 +373,7 @@ export async function retry(mangaId, number) {
 // Removes chapters (or the whole manga when numbers is null) from the phone
 export async function remove(mangaId, numbers = null) {
   await init()
+  await loadCurrentServer()
   const all = manifest().manga
   const manga = all[mangaId]
   if (!manga) return
@@ -345,7 +417,21 @@ export async function saveProgress(mangaId, chapter, page, isLastPage = false) {
     )
     queue.push({ manga: mangaId, chapter, page, last: isLastPage })
     await setItem(key, JSON.stringify(queue))
+    rememberOfflineProgress(mangaId, chapter, page, isLastPage)
   }
+}
+
+// So the offline series page offers "Continue" from where reading stopped
+function rememberOfflineProgress(mangaId, chapter, page, isLastPage) {
+  const info = manifest().manga[mangaId]?.info
+  if (!info) return
+  info.resume = { chapter: Number(chapter), page: Number(page) }
+  info.user = { ...(info.user ?? { is_favorite: false, is_queued: false, is_read: false }), last_seen: new Date().toISOString() }
+  if (isLastPage) {
+    const entry = info.chapters?.find((item) => item.number === Number(chapter))
+    if (entry) entry.is_read = true
+  }
+  changed()
 }
 
 let flushing = false

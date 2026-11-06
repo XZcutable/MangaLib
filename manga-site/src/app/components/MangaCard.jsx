@@ -6,7 +6,9 @@ import { useTheme } from "../context/ThemeContext"
 import { useAuth } from "../context/AuthContext"
 import { imageUrl, parseServerDate } from "../lib/api"
 
-export function MangaCard({ manga, showProgress = false, showUpdated = false }) {
+// `coverSrc` replaces the server cover (downloads use the copy on the phone). `badge` is a line
+// shown over the bottom of the cover, in place of the progress bar.
+export function MangaCard({ manga, showProgress = false, showUpdated = false, coverSrc, badge }) {
   const { theme } = useTheme()
   const { serverInfo } = useAuth()
   const user = manga.user
@@ -18,12 +20,17 @@ export function MangaCard({ manga, showProgress = false, showUpdated = false }) 
     <Link to={`/manga/${manga.id}`} className="group block" title={manga.title}>
       <div className="relative aspect-[2/3] rounded-lg overflow-hidden mb-3 bg-gray-200">
         <ImageWithFallback
-          src={imageUrl(manga.cover_url)}
+          src={coverSrc ?? imageUrl(manga.cover_url)}
           alt={manga.title}
           loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
-        {showProgress && percent > 0 && (
+        {badge && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-6">
+            <p className="text-white text-sm">{badge}</p>
+          </div>
+        )}
+        {!badge && showProgress && percent > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
             <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
               <div
@@ -77,7 +84,8 @@ export function MangaCard({ manga, showProgress = false, showUpdated = false }) 
           className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}
         >
           {manga.release_year && `${manga.release_year} • `}
-          {manga.total_chapters} {manga.total_chapters === 1 ? "chapter" : "chapters"}
+          {manga.total_chapters > 0 &&
+            `${manga.total_chapters} ${manga.total_chapters === 1 ? "chapter" : "chapters"}`}
         </div>
         {showUpdated && manga.last_updated && (
           <div className="text-xs text-brand-500">

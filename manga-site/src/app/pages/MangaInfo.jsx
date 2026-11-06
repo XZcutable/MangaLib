@@ -26,12 +26,16 @@ import { formatValue } from "../lib/metadata"
 import { useDownloads } from "../context/DownloadsContext"
 import * as offline from "../lib/offline"
 import { useServerFeatures } from "../lib/features"
-import { api, imageUrl } from "../lib/api"
+import { api, ApiError, imageUrl } from "../lib/api"
 
+// A series' details and chapters. Without a connection, a downloaded series is shown from what's
+// saved on the phone (offline.offlineManga): only downloaded chapters open, and the buttons that
+// need the server are hidden.
 export function MangaInfo() {
   const { mangaId } = useParams()
   const { theme } = useTheme()
-  const { user: account } = useAuth()
+  const { user: account, status } = useAuth()
+  const isOffline = status === "offline"
   const dark = theme === "dark"
   const [manga, setManga] = useState(null)
   const [error, setError] = useState(null)
@@ -43,14 +47,28 @@ export function MangaInfo() {
   const features = useServerFeatures()
 
   const load = useCallback(() => {
-    const controller = new AbortController()
     setError(null)
+    const saved = offline.offlineManga(mangaId)
+    if (isOffline && saved) {
+      setManga(saved)
+      return
+    }
+    const controller = new AbortController()
     api
       .manga(mangaId, controller.signal)
-      .then(setManga)
-      .catch((error) => error.name !== "AbortError" && setError(error))
+      .then((result) => {
+        offline.refreshInfo(result)
+        setManga(result)
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") return
+        // The server didn't answer: a downloaded series still opens
+        const fallback = error instanceof ApiError && error.status === 0 ? offline.offlineManga(mangaId) : null
+        if (fallback) setManga(fallback)
+        else setError(error)
+      })
     return () => controller.abort()
-  }, [mangaId])
+  }, [mangaId, isOffline])
 
   useEffect(load, [load])
 
@@ -146,9 +164,20 @@ export function MangaInfo() {
   }
 
   const { user, resume } = manga
+  const local = Boolean(manga.offline)
+  const onPhone = new Set(offline.downloadedChapters(manga.id))
+  // Offline, only downloaded chapters open; the resume point counts only if it's one of them
+  const readable = (number) => !local || onPhone.has(number)
   const atBeginning = resume.chapter === 1 && resume.page === 1
-  const started = user.last_seen !== null && !user.is_read && !atBeginning
-  const readLink = `/read/${manga.id}/${resume.chapter}/${resume.page}`
+  const started = user.last_seen !== null && !user.is_read && !atBeginning && readable(resume.chapter)
+  const firstOnPhone = [...onPhone][0]
+  const readLink =
+    !local || readable(resume.chapter)
+      ? `/read/${manga.id}/${resume.chapter}/${resume.page}`
+      : firstOnPhone !== undefined
+        ? `/read/${manga.id}/${firstOnPhone}/1`
+        : null
+  const savedOnPhone = Boolean(downloads.manga[manga.id])
   const muted = dark ? "text-gray-400" : "text-gray-600"
   const toggleButton = (active) =>
     `inline-flex items-center gap-2 px-4 py-2 rounded-md border transition-colors disabled:opacity-60 ${
@@ -165,7 +194,7 @@ export function MangaInfo() {
         <div className="w-40 sm:w-56 shrink-0 mx-auto sm:mx-0">
           <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-200">
             <ImageWithFallback
-              src={imageUrl(manga.cover_url)}
+              src={local ? (offline.coverUrl(manga.id) ?? "") : imageUrl(manga.cover_url)}
               alt={manga.title}
               className="w-full h-full object-cover"
             />
@@ -182,8 +211,13 @@ export function MangaInfo() {
             {manga.progress > 0 &&
               ` • ${manga.progress < 0.01 ? "<1" : Math.round(manga.progress * 100)}% read`}
           </p>
+          {local && (
+            <p className="mb-4 text-sm text-amber-500">
+              Offline: {onPhone.size} {onPhone.size === 1 ? "chapter is" : "chapters are"} on this phone.
+            </p>
+          )}
 
-          {features.seriesDetails && (
+          {(features.seriesDetails || local) && (
           <SeriesDetails
             metadata={manga.metadata}
             dark={dark}
@@ -193,7 +227,7 @@ export function MangaInfo() {
           />
           )}
 
-          {features.ratings && (
+          {features.ratings && !local && (
             <RatingPicker
               rating={manga.rating}
               disabled={saving}
@@ -203,25 +237,34 @@ export function MangaInfo() {
 
           {manga.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-6">
-              {manga.tags.map((tag) => (
-                <Link
-                  key={tag.tag}
-                  to={`/search?q=${encodeURIComponent(`tag:${tag.tag.replaceAll(" ", "_")}`)}`}
-                  className={`text-xs px-2 py-1 rounded ${
-                    tag.nsfw
-                      ? "bg-red-900/40 text-red-300"
-                      : dark
-                        ? "bg-gray-800 text-gray-300"
-                        : "bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  {tag.tag}
-                </Link>
-              ))}
+              {manga.tags.map((tag) => {
+                const className = `text-xs px-2 py-1 rounded ${
+                  tag.nsfw
+                    ? "bg-red-900/40 text-red-300"
+                    : dark
+                      ? "bg-gray-800 text-gray-300"
+                      : "bg-gray-200 text-gray-700"
+                }`
+                // Search needs the server
+                return local ? (
+                  <span key={tag.tag} className={className}>
+                    {tag.tag}
+                  </span>
+                ) : (
+                  <Link
+                    key={tag.tag}
+                    to={`/search?q=${encodeURIComponent(`tag:${tag.tag.replaceAll(" ", "_")}`)}`}
+                    className={className}
+                  >
+                    {tag.tag}
+                  </Link>
+                )
+              })}
             </div>
           )}
 
           <div className="flex flex-wrap gap-3">
+            {readLink && (
             <Link
               to={readLink}
               className="inline-flex items-center gap-2 px-5 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors"
@@ -229,6 +272,9 @@ export function MangaInfo() {
               <BookOpen className="w-4 h-4" />
               {started ? `Continue chapter ${resume.chapter}, page ${resume.page}` : "Start reading"}
             </Link>
+            )}
+            {!local && (
+            <>
             <button
               disabled={saving}
               onClick={() => updateState({ is_favorite: !user.is_favorite })}
@@ -294,6 +340,22 @@ export function MangaInfo() {
                         </button>
                       )
                     })}
+                    {savedOnPhone && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setDownloadMenu(false)
+                          if (!confirm(`Delete the downloaded chapters of "${manga.title}" from this phone?`)) return
+                          await offline.remove(manga.id)
+                          toast.success("Deleted from this phone")
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm text-red-500 ${
+                          dark ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                        }`}
+                      >
+                        Delete from this phone
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -319,6 +381,8 @@ export function MangaInfo() {
                 Start over
               </button>
             )}
+            </>
+            )}
           </div>
         </div>
       </div>
@@ -332,11 +396,11 @@ export function MangaInfo() {
         />
       )}
 
-      {account?.is_admin && <MangaManagePanel manga={manga} onChanged={load} />}
+      {account?.is_admin && !local && <MangaManagePanel manga={manga} onChanged={load} />}
 
       <div className="flex items-center justify-between gap-4 mb-4">
         <h2 className={dark ? "text-white" : "text-gray-900"}>Chapters</h2>
-        {features.chapterMarks && manga.chapters.length > 1 && (
+        {(features.chapterMarks || local) && manga.chapters.length > 1 && (
           <span className={`text-sm ${muted}`}>
             {manga.chapters.filter((chapter) => chapter.is_read).length} of {manga.chapters.length} read
           </span>
@@ -350,16 +414,24 @@ export function MangaInfo() {
         {manga.chapters.map((chapter) => {
           const current = started && chapter.number === resume.chapter
           const page = current ? resume.page : 1
+          const canOpen = readable(chapter.number)
+          const RowLink = canOpen ? Link : "div"
           return (
             <li
               key={chapter.number}
               className={`flex items-center transition-colors ${
-                current ? "bg-brand-600/15" : dark ? "hover:bg-gray-900" : "hover:bg-gray-100"
+                current
+                  ? "bg-brand-600/15"
+                  : !canOpen
+                    ? "opacity-50"
+                    : dark
+                      ? "hover:bg-gray-900"
+                      : "hover:bg-gray-100"
               }`}
             >
-              <Link
-                to={`/read/${manga.id}/${chapter.number}/${page}`}
-                className="flex-1 min-w-0 flex items-center justify-between gap-4 pl-4 py-3"
+              <RowLink
+                {...(canOpen ? { to: `/read/${manga.id}/${chapter.number}/${page}` } : { "aria-disabled": true })}
+                className={`flex-1 min-w-0 flex items-center justify-between gap-4 pl-4 py-3 ${canOpen ? "" : "pr-4"}`}
               >
                 <span
                   className={`min-w-0 truncate ${
@@ -369,17 +441,26 @@ export function MangaInfo() {
                   <span className={muted}>{chapter.number}.</span> {chapter.title || `Chapter ${chapter.number}`}
                 </span>
                 <span className={`shrink-0 text-sm ${muted}`}>
-                  {current ? `Page ${page} of ${chapter.page_count}` : `${chapter.page_count} pages`}
+                  {current
+                    ? `Page ${page} of ${chapter.page_count}`
+                    : !canOpen
+                      ? "Not on phone"
+                      : `${chapter.page_count} pages`}
                 </span>
-              </Link>
-              {downloads.available && (
+              </RowLink>
+              {downloads.available && !local && (
                 <ChapterDownload
                   state={offline.chapterState(manga.id, chapter.number)}
                   muted={muted}
                   onClick={() => chapterDownload(chapter)}
                 />
               )}
-              {features.chapterMarks && (
+              {local && onPhone.has(chapter.number) && (
+                <span className="shrink-0 px-4 py-3" title="On this phone">
+                  <CircleCheck className="w-5 h-5 text-brand-500" />
+                </span>
+              )}
+              {features.chapterMarks && !local && (
               <button
                 type="button"
                 disabled={saving}

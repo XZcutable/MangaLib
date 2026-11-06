@@ -6,8 +6,8 @@ import { ChooseUsername } from "./ChooseUsername"
 
 // Routes inside need a logged-in user. Anything else goes to the connect screen.
 // A user who has to change their username sees only that until it's done.
-// Offline in the app, downloaded chapters stay readable: Downloads and the reader work, other
-// pages go to Downloads.
+// Offline in the app, downloaded chapters stay readable: Downloads, the series page of a downloaded
+// series and the reader work, other pages go to Downloads.
 export function RequireAuth() {
   const { status, loggedOutOnPurpose, user } = useAuth()
   const { theme } = useTheme()
@@ -18,7 +18,11 @@ export function RequireAuth() {
     return <div className={`min-h-screen ${theme === "dark" ? "bg-gray-950" : "bg-gray-50"}`} />
   }
   if (status === "offline" && downloads.hasDownloads) {
-    const offlinePage = location.pathname === "/downloads" || location.pathname.startsWith("/read/")
+    const seriesId = location.pathname.match(/^\/manga\/(\d+)\/?$/)?.[1]
+    const offlinePage =
+      location.pathname === "/downloads" ||
+      location.pathname.startsWith("/read/") ||
+      Boolean(seriesId && downloads.manga[seriesId])
     return offlinePage ? <Outlet /> : <Navigate to="/downloads" replace />
   }
   if (status !== "ready") {
