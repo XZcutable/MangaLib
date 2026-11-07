@@ -16,7 +16,7 @@ from ..auth import (API_V1_PREFIX, INVITE_MESSAGES, api_access, api_error, check
 from ..database import db
 from ..enum import Access
 from ..models import Manga, ContentTag, User
-from ..server import library, server_settings, tokens, thumbnails, jobs, repack, updater, invites
+from ..server import library, server_settings, tokens, thumbnails, jobs, repack, updater, invites, languages
 from ..server import metadata as series_metadata
 from . import manga as manga_views
 from ..version import __version__
@@ -30,7 +30,9 @@ bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 # 5: crunching every series (POST /library/crunch/preview, POST /library/crunch) and its leftover files
 #    (GET /library/leftovers, POST /library/leftovers/delete).
 # 6: invites (/invites), public_url in /server/info and /server/config, can_invite in /auth/me.
-API_VERSION = 6
+# 7: the search language (tag:a|b, nsfw:, language:, is:, -), languages in /server/info, language
+#    limited to the fixed codes.
+API_VERSION = 7
 IMAGE_MAX_AGE = 10*24*60*60
 MAX_BATCH_SIZE = 100
 DEFAULT_CORS_ORIGINS = [
@@ -161,6 +163,8 @@ def server_info():
         "classic_ui_path": current_app.config.get("CLASSIC_UI_PATH", "/"),
         # Seconds until the server restarts into an update, so open pages can show a notice
         "restart_in": updater.get().restart_in(),
+        # The choices for a series' language: search values and the details editor
+        "languages": languages.LANGUAGES,
     }
 
 # --- Auth ---

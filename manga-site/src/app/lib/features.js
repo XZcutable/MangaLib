@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext"
 // What the connected server supports, from GET /server/info "api_version". An older server is
 // missing newer routes, so the app hides those features instead of showing errors.
 // While the version isn't known (offline, still loading) everything is assumed to work.
-export const APP_API_VERSION = 6
+export const APP_API_VERSION = 7
 
 export function useServerFeatures() {
   const { serverInfo } = useAuth()
@@ -24,5 +24,7 @@ export function useServerFeatures() {
     crunchAll: !known || version >= 5,
     // 6: invite links and the owner's public address
     invites: !known || version >= 6,
+    // 7: the search language (tag:a|b, nsfw:, language:, is:) and its suggestions
+    searchSyntax: !known || version >= 7,
   }
 }

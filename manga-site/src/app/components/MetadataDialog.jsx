@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { useStyles } from "../hooks/useStyles"
 import { api } from "../lib/api"
 import { METADATA_FIELDS, waitForJob } from "../lib/metadata"
+import { LANGUAGES } from "../lib/languages"
 
 const toForm = (metadata) =>
   Object.fromEntries(
@@ -21,7 +22,7 @@ const fromForm = (form) =>
       if (type === "list")
         return [key, value.split(",").map((part) => part.trim()).filter(Boolean)]
       if (type === "year") return [key, value.trim() ? Number(value.trim()) : null]
-      if (type === "direction") return [key, value || null]
+      if (type === "direction" || type === "language") return [key, value || null]
       return [key, value.trim() || null]
     }),
   )
@@ -145,6 +146,24 @@ export function MetadataDialog({ manga, isAdmin, onClose, onSaved }) {
                     <option value="">Not set (use the reader setting)</option>
                     <option value="rtl">Right to left (Japanese manga)</option>
                     <option value="ltr">Left to right</option>
+                  </select>
+                ) : field.type === "language" ? (
+                  <select
+                    id={id}
+                    value={form[field.key]}
+                    onChange={(event) => set(field.key, event.target.value)}
+                    className={`${s.input} w-full`}
+                  >
+                    <option value="">Not set</option>
+                    {LANGUAGES.map((language) => (
+                      <option key={language.code} value={language.code}>
+                        {language.name}
+                      </option>
+                    ))}
+                    {/* A value from before the list was fixed stays selectable until it's changed */}
+                    {form[field.key] && !LANGUAGES.some((language) => language.code === form[field.key]) && (
+                      <option value={form[field.key]}>{form[field.key]}</option>
+                    )}
                   </select>
                 ) : (
                   <input

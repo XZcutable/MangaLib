@@ -518,7 +518,7 @@ function SeriesDetails({ metadata, dark, muted, showFull, onToggleFull }) {
     ["Writer", metadata.writer],
     ["Artist", metadata.artist !== metadata.writer ? metadata.artist : null],
     ["Publisher", metadata.publisher],
-    ["Language", metadata.language],
+    ["Language", metadata.language && formatValue("language", metadata.language)],
     ["Age rating", metadata.age_rating],
     ["Format", metadata.format],
     ["Direction", metadata.reading_direction && formatValue("reading_direction", metadata.reading_direction)],

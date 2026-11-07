@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 
 from ..database import db
 from ..models import Manga, MangaMetadata, MetadataSuggestion, User
-from . import comicinfo, jobs
+from . import comicinfo, jobs, languages
 
 TEXT_LIMITS = {
     "title": 300,
@@ -72,6 +72,8 @@ def clean(changes) -> tuple[Optional[dict], Optional[str]]:
                 return None, "Title can't be empty"
             if field == "web" and value and not value.lower().startswith(("http://", "https://")):
                 return None, "web must be a link starting with http:// or https://"
+            if field == "language" and value is not None and value not in languages.CODES:
+                return None, f"language must be one of: {', '.join(sorted(languages.CODES))}"
         elif field == "genres":
             if value is None:
                 value = []
@@ -126,6 +128,8 @@ def import_from_files(manga: Manga) -> bool:
 
     # The folder or file name stays the title unless someone edits it
     fields.pop("title", None)
+    if "language" in fields:
+        fields["language"] = languages.normalize(fields["language"])
     if fields:
         _apply_to_db(manga, fields)
         meta.metadata_source = "file"

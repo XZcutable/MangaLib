@@ -21,11 +21,13 @@ import {
   User,
 } from "lucide-react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import { useTheme } from "../context/ThemeContext"
 import { serverLabel, useAuth } from "../context/AuthContext"
 import { offlineAvailable } from "../lib/offline"
 import { useServerFeatures } from "../lib/features"
+import { useSearchSuggestions } from "../hooks/useSearchSuggestions"
+import { applySuggestion, blockedCharacter, contextAt, endContext, suggestionsFor } from "../lib/searchSyntax"
 
 // Same icons as the classic interface. Like the classic navbar, the labels drop away on smaller
 // screens and the icons stay, so every section is one tap away instead of hidden in a menu.
@@ -54,33 +56,175 @@ function SearchBox({ className = "", autoFocus = false, onDone }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const location = useLocation()
+  const { searchSyntax } = useServerFeatures()
+  const { load, sources } = useSearchSuggestions(searchSyntax)
+  const inputRef = useRef(null)
+  const pendingCaret = useRef(null)
   const [value, setValue] = useState(location.pathname === "/search" ? (params.get("q") ?? "") : "")
+  const [caret, setCaret] = useState(value.length)
+  const [focused, setFocused] = useState(false)
+  const [closed, setClosed] = useState(false)
+  const [active, setActive] = useState(-1)
+  const [hint, setHint] = useState(null)
+  const dark = theme === "dark"
+
+  const context = searchSyntax ? contextAt(value, caret) : null
+  const suggestions = focused && !closed ? suggestionsFor(context, sources) : []
+  const open = suggestions.length > 0 || (focused && hint)
+
+  useEffect(() => setActive(-1), [value, caret])
+  // Puts the caret where a suggestion or a closed filter left it, before the next key is handled
+  useLayoutEffect(() => {
+    if (pendingCaret.current === null) return
+    inputRef.current?.setSelectionRange(pendingCaret.current, pendingCaret.current)
+    pendingCaret.current = null
+  })
+  useEffect(() => {
+    if (!hint) return
+    const timer = setTimeout(() => setHint(null), 2500)
+    return () => clearTimeout(timer)
+  }, [hint])
+
+  const update = (text, position) => {
+    setValue(text)
+    setCaret(position)
+    setClosed(false)
+    pendingCaret.current = position
+  }
+
+  const change = (event) => {
+    const text = event.target.value
+    const position = event.target.selectionStart ?? text.length
+    // One character typed at the caret: spaces close a filter, some keys refuse & (checked here rather
+    // than on keydown because phone keyboards don't report which key was pressed)
+    if (searchSyntax && text.length === value.length + 1 && position > 0) {
+      const typed = text[position - 1]
+      const old = position - 1
+      if (text.slice(0, old) + text.slice(position) === value) {
+        const blocked = blockedCharacter(contextAt(value, old), typed)
+        if (blocked) {
+          setHint(blocked)
+          update(value, old)
+          return
+        }
+        if (typed === " ") {
+          const ended = endContext(value, old)
+          if (ended) return update(ended.text, ended.caret)
+        }
+      }
+    }
+    setValue(text)
+    setCaret(position)
+    setClosed(false)
+  }
+
+  const choose = (suggestion) => {
+    const next = applySuggestion(value, context, suggestion.insert)
+    update(next.text, next.caret)
+    inputRef.current?.focus()
+  }
+
+  const keyDown = (event) => {
+    if (!suggestions.length) return
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault()
+      const step = event.key === "ArrowDown" ? 1 : -1
+      // -1 is "nothing picked", so Enter still searches
+      setActive((index) => {
+        const next = index + step
+        if (next >= suggestions.length) return -1
+        return next < -1 ? suggestions.length - 1 : next
+      })
+    } else if (event.key === "Tab" || (event.key === "Enter" && active >= 0)) {
+      event.preventDefault()
+      choose(suggestions[Math.max(active, 0)])
+    } else if (event.key === "Escape") {
+      event.preventDefault()
+      setClosed(true)
+    }
+  }
 
   const submit = (event) => {
     event.preventDefault()
     const q = value.trim()
     if (!q) return
     navigate(`/search?q=${encodeURIComponent(q)}`)
+    setClosed(true)
     onDone?.()
   }
 
+  const listId = `search-suggestions${autoFocus ? "-menu" : ""}`
   return (
     <form onSubmit={submit} className={`relative ${className}`} role="search">
       <input
+        ref={inputRef}
         type="search"
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={change}
+        onSelect={(event) => setCaret(event.target.selectionStart ?? 0)}
+        onKeyDown={keyDown}
+        onFocus={() => {
+          setFocused(true)
+          load()
+        }}
+        onBlur={() => setFocused(false)}
         placeholder="Search manga..."
         aria-label="Search manga"
         autoFocus={autoFocus}
         enterKeyHint="search"
+        autoComplete="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={suggestions.length > 0}
+        aria-controls={listId}
+        aria-activedescendant={active >= 0 && active < suggestions.length ? `${listId}-${active}` : undefined}
         className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent ${
-          theme === "dark"
+          dark
             ? "bg-gray-800 border-gray-700 text-white placeholder-gray-400"
             : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
         }`}
       />
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      {open && (
+        <div
+          className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md border shadow-lg overflow-hidden ${
+            dark ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"
+          }`}
+        >
+          {hint && <p className={`px-3 py-2 text-sm ${dark ? "text-amber-300" : "text-amber-700"}`}>{hint}</p>}
+          {suggestions.length > 0 && (
+            <ul id={listId} role="listbox" className="py-1 max-h-72 overflow-y-auto">
+              {suggestions.map((suggestion, index) => (
+                <li
+                  key={suggestion.insert}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-selected={index === active}
+                  // Keeps the focus (and the keyboard on phones) in the input
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => choose(suggestion)}
+                  className={`flex items-baseline gap-3 px-3 py-2 cursor-pointer text-sm ${
+                    index === active
+                      ? "bg-brand-600 text-white"
+                      : dark
+                        ? "text-gray-200 hover:bg-gray-800"
+                        : "text-gray-800 hover:bg-gray-100"
+                  }`}
+                >
+                  <span className="truncate">{suggestion.label}</span>
+                  {suggestion.detail && (
+                    <span className={`ml-auto shrink-0 text-xs ${index === active ? "text-white/80" : "text-gray-500"}`}>
+                      {suggestion.detail}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </form>
   )
 }

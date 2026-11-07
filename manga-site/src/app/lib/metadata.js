@@ -1,4 +1,5 @@
 import { api } from "./api"
+import { languageName } from "./languages"
 
 // Editable series details, in form order. Keys match the server (server/metadata.py).
 export const METADATA_FIELDS = [
@@ -9,7 +10,7 @@ export const METADATA_FIELDS = [
   { key: "publisher", label: "Publisher", type: "text", max: 200 },
   { key: "genres", label: "Genres", type: "list", hint: "Separate with commas" },
   { key: "year", label: "Year", type: "year" },
-  { key: "language", label: "Language", type: "text", max: 20, hint: "e.g. en, ja" },
+  { key: "language", label: "Language", type: "language" },
   { key: "age_rating", label: "Age rating", type: "text", max: 50 },
   { key: "format", label: "Format", type: "text", max: 50, hint: "\"Webtoon\" opens it in vertical scroll" },
   { key: "reading_direction", label: "Reading direction", type: "direction" },
@@ -24,6 +25,7 @@ export function formatValue(key, value) {
     return "—"
   if (key === "genres") return value.join(", ")
   if (key === "reading_direction") return value === "rtl" ? "Right to left" : "Left to right"
+  if (key === "language") return languageName(value)
   return String(value)
 }
 

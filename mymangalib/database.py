@@ -11,11 +11,21 @@ from .constants import ENV
 
 import os
 
-from sqlalchemy import Select, select, func, exc, inspect, text
+from sqlalchemy import Select, select, func, exc, inspect, text, event
+from sqlalchemy.engine import Engine
+import sqlite3
 
 from .models import db_engine, Manga, Chapter, Page, MangaMetadata, UserMangaData, User
 
 from .helpers import release_year_from_names
+
+@event.listens_for(Engine, "connect")
+def _add_sql_functions(dbapi_connection, _record):
+    # SQLite's lower() and LIKE only ignore case for A-Z; search uses casefold() for every letter
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        dbapi_connection.create_function(
+            "casefold", 1, lambda value: value.casefold() if isinstance(value, str) else value, deterministic=True
+        )
 
 class Manga_session(scoped_session):
     session: Session
@@ -138,6 +148,7 @@ def init_app(app: Flask):
             add_missing_columns()
             add_missing_indexes()
             fill_missing_release_years()
+            normalize_languages()
             from .server.metadata import fill_missing_from_files
             fill_missing_from_files()
 
@@ -185,5 +196,19 @@ def fill_missing_release_years():
     if updated:
         db_engine.session.commit()
         print(f"Found release years for {updated} manga")
+
+def normalize_languages():
+    """Turns languages stored as free text ("English", "en-US", "jp") into the fixed codes search uses.
+    Values that can't be matched are left as they are."""
+    from .server.languages import normalize
+    updated = 0
+    for meta in db_engine.session.scalars(select(MangaMetadata).where(MangaMetadata.language.is_not(None), MangaMetadata.language != "")):
+        code = normalize(meta.language)
+        if code != meta.language:
+            meta.language = code
+            updated += 1
+    if updated:
+        db_engine.session.commit()
+        print(f"Updated the language of {updated} manga")
 
 db.session = Manga_session(db_engine.session)

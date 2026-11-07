@@ -11,7 +11,7 @@ from ..queries import QUERY_FAVORITES, QUERY_HISTORY, QUERY_QUEUE
 
 from sqlalchemy import func, select, exc
 
-import os, re, zipfile, pymupdf, io
+import os, zipfile, pymupdf, io
 
 image_types = ('.jpg', '.jpeg', '.png', '.webp', '.jfif', '.gif')
 archive_types = ('.cbz', '.zip', '.pdf')
@@ -222,23 +222,6 @@ def fetch_page(page: Page):
 @bp.route('/upload', methods=('GET', 'POST'))
 def upload():
     pass
-
-TERM_PATTERN = re.compile(r"(?<![:\",'])\b\w+\b(?![:\",'])")
-TAG_PATTERN = re.compile(r"(?<!\w|!)tag:([\w,]+)")
-NTAG_PATTERN = re.compile(r"!tag:([\w,]+)")
-DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
-QUOTE_PATTERN = re.compile(r"'(.*?)'")
-
-UNREAD = "unread"
-READ = "read"
-TAGGED = "tagged"
-UNTAGGED = "untagged"
-IN_PROGRESS = "progress"
-SFW = "sfw"
-NSFW = "nsfw"
-
-SPECIAL_TAGS = [READ, UNREAD, TAGGED, UNTAGGED, IN_PROGRESS, NSFW, SFW]
-
 
 @bp.route("/search")
 def search():

@@ -132,7 +132,7 @@ def test_tags_lifecycle(client, auth):
     assert [tag["tag"] for tag in response.get_json()["tags"]] == ["gore", "slice of life"]
     assert client.put(f"/api/v1/manga/{alpha}/tags", headers=auth, json={"tags": ["missing"]}).status_code == 400
 
-    found = client.get("/api/v1/manga/search?q=tag:slice_of_life", headers=auth).get_json()["items"]
+    found = client.get("/api/v1/manga/search?q=tag:%22slice%20of%20life%22", headers=auth).get_json()["items"]
     assert [item["title"] for item in found] == ["Alpha"]
 
     assert client.delete("/api/v1/tags/gore", headers=auth).status_code == 200

@@ -7,7 +7,7 @@
 <script>
 async function fetchTitles(offset) {
     try {
-        var request = `${QUERY_SEARCH_URL}?offset=${offset}&sort=${sort}&q={{ request.args['q'] }}`;
+        var request = `${QUERY_SEARCH_URL}?offset=${offset}&sort=${sort}&q=${encodeURIComponent({{ request.args.get('q', '') | tojson }})}`;
         const response = await fetch(request);
         if(response.status == 200) {
             const json = await response.json();
@@ -24,5 +24,11 @@ async function fetchTitles(offset) {
 {% block grid_header %}
 <form method="get" class="w3-padding" action="{{ url_for('manga.search') }}">
     <input id="search-bar" name="q" class="w3-padding" style="width: 100%;" type="search" placeholder="search" value="{{ request.args.q }}" minlength="1" required>
+    <div class="w3-small w3-text-grey" style="margin-top: 6px;">
+        <code>tag:fantasy|action</code> either tag, <code>tag:fantasy&amp;action</code> both,
+        <code>tag:"slice of life"</code> tags with spaces, <code>nsfw:gore</code> NSFW tags,
+        <code>language:english|japanese</code>, <code>is:unread</code> / <code>is:progress</code>,
+        <code>"a phrase"</code> exact title text, and a leading <code>-</code> excludes (<code>-nsfw</code> hides all NSFW).
+    </div>
 </form>
 {% endblock %}

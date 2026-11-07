@@ -1,176 +1,176 @@
-import re
+"""The search language shared by the new app and the classic pages.
 
-from sqlalchemy import Select, select, func
+    one piece "a phrase"     title contains each word / the phrase (any case)
+    tag:fantasy|action       has either tag            tag:fantasy&action   has both
+    tag:"slice of life"      values with spaces are quoted
+    nsfw:gore  nsfw:         NSFW tags (empty = any NSFW tag)
+    language:english|japanese
+    is:unread  is:progress   the user's own reading state
+    -tag:romance  -nsfw  -word   a leading "-" means not
+
+`&` binds tighter than `|`. Only double quotes group words; a single quote is an ordinary character.
+Future keys (rating:, author:, year:...) are new KEYS entries; comparison characters like > < .. stay
+part of a value, so `year:2015..2020` already parses as one value.
+"""
+from dataclasses import dataclass, field
+from typing import Callable, Optional
+
+from sqlalchemy import Select, and_, false, func, not_, or_, select
 
 from ..database import db
-from ..models import Manga, UserMangaData, ContentTag, MangaContentTag
+from ..models import ContentTag, Manga, MangaContentTag, MangaMetadata, UserMangaData
+from . import languages
 
-TERM_PATTERN = re.compile(r"(?<![:\",'])\b\w+\b(?![:\",'])")
-TAG_PATTERN = re.compile(r"(?<!\w|!)tag:([\w,]+)")
-NTAG_PATTERN = re.compile(r"!tag:([\w,]+)")
-DQUOTE_PATTERN = re.compile(r"\"(.*?)\"")
-QUOTE_PATTERN = re.compile(r"'(.*?)'")
+@dataclass
+class Filter:
+    key: str
+    negated: bool = False
+    # Or-list of and-lists: tag:a|b&c -> [["a"], ["b", "c"]]
+    groups: list[list[str]] = field(default_factory=list)
 
-UNREAD = "unread"
-READ = "read"
-TAGGED = "tagged"
-UNTAGGED = "untagged"
-IN_PROGRESS = "progress"
-SFW = "sfw"
-NSFW = "nsfw"
+@dataclass
+class Query:
+    terms: list[tuple[str, bool]] = field(default_factory=list)  # (text, negated)
+    filters: list[Filter] = field(default_factory=list)
 
-SPECIAL_TAGS = [READ, UNREAD, TAGGED, UNTAGGED, IN_PROGRESS, NSFW, SFW]
+# --- Parsing ---
 
-# TODO support partial search terms
-def create_search_query(q: str) -> Select[tuple[int, str]]:
-    q = q.lower()
-    terms: list[str] = [*TERM_PATTERN.findall(q), *[*DQUOTE_PATTERN.findall(q), *QUOTE_PATTERN.findall(q)]]
-    tags: list[str] = TAG_PATTERN.findall(q)
-    ntags: list[str] = NTAG_PATTERN.findall(q)
-
-    manga_query = select(Manga.id.label("id"), Manga.title).distinct()
-
-    def is_special_tag(tag):
-        return tag in SPECIAL_TAGS
-
-    def handle_special_tag(tag, positive, metadata_query: Select[tuple[int]]):
-        if tag == UNTAGGED:
-            tag = TAGGED
-            positive = not positive
-        elif tag == SFW:
-            tag = NSFW
-            positive = not positive
-        elif tag == UNREAD:
-            tag = READ
-            positive = not positive
-
-        global user_id
-        if tag == READ:
-            user_id = db.session.getUserID()
-            read_query = (
-                select(Manga.id)
-                .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
-                .where(UserMangaData.is_read)
-            )
-            filter = metadata_query
-            if positive:
-                filter = filter.where(Manga.id.in_(read_query))
-            else:
-                filter = filter.where(~Manga.id.in_(read_query))
-            return filter
-        elif tag == TAGGED:
-            tag_query = (
-                select(MangaContentTag.manga_id)
-                .group_by(MangaContentTag.manga_id)
-                .having(func.count() > 0)
-            )
-            filter = metadata_query
-            if positive:
-                filter = filter.where(Manga.id.in_(tag_query))
-            else:
-                filter = filter.where(~Manga.id.in_(tag_query))
-            return filter
-        elif tag == IN_PROGRESS:
-            user_id = db.session.getUserID()
-            progress_query = (
-                select(Manga.id)
-                .join(UserMangaData, (Manga.id == UserMangaData.manga_id) & (UserMangaData.user_id == user_id))
-                .where((~UserMangaData.is_read) & ((UserMangaData.current_chapter > 1) | (UserMangaData.current_page > 1)))
-            )
-            filter = metadata_query
-            if positive:
-                filter = filter.where(Manga.id.in_(progress_query))
-            else:
-                filter = filter.where(~Manga.id.in_(progress_query))
-            return filter
-        elif tag == NSFW:
-            nsfw_query = (
-                select(MangaContentTag.manga_id)
-                .join(ContentTag, ContentTag.tag == MangaContentTag.tag)
-                .where(ContentTag.nsfw)
-            )
-            filter = metadata_query
-            if positive:
-                filter = filter.where(Manga.id.in_(nsfw_query))
-            else:
-                filter = filter.where(~Manga.id.in_(nsfw_query))
-            return filter
+def _split(text: str, separators: str) -> list[str]:
+    """Splits on any of `separators` outside double quotes. Quotes are kept."""
+    parts, current, quoted = [], "", False
+    for char in text:
+        if char == '"':
+            quoted = not quoted
+            current += char
+        elif not quoted and char in separators:
+            parts.append(current)
+            current = ""
         else:
-            pass
+            current += char
+    parts.append(current)
+    return parts
 
-    def replace_symbols(ls: list[str]):
-        for i in range(len(ls)):
-            ls[i] = ls[i].replace("_", " ")
-            ls[i] = ls[i].strip(", ")
+def _unquote(text: str) -> str:
+    return text.replace('"', "").strip()
 
-    def split_tags(tags: list[str], some: list[str], all: list[list[str]]):
-        for tag in tags:
-            if ',' in tag:
-                all.append(tag.split(','))
-            else:
-                some.append(tag)
-    
-    replace_symbols(terms)
-    replace_symbols(tags)
-    replace_symbols(ntags)
+def _value_groups(value: str) -> list[list[str]]:
+    groups = []
+    for part in _split(value, "|"):
+        items = [_unquote(item).lower() for item in _split(part, "&")]
+        items = list(dict.fromkeys(item for item in items if item))
+        if items:
+            groups.append(items)
+    return groups
 
-    for term in terms:
-        manga_query = manga_query.where(Manga.title.contains(term))
+def parse(q: str) -> Query:
+    query = Query()
+    for token in _split(q or "", " \t\n"):
+        if not token or token == "-":
+            continue
+        negated = token.startswith("-")
+        body = token[1:] if negated else token
 
-    if len(tags) or len(ntags):
-        manga_query = manga_query.outerjoin(MangaContentTag, Manga.id == MangaContentTag.manga_id)
+        colon, quote = body.find(":"), body.find('"')
+        key = body[:colon].lower() if colon > 0 and (quote == -1 or colon < quote) else None
+        if key in KEYS:
+            query.filters.append(Filter(key, negated, _value_groups(body[colon + 1:])))
+        elif negated and body.lower() == "nsfw":
+            query.filters.append(Filter("nsfw", True, []))
+        else:
+            text = _unquote(body)
+            if text:
+                query.terms.append((text, negated))
+    return query
 
-    if len(tags) > 0:
-        or_tags:list[str] = []
-        and_tags_list:list[list[str]] = []
-        split_tags(tags, or_tags, and_tags_list)
+# --- Conditions ---
 
-        for or_tag in [tag for tag in or_tags]:
-            if is_special_tag(or_tag):
-                manga_query = handle_special_tag(or_tag, True, manga_query)
-                or_tags.remove(or_tag)
+def _tags_condition(groups: list[list[str]], nsfw_only: bool):
+    def with_tags(tags: list[str]):
+        tag_query = select(MangaContentTag.manga_id).where(MangaContentTag.tag.in_(tags))
+        if nsfw_only:
+            tag_query = tag_query.join(ContentTag, ContentTag.tag == MangaContentTag.tag).where(ContentTag.nsfw)
+        tag_query = tag_query.group_by(MangaContentTag.manga_id).having(func.count() == len(tags))
+        return Manga.id.in_(tag_query)
+    return or_(*(with_tags(tags) for tags in groups))
 
-        if len(or_tags):
-            manga_query = manga_query.where(MangaContentTag.tag.in_(or_tags))
+def _any_nsfw():
+    return Manga.id.in_(
+        select(MangaContentTag.manga_id)
+        .join(ContentTag, ContentTag.tag == MangaContentTag.tag)
+        .where(ContentTag.nsfw)
+    )
 
-        for and_tags in and_tags_list:
-            for and_tag in [tag for tag in and_tags]:
-                if is_special_tag(and_tag):
-                    and_tags.remove(and_tag)
-                    manga_query = handle_special_tag(and_tag, True, manga_query)
-            if len(and_tags):
-                tag_query = (
-                    select(MangaContentTag.manga_id)
-                    .where(MangaContentTag.tag.in_(and_tags))
-                    .group_by(MangaContentTag.manga_id)
-                    .having(func.count() == len(and_tags))
-                )
-                manga_query = manga_query.where(Manga.id.in_(tag_query))
+def tag_condition(groups):
+    return _tags_condition(groups, nsfw_only=False) if groups else None
 
-    if len(ntags) > 0:
-        nor_tags:list[str] = []
-        nand_tags_list:list[list[str]] = []
-        split_tags(ntags, nor_tags, nand_tags_list)
+def nsfw_condition(groups):
+    return _tags_condition(groups, nsfw_only=True) if groups else _any_nsfw()
 
-        for nor_tag in [tag for tag in nor_tags]:
-            if is_special_tag(nor_tag):
-                manga_query = handle_special_tag(nor_tag, False, manga_query)
-                nor_tags.remove(nor_tag)
+def language_condition(groups):
+    # Only "or" makes sense for a single-valued field, so & is read as |
+    words = [word for group in groups for word in group]
+    if not words:
+        return None
+    codes = [code for code in (languages.search_code(word) for word in words) if code]
+    if not codes:
+        return false()
+    return Manga.id.in_(select(MangaMetadata.manga_id).where(MangaMetadata.language.in_(codes)))
 
-        for nand_tags in nand_tags_list:
-            for nand_tag in [tag for tag in nand_tags]:
-                if is_special_tag(nand_tag):
-                    manga_query = handle_special_tag(nand_tag, False, manga_query)
-                else:
-                    nor_tags.append(nand_tag)
+def _user_manga(*conditions):
+    return Manga.id.in_(
+        select(UserMangaData.manga_id)
+        .where(UserMangaData.user_id == db.session.getUserID(), *conditions)
+    )
 
-        if len(nor_tags):
-            tag_query = (
-                select(MangaContentTag.manga_id)
-                .where(MangaContentTag.tag.in_(nor_tags))
-                .group_by(MangaContentTag.manga_id)
-                .having(func.count() > 0)
-            )
-            manga_query = manga_query.where(Manga.id.not_in(tag_query))
+def _status(word: str):
+    if word == "read":
+        return _user_manga(UserMangaData.is_read)
+    if word == "unread":
+        return not_(_user_manga(UserMangaData.is_read))
+    if word == "progress":
+        return _user_manga(
+            ~UserMangaData.is_read,
+            (UserMangaData.current_chapter > 1) | (UserMangaData.current_page > 1),
+        )
+    tagged = Manga.id.in_(select(MangaContentTag.manga_id))
+    if word == "tagged":
+        return tagged
+    if word == "untagged":
+        return not_(tagged)
+    return false()
+
+STATUSES = ["read", "unread", "progress", "tagged", "untagged"]
+
+def status_condition(groups):
+    if not groups:
+        return None
+    return or_(*(and_(*(_status(word) for word in group)) for group in groups))
+
+@dataclass
+class KeySpec:
+    build: Callable[[list[list[str]]], Optional[object]]
+    ops: str = "|&"
+
+KEYS: dict[str, KeySpec] = {
+    "tag": KeySpec(tag_condition),
+    "nsfw": KeySpec(nsfw_condition),
+    "language": KeySpec(language_condition, ops="|"),
+    "is": KeySpec(status_condition),
+}
+
+def create_search_query(q: str) -> Select[tuple[int, str]]:
+    parsed = parse(q)
+    manga_query = select(Manga.id.label("id"), Manga.title)
+
+    for text, negated in parsed.terms:
+        # casefold() is registered on every SQLite connection (database.py); LIKE alone ignores
+        # case only for A-Z
+        condition = func.casefold(Manga.title).contains(text.casefold(), autoescape=True)
+        manga_query = manga_query.where(not_(condition) if negated else condition)
+
+    for search_filter in parsed.filters:
+        condition = KEYS[search_filter.key].build(search_filter.groups)
+        if condition is not None:
+            manga_query = manga_query.where(not_(condition) if search_filter.negated else condition)
 
     return manga_query
