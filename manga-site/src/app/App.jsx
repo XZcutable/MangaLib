@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { RouterProvider } from "react-router"
-import { setupBackButton } from "./lib/native"
+import { setupBackButton, setupDeepLinks } from "./lib/native"
+import { joinPath, parseJoinLink } from "./lib/share"
 import { Toaster } from "sonner"
 import { router } from "./routes"
 import { ThemeProvider, useTheme } from "./context/ThemeContext"
@@ -31,6 +32,14 @@ function Lockable({ children }) {
 
 export default function App() {
   useEffect(setupBackButton, [])
+  useEffect(
+    () =>
+      setupDeepLinks((url) => {
+        const link = parseJoinLink(url)
+        if (link) router.navigate(joinPath(link))
+      }),
+    [],
+  )
   return (
     <ThemeProvider>
       <AuthProvider>

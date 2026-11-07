@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, Navigate, useLocation, useNavigate } from "react-router"
-import { BookOpen, ChevronRight, Moon, Server, Sun } from "lucide-react"
+import { BookOpen, ChevronRight, Moon, QrCode, Server, Sun } from "lucide-react"
 import { serverAddress, serverLabel, useAuth } from "../context/AuthContext"
 import { useTheme } from "../context/ThemeContext"
 import { useDownloads } from "../context/DownloadsContext"
@@ -8,6 +8,8 @@ import { isNative } from "../lib/storage"
 import { normalizeServerUrl } from "../lib/api"
 import { Tenma } from "../components/Tenma"
 import { PageBackground, useScene } from "../components/PageBackground"
+import { QrScanner, canScanQr } from "../components/QrScanner"
+import { joinPath, parseJoinLink } from "../lib/share"
 
 
 // Server address (mobile app), login and registration.
@@ -29,6 +31,7 @@ export function Connect() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [scanning, setScanning] = useState(false)
 
   const scene = useScene()
   const info = auth.serverInfo
@@ -67,6 +70,26 @@ export function Connect() {
       const url = normalizeServerUrl(serverInput)
       if (url !== auth.server) forgetFrom()
       await auth.connect(serverInput)
+      setEditingServer(false)
+    })
+  }
+
+  // A scanned invite opens the Join page; a scanned server link connects like a typed address
+  const scanned = (text) => {
+    setScanning(false)
+    const link = parseJoinLink(text)
+    if (!link) {
+      setError("That QR code isn't a myMangaLib link.")
+      return
+    }
+    if (link.code) {
+      navigate(joinPath(link))
+      return
+    }
+    setServerInput(link.server)
+    run(async () => {
+      if (link.server !== auth.server) forgetFrom()
+      await auth.connect(link.server)
       setEditingServer(false)
     })
   }
@@ -228,6 +251,21 @@ export function Connect() {
               <button disabled={busy} className="w-full py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-60">
                 {busy ? "Checking…" : "Connect"}
               </button>
+              {canScanQr && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setError(null)
+                    setScanning(true)
+                  }}
+                  className={`w-full py-2 rounded-md border flex items-center justify-center gap-2 disabled:opacity-60 ${
+                    dark ? "border-gray-700 text-gray-200 hover:bg-gray-800" : "border-gray-300 text-gray-800 hover:bg-gray-100"
+                  }`}
+                >
+                  <QrCode className="w-4 h-4" /> Scan a QR code
+                </button>
+              )}
               {editingServer && (
                 <button type="button" onClick={cancelEditing} className="w-full py-2 text-sm text-brand-500">
                   Cancel
@@ -302,6 +340,7 @@ export function Connect() {
           )}
         </div>
       </div>
+      {scanning && <QrScanner onResult={scanned} onClose={() => setScanning(false)} />}
     </div>
   )
 }

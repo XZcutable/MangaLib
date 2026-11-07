@@ -205,8 +205,9 @@ export function AuthProvider({ children }) {
     [updateServer],
   )
 
-  const register = useCallback(async (username, password) => {
-    const result = await api.register(username, password)
+  // `invite` is a code from an invite link, which can open registration (see pages/Join.jsx)
+  const register = useCallback(async (username, password, invite) => {
+    const result = await api.register(username, password, invite)
     // The first account turns off "needs setup"
     api.serverInfo().then(setServerInfo).catch(() => {})
     return result

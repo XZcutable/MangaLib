@@ -106,8 +106,8 @@ export const api = {
 
   login: (username, password, device) =>
     request("/auth/login", { method: "POST", body: { username, password, device } }),
-  register: (username, password) =>
-    request("/auth/register", { method: "POST", body: { username, password } }),
+  register: (username, password, invite) =>
+    request("/auth/register", { method: "POST", body: invite ? { username, password, invite } : { username, password } }),
   logout: () => request("/auth/logout", { method: "POST" }),
   // Logs out a saved server's login without switching to it
   logoutFrom: (server, savedToken) => request("/auth/logout", { method: "POST", server, as: savedToken }),
@@ -131,6 +131,12 @@ export const api = {
   setChaptersRead: (id, chapters, is_read) =>
     request(`/manga/${id}/chapters/state`, { method: "PUT", body: { chapters, is_read } }),
   tags: () => request("/tags"),
+
+  // Invites (API version 6). inviteInfo works without logging in, on any server.
+  inviteInfo: (code, server) => request(`/invites/${encodeURIComponent(code)}`, { server }),
+  invites: () => request("/invites"),
+  createInvite: (options) => request("/invites", { method: "POST", body: options }),
+  deleteInvite: (id) => request(`/invites/${id}`, { method: "DELETE" }),
 
   // Account
   changePassword: (current_password, new_password) =>

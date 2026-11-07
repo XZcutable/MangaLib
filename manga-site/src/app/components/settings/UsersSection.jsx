@@ -17,6 +17,7 @@ export function UsersSection() {
   const [users, setUsers] = useState(null)
   const [config, setConfig] = useState(null)
   const [newUser, setNewUser] = useState({ username: "", password: "" })
+  const [publicUrl, setPublicUrl] = useState("")
 
   const load = useCallback(
     ({ quiet = false } = {}) =>
@@ -49,6 +50,21 @@ export function UsersSection() {
   useEffect(() => {
     if (me?.is_owner) api.serverConfig().then(setConfig).catch(() => {})
   }, [me?.is_owner])
+  useEffect(() => {
+    if (config) setPublicUrl(config.public_url ?? "")
+  }, [config?.public_url])
+
+  const savePublicUrl = async (event) => {
+    event.preventDefault()
+    try {
+      const updated = await api.updateServerConfig({ public_url: publicUrl })
+      setConfig(updated)
+      refreshServerInfo().catch(() => {})
+      toast.success(updated.public_url ? "Invite links now use this address" : "Invite links use the address each person is connected to")
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
 
   // Reloading also updates the "waiting" count in the navbar
   const afterChange = () => load()
@@ -121,6 +137,33 @@ export function UsersSection() {
               disabled={!config.allow_new_users}
             />
           </div>
+          {"public_url" in config && (
+            <form onSubmit={savePublicUrl} className="mt-4">
+              <label htmlFor="public-url" className={`block mb-1 ${s.text}`}>
+                Public address
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  id="public-url"
+                  className={`${s.input} flex-1 min-w-[10rem]`}
+                  value={publicUrl}
+                  onChange={(event) => setPublicUrl(event.target.value)}
+                  maxLength={200}
+                  placeholder="https://manga.example.com"
+                  inputMode="url"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                />
+                <button className={s.button} disabled={publicUrl.trim().replace(/\/+$/, "") === config.public_url}>
+                  Save
+                </button>
+              </div>
+              <p className={`text-xs mt-1 ${s.muted}`}>
+                The address people use to reach this server from anywhere. Invite links and QR codes use it.
+                Leave it empty to share the address each person is connected to.
+              </p>
+            </form>
+          )}
         </div>
       )}
 

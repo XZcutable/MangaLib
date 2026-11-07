@@ -9,6 +9,7 @@ import {
   House,
   LogOut,
   Moon,
+  QrCode,
   Rss,
   Search,
   Server,
@@ -44,6 +45,7 @@ const accountItems = [
   { label: "Top Rated", path: "/top-rated", icon: Star },
   // Downloads only exist in the Android app
   ...(offlineAvailable ? [{ label: "Downloads", path: "/downloads", icon: Download }] : []),
+  { label: "Share", path: "/share", icon: QrCode },
   { label: "Log Out", path: "/logout", icon: LogOut },
 ]
 

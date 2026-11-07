@@ -17,12 +17,16 @@ import { Downloads } from "./pages/Downloads"
 import { MangaInfo } from "./pages/MangaInfo"
 import { Reader } from "./pages/Reader"
 import { Connect } from "./pages/Connect"
+import { Join } from "./pages/Join"
+import { Share } from "./pages/Share"
 import { Logout } from "./pages/Logout"
 import { NotFound } from "./pages/NotFound"
 import { About } from "./pages/About"
 import { BASE_PATH } from "./lib/base"
 export const router = createBrowserRouter([
   { path: "/connect", Component: Connect },
+  // Invite and server links (pages/Join.jsx). Works without logging in.
+  { path: "/join", Component: Join },
   {
     Component: RequireAuth,
     children: [
@@ -43,6 +47,7 @@ export const router = createBrowserRouter([
           { path: "search", Component: Search },
           { path: "manga/:mangaId", Component: MangaInfo },
           { path: "settings", Component: Settings },
+          { path: "share", Component: Share },
           { path: "history", Component: History },
           { path: "favorites", Component: Favorites },
           { path: "bookmarks", Component: Bookmarks },
