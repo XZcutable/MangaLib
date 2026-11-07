@@ -14,6 +14,7 @@ import { UsersSection } from "../components/settings/UsersSection"
 import { SuggestionsSection } from "../components/settings/SuggestionsSection"
 import { SettingSwitch } from "../components/settings/SettingSwitch"
 import { UpdatesSection } from "../components/settings/UpdatesSection"
+import { ShareAppSection } from "../components/settings/ShareAppSection"
 import { ServerUpdatesSection } from "../components/settings/ServerUpdatesSection"
 import { ServersSection } from "../components/settings/ServersSection"
 import { canSelfUpdate } from "../lib/updater"
@@ -88,7 +89,7 @@ export function Settings() {
           { id: "tags", label: "Tags" },
         ]
       : []),
-    ...(canSelfUpdate ? [{ id: "updates", label: "Updates" }] : []),
+    ...(canSelfUpdate ? [{ id: "updates", label: "Updates" }, { id: "share-app", label: "Share the app" }] : []),
     { id: "devices", label: "Devices" },
   ]
 
@@ -331,6 +332,11 @@ export function Settings() {
       {canSelfUpdate && (
         <div id="updates" className="scroll-mt-20">
           <UpdatesSection />
+        </div>
+      )}
+      {canSelfUpdate && (
+        <div id="share-app" className="scroll-mt-20">
+          <ShareAppSection />
         </div>
       )}
 

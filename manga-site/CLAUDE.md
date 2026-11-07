@@ -64,6 +64,11 @@ AGENTS.md has the basics. Project-wide rules (commits, secrets, backend) are in 
   - Downloads to `cacheDir/updates`.
   - Before opening Android's installer through the FileProvider, it rejects the wrong package, a version that isn't newer (`not_newer`), or a different signer (`signature_mismatch`).
   - Needs `REQUEST_INSTALL_PACKAGES`; the first update sends the user to "Install unknown apps".
+- Sharing the app offline (Settings → Share the app, `lib/appShare.js`, native `AppSharePlugin`):
+  - "Share this app" copies the installed APK (`applicationInfo.sourceDir`) to `cacheDir/share` and opens the share sheet (Quick Share, Bluetooth...).
+  - "Install from a file" copies the picked APK to `cacheDir/updates/received` (so `ApkUpdater.install` accepts it) and reports version and signer. `OFFICIAL_SIGNER` is the SHA-256 of the release certificate. `classify()`: a newer build with the same key installs like an update; another key or an older version needs an uninstall. Anything not signed with the release key gets a "not official" warning with a checkbox first.
+  - Backups go to `Download/myMangaLib` through MediaStore (Android 10+, no permission; older versions pick a folder, since the folder picker refuses Download itself on Android 11+): settings JSON (Preferences without `token`, server tokens cleared, no `offline:` manifests, plus localStorage), a copy of the installed APK to go back to, and the APK about to be installed. "Restore a backup" (Settings, and the connect screen when no server is saved) merges servers and replaces the rest, then reloads.
+  - The uninstall button opens Android's uninstall screen (`REQUEST_DELETE_PACKAGES`). Never press it on the user's phone; test the full round trip on the emulator.
 - Testing an update without publishing:
   1. Build with `VITE_UPDATE_URL` pointing at a local copy of the release JSON.
   2. Serve that JSON with an `Access-Control-Allow-Origin: *` header. Python's plain `http.server` doesn't send it, so the app silently sees no update.

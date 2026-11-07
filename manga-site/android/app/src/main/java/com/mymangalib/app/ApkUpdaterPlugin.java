@@ -184,11 +184,11 @@ public class ApkUpdaterPlugin extends Plugin {
         }
     }
 
-    private static long versionCode(PackageInfo info) {
+    static long versionCode(PackageInfo info) {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? info.getLongVersionCode() : info.versionCode;
     }
 
-    private static Set<String> signers(PackageInfo info) throws Exception {
+    static Set<String> signers(PackageInfo info) throws Exception {
         Signature[] signatures;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             signatures = info.signingInfo == null ? new Signature[0]
@@ -206,7 +206,7 @@ public class ApkUpdaterPlugin extends Plugin {
         return result;
     }
 
-    private static String toHex(byte[] bytes) {
+    static String toHex(byte[] bytes) {
         StringBuilder hex = new StringBuilder();
         for (byte value : bytes) hex.append(String.format("%02x", value));
         return hex.toString();

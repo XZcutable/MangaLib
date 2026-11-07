@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ApkUpdaterPlugin.class);
         registerPlugin(OfflinePlugin.class);
         registerPlugin(AppLockPlugin.class);
+        registerPlugin(AppSharePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

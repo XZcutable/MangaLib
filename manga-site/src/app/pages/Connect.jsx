@@ -10,6 +10,8 @@ import { Tenma } from "../components/Tenma"
 import { PageBackground, useScene } from "../components/PageBackground"
 import { QrScanner, canScanQr } from "../components/QrScanner"
 import { joinPath, parseJoinLink } from "../lib/share"
+import { canSelfUpdate } from "../lib/updater"
+import { restoreBackup } from "../lib/appShare"
 
 
 // Server address (mobile app), login and registration.
@@ -73,6 +75,14 @@ export function Connect() {
       setEditingServer(false)
     })
   }
+
+  // After reinstalling (e.g. to change to a custom build), bring back the servers and settings
+  const restore = () =>
+    run(async () => {
+      const result = await restoreBackup()
+      if (result.cancelled) return
+      window.location.reload()
+    })
 
   // A scanned invite opens the Join page; a scanned server link connects like a typed address
   const scanned = (text) => {
@@ -269,6 +279,11 @@ export function Connect() {
               {editingServer && (
                 <button type="button" onClick={cancelEditing} className="w-full py-2 text-sm text-brand-500">
                   Cancel
+                </button>
+              )}
+              {canSelfUpdate && auth.servers.length === 0 && (
+                <button type="button" disabled={busy} onClick={restore} className="w-full py-2 text-sm text-brand-500">
+                  Restore a backup
                 </button>
               )}
             </form>

@@ -56,6 +56,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Lets the app open Android's installer for updates it downloads from GitHub Releases -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Opens Android's uninstall screen before installing a build signed with another key (see AppSharePlugin) -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <!-- Offline downloads: a foreground service with a progress notification -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
