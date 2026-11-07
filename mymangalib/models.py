@@ -51,6 +51,8 @@ class User(Model):
     # Set by an admin, or at login when the stored name breaks the username rules. Until the user picks a
     # new name, the server only lets them change it or log out. Nullable so older databases get the column.
     must_change_username: Mapped[Optional[bool]] = mapped_column(default=False, nullable=True)
+    # The user whose invite this account joined with. Not a foreign key: the inviter's account can be deleted.
+    invited_by: Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
 
     def __repr__(self):
         return f'<Name {self.username}>  ID {self.id} ({self.email}) Created "{self.date_created}" <approved: {self.approved}>'
@@ -96,6 +98,19 @@ class ApiToken(Model):
             "created": self.created,
             "last_used": self.last_used,
         }
+
+# Invite codes, shared as a link or QR code. Only a hash is stored, like ApiToken.
+# What an invite allows depends on its creator's role when it's used (see server/invites.py).
+class Invite(Model):
+    __tablename__ = "invite"
+    id: Mapped[int_pk] = mapped_column(init=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    code_hash: Mapped[str] = mapped_column(unique=True, index=True)
+    created: Mapped[str]
+    expires: Mapped[str]
+    # None means it can be used any number of times until it expires. No column default: it would replace None.
+    max_uses: Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
+    uses: Mapped[int] = mapped_column(default=0)
 
 class UserMangaData(Model):
     user_id:Mapped[int_pk] = mapped_column(ForeignKey("user.id"))

@@ -11,11 +11,12 @@ from werkzeug.exceptions import HTTPException
 from sqlalchemy import select, func
 from flask_cors import CORS
 
-from ..auth import API_V1_PREFIX, api_access, api_error, check_credentials, register_account, registration_rules, get_owner
+from ..auth import (API_V1_PREFIX, INVITE_MESSAGES, api_access, api_error, check_credentials, check_invite,
+                    register_account, registration_rules, get_owner)
 from ..database import db
 from ..enum import Access
 from ..models import Manga, ContentTag, User
-from ..server import library, server_settings, tokens, thumbnails, jobs, repack, updater
+from ..server import library, server_settings, tokens, thumbnails, jobs, repack, updater, invites
 from ..server import metadata as series_metadata
 from . import manga as manga_views
 from ..version import __version__
@@ -28,7 +29,8 @@ bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 # 4: moving library folders (PUT /library/paths) and series (POST /manga/<id>/move).
 # 5: crunching every series (POST /library/crunch/preview, POST /library/crunch) and its leftover files
 #    (GET /library/leftovers, POST /library/leftovers/delete).
-API_VERSION = 5
+# 6: invites (/invites), public_url in /server/info and /server/config, can_invite in /auth/me.
+API_VERSION = 6
 IMAGE_MAX_AGE = 10*24*60*60
 MAX_BATCH_SIZE = 100
 DEFAULT_CORS_ORIGINS = [
@@ -124,6 +126,8 @@ def paged_response(query, offset: int, limit: int) -> dict:
 def account_json(user: User) -> dict:
     """The logged-in user. Admins also get how many sign-ups are waiting, for the badge in the app."""
     data = user.toJson()
+    # Admins can always invite people; everyone else only while registration is open
+    data["can_invite"] = invites.can_create(user)
     if data["is_admin"]:
         data["pending_users"] = db.session.scalar(select(func.count()).select_from(User).where(~User.approved))
         data["pending_suggestions"] = series_metadata.pending_count()
@@ -150,6 +154,8 @@ def server_info():
         "api_version": API_VERSION,
         "needs_setup": needs_setup,
         "registration_open": needs_setup or bool(current_app.config.get("ALLOW_NEW_USERS")),
+        # The address the owner wants shared in invite links, or "" to share the one the app is using
+        "public_url": server_settings.public_url(),
         "hide_titles": manga_views.HIDE_TITLES,
         # Where the classic web interface is: /classic/ when this server also serves the new one
         "classic_ui_path": current_app.config.get("CLASSIC_UI_PATH", "/"),
@@ -185,12 +191,74 @@ def register():
     if not isinstance(password, str) or not password:
         return api_error(400, "bad_request", "Password is required")
 
-    registration_open, auto_approve = registration_rules()
-    user, error = register_account(username.strip(), password, registration_open, auto_approve)
+    invite = None
+    if body.get("invite"):
+        invite, invite_error = check_invite(body.get("invite"))
+        if invite_error is not None:
+            return api_error(404 if invite_error == "invite_invalid" else 403, invite_error, INVITE_MESSAGES[invite_error])
+
+    registration_open, auto_approve = registration_rules(invite)
+    user, error = register_account(username.strip(), password, registration_open, auto_approve, invite)
     if error is not None:
         status, code = (403, "registration_closed") if error == 'Registration is closed' else (409, "username_taken")
         return api_error(status, code, error)
     return {"user": user.toJson()}, 201
+
+# --- Invites ---
+# Shared as <server>/join?code=..., as a link or QR code. See server/invites.py for who can use them.
+
+@bp.route("/invites/<code>")
+def invite_info(code: str):
+    """Public: lets the join page show the site name and whether the account will need approval."""
+    invite = invites.find(code)
+    if invite is None:
+        return api_error(404, "invite_invalid", INVITE_MESSAGES["invite_invalid"])
+    status = invites.status(invite)
+    data = invites.as_json(invite)
+    return {
+        "valid": status == "active",
+        "status": status,
+        "message": INVITE_MESSAGES.get(status),
+        "site_name": server_settings.site_name(),
+        "invited_by": data["created_by"]["username"],
+        "approved_on_join": data["approved_on_join"],
+        "expires": invite.expires,
+    }
+
+@bp.route("/invites")
+@api_access()
+def list_invites():
+    """Your own invites. Admins see everyone's."""
+    return {"invites": [invites.as_json(invite) for invite in invites.listed(g.user)], "can_invite": invites.can_create(g.user)}
+
+@bp.route("/invites", methods=["POST"])
+@api_access()
+def create_invite():
+    """expires_days (1-30, default 7) and max_uses (1-100, or null for any number; default 1).
+    The code is only returned here."""
+    if not invites.can_create(g.user):
+        return api_error(403, "registration_closed", "Registration is closed, so only admins can invite people")
+    body = json_body()
+
+    days = body.get("expires_days", invites.DEFAULT_DAYS)
+    if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= invites.MAX_DAYS:
+        return api_error(400, "bad_request", f"expires_days must be a whole number from 1 to {invites.MAX_DAYS}")
+    max_uses = body.get("max_uses", 1)
+    if max_uses is not None and (isinstance(max_uses, bool) or not isinstance(max_uses, int) or not 1 <= max_uses <= invites.MAX_USES):
+        return api_error(400, "bad_request", f"max_uses must be a whole number from 1 to {invites.MAX_USES}, or null")
+
+    invite, code = invites.create(g.user, days, max_uses)
+    return {"invite": invites.as_json(invite), "code": code}, 201
+
+@bp.route("/invites/<int:invite_id>", methods=["DELETE"])
+@api_access()
+def delete_invite(invite_id: int):
+    """Cancels an invite. Your own, or anyone's for admins."""
+    invite = db.session.get(invites.Invite, invite_id)
+    if invite is None or not invites.can_delete(g.user, invite):
+        return api_error(404, "not_found", "Invite not found")
+    invites.delete(invite)
+    return {"success": True}
 
 @bp.route("/auth/logout", methods=["POST"])
 @api_access()

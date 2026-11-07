@@ -13,7 +13,7 @@ from ..auth import api_access, api_error, rename_user, valid_password_pattern
 from ..database import db
 from ..enum import Access
 from ..models import ContentTag, Manga, MetadataSuggestion, User, UserChapterData, UserMangaData
-from ..server import scanner, library_paths, move, tokens, server_settings, jobs, repack, updater, disposal
+from ..server import scanner, library_paths, move, tokens, server_settings, jobs, repack, updater, disposal, invites
 from ..server import metadata as series_metadata
 from .api import valid_tag_pattern
 from .api_v1 import account_json, bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
@@ -89,6 +89,7 @@ def delete_user(user_id: int):
     db.session.query(UserMangaData).filter(UserMangaData.user_id == user.id).delete()
     db.session.query(UserChapterData).filter(UserChapterData.user_id == user.id).delete()
     db.session.query(MetadataSuggestion).filter(MetadataSuggestion.user_id == user.id).delete()
+    invites.delete_for_user(user.id)
     db.session.delete(user)
     db.session.commit()
     return {"success": True}

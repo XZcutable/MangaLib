@@ -8,6 +8,7 @@ class ROUTE:
     RANDOM_UNREAD = "/random-unread"
 
     REGISTER = "/register"
+    JOIN = "/join"
     CHANGE_USERNAME = "/auth/change-username"
     CHANGE_PASSWORD = "/auth/change-password"
     LOGIN = "/login"
@@ -20,6 +21,7 @@ class ENDPOINT:
     AUTH_LOGIN = "auth.login"
     AUTH_LOGOUT = "auth.logout"
     AUTH_REGISTER = "auth.register"
+    AUTH_JOIN = "auth.join"
 
 class HTML:
     HOME = "manga/home.html"
@@ -58,6 +60,10 @@ FETCH_BATCH_SIZE=30
 
 # The name in the browser tab and the interface. The owner can also change it in Settings.
 SITE_NAME='myMangaLib'
+
+# The address people use to reach this server from outside, e.g. 'https://manga.example.com'. Invite links
+# and QR codes use it. Empty: the app shares the address it's connected to. The owner can change it in Settings.
+PUBLIC_URL=''
 
 # Library folders for a new server, e.g. ['/var/manga']. On a start with no library folders yet,
 # they're added and scanned. After that, manage folders in Settings > Library.

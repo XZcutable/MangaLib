@@ -8,7 +8,7 @@ from .enum import Access
 from .constants import ROUTE, ENDPOINT, VAR
 
 bp = Blueprint('auth', __name__, url_prefix='')
-public_access = [ENDPOINT.AUTH_LOGIN, ENDPOINT.AUTH_REGISTER, ENDPOINT.AUTH_LOGOUT]
+public_access = [ENDPOINT.AUTH_LOGIN, ENDPOINT.AUTH_REGISTER, ENDPOINT.AUTH_LOGOUT, ENDPOINT.AUTH_JOIN]
 
 import re, functools, click
 from flask.cli import with_appcontext
@@ -94,7 +94,7 @@ def load_logged_in_user():
 
 API_V1_PREFIX = "/api/v1/"
 # Endpoints of /api/v1 that work without logging in
-API_PUBLIC_ENDPOINTS = {"api_v1.server_info", "api_v1.login", "api_v1.register"}
+API_PUBLIC_ENDPOINTS = {"api_v1.server_info", "api_v1.login", "api_v1.register", "api_v1.invite_info"}
 # <img> tags can't send headers, so these also accept the token as ?t=
 API_IMAGE_ENDPOINTS = {"api_v1.cover", "api_v1.page_image"}
 
@@ -193,10 +193,19 @@ def changeUsername():
     return redirect(request.referrer or url_for("settings.index"))
 
 
+@bp.route(ROUTE.JOIN)
+def join():
+    """Invite links (<server>/join?code=...) land here when the server only has the classic UI.
+    With the new front end served, its own /join page answers instead."""
+    code = request.args.get("code")
+    return redirect(url_for(ENDPOINT.AUTH_REGISTER, invite=code) if code else url_for(ENDPOINT.AUTH_REGISTER))
+
 @bp.route(ROUTE.REGISTER, methods=('GET', 'POST'))
 def register():
     registrationOpen = None
     auto_approve = None
+    invite = None
+    invite_code = request.values.get("invite")
     if g.user is not None:
         user_role = get_user_role()
         if user_role < Access.ADMIN:
@@ -204,6 +213,12 @@ def register():
         else:
             registrationOpen = True
             auto_approve = True
+    elif invite_code:
+        invite, invite_error = check_invite(invite_code)
+        if invite_error is not None:
+            flash(INVITE_MESSAGES[invite_error], "error")
+            return render_template('auth/register.html', registrationOpen=False, registration_info="Register New User")
+        registrationOpen, auto_approve = registration_rules(invite)
     else:
         registrationOpen = current_app.config['ALLOW_NEW_USERS']
         auto_approve = current_app.config['AUTO_APPROVE_NEW_USERS']
@@ -220,7 +235,7 @@ def register():
         elif not password:
             error = 'Password is required'
         else:
-            user, error = register_account(username, password, registrationOpen, auto_approve)
+            user, error = register_account(username, password, registrationOpen, auto_approve, invite)
             if error is not None:
                 flash(error, "error")
             elif user.role == Access.OWNER.toString():
@@ -233,7 +248,7 @@ def register():
             if error is None:
                 return redirect(url_for(ENDPOINT.AUTH_LOGIN, last_username=username))
             else:
-                return redirect(url_for(ENDPOINT.AUTH_REGISTER, last_username=username))
+                return redirect(url_for(ENDPOINT.AUTH_REGISTER, last_username=username, invite=invite_code or None))
         
         if error is not None:
             return render_template('auth/register.html', last_username=username, last_password=password)
@@ -244,14 +259,35 @@ def register():
         else:
             return render_template('auth/register.html', registrationOpen=registrationOpen, registration_info="Register New User")
 
-def registration_rules() -> tuple[bool, bool]:
-    """(registration open, auto approve) for the current request. Admins can always add approved users."""
+INVITE_MESSAGES = {
+    "invite_invalid": "This invite link isn't valid",
+    "invite_expired": "This invite has expired",
+    "invite_used_up": "This invite has already been used",
+    "registration_closed": "Registration is closed, so this invite can't be used right now",
+}
+
+def check_invite(code: str | None):
+    """(invite, None) when the code can be used, else (None, error code). INVITE_MESSAGES has the text."""
+    from .server import invites
+    invite = invites.find(code)
+    if invite is None:
+        return None, "invite_invalid"
+    problem = invites.status(invite)
+    return (invite, None) if problem == "active" else (None, problem)
+
+def registration_rules(invite=None) -> tuple[bool, bool]:
+    """(registration open, auto approve) for the current request. Admins can always add approved users.
+    A checked invite (check_invite) uses its own rules."""
     if g.user is not None and get_user_role() >= Access.ADMIN:
         return True, True
+    if invite is not None:
+        from .server import invites
+        return invites.rules(invite)
     return bool(current_app.config['ALLOW_NEW_USERS']), bool(current_app.config['AUTO_APPROVE_NEW_USERS'])
 
-def register_account(username: str, password: str, registration_open: bool, auto_approve: bool) -> tuple[User | None, str | None]:
+def register_account(username: str, password: str, registration_open: bool, auto_approve: bool, invite=None) -> tuple[User | None, str | None]:
     """Creates a user. The first account becomes the owner even when registration is closed.
+    An invite (already checked) gets the use counted with the new account.
     Returns (user, None) or (None, error message)."""
     username = username.strip()
     existing_user = db_engine.session.scalar(select(User).where(func.lower(User.username) == username.lower()))
@@ -272,6 +308,9 @@ def register_account(username: str, password: str, registration_open: bool, auto
         user.approved = True
     elif auto_approve:
         user.approved = True
+    if invite is not None:
+        from .server import invites
+        invites.use(invite, user)
     db_engine.session.commit()
     return user, None
 

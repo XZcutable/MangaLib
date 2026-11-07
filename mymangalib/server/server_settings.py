@@ -3,6 +3,8 @@
 config.toml (or FLASK_ environment variables) gives the starting value. Once the owner changes a
 setting in the interface it's saved in the database and wins from then on, including after restarts.
 """
+from urllib.parse import urlsplit
+
 from flask import Flask, current_app
 
 from ..database import db
@@ -20,10 +22,14 @@ EDITABLE = {
 # Text settings, the same way
 EDITABLE_TEXT = {
     "SITE_NAME": "site_name",
+    # The address people outside use to reach the server, for invite links and QR codes. Empty means the
+    # app uses whatever address the person sharing is connected to.
+    "PUBLIC_URL": "public_url",
 }
 
 DEFAULT_SITE_NAME = "myMangaLib"
 SITE_NAME_MAX_LENGTH = 40
+PUBLIC_URL_MAX_LENGTH = 200
 
 # What config.toml said before saved settings were applied, so clearing a text setting can go back to it
 _config_values: dict[str, str] = {}
@@ -58,13 +64,37 @@ def set(key: str, value: bool):
     elif key == "HIDE_TITLES":
         manga.hide_titles(value)
 
+def public_url() -> str:
+    """The owner's public address without a trailing slash, or "" when it isn't set."""
+    url = current_app.config.get("PUBLIC_URL")
+    return url.strip().rstrip("/") if isinstance(url, str) else ""
+
+def _clean_site_name(value: str) -> tuple[str, str | None]:
+    value = " ".join(value.split())  # No stray or repeated spaces
+    if len(value) > SITE_NAME_MAX_LENGTH:
+        return value, f"The site name can be up to {SITE_NAME_MAX_LENGTH} characters"
+    return value, None
+
+def _clean_public_url(value: str) -> tuple[str, str | None]:
+    value = value.strip().rstrip("/")
+    if not value:
+        return value, None
+    if len(value) > PUBLIC_URL_MAX_LENGTH:
+        return value, f"The public address can be up to {PUBLIC_URL_MAX_LENGTH} characters"
+    parts = urlsplit(value)
+    if parts.scheme.lower() not in ("http", "https") or not parts.netloc or any(char.isspace() for char in value):
+        return value, "The public address must start with http:// or https://, like https://manga.example.com"
+    return value, None
+
+_CLEANERS = {"SITE_NAME": _clean_site_name, "PUBLIC_URL": _clean_public_url}
+
 def set_text(key: str, value: str) -> str | None:
     """Saves a text setting. Empty goes back to the config.toml value. Returns an error message, or None."""
     if key not in EDITABLE_TEXT:
         raise KeyError(key)
-    value = " ".join(value.split())  # No stray or repeated spaces
-    if len(value) > SITE_NAME_MAX_LENGTH:
-        return f"The site name can be up to {SITE_NAME_MAX_LENGTH} characters"
+    value, error = _CLEANERS[key](value)
+    if error is not None:
+        return error
 
     if not value:
         row = db.session.get(ServerSetting, key)
@@ -93,7 +123,7 @@ def auto_update_enabled() -> bool:
     return not auto_update_locked() and bool(current_app.config.get("UPDATE_CHECKS", True))
 
 def as_json() -> dict:
-    data = {**{name: get(key) for key, name in EDITABLE.items()}, "site_name": site_name()}
+    data = {**{name: get(key) for key, name in EDITABLE.items()}, "site_name": site_name(), "public_url": public_url()}
     data["auto_update"] = auto_update_enabled()
     data["auto_update_locked"] = auto_update_locked()
     return data

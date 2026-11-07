@@ -36,6 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
                          help="A library folder now at NEW (e.g. a new mount) instead of OLD. Done once at startup; "
                               "the manga keep their reading progress. Repeat for more folders.")
     library.add_argument("--site-name", help="Name shown in the browser tab and the app")
+    library.add_argument("--public-url", help="Address people use to reach the server, for invite links and QR codes")
 
     access = parser.add_argument_group("access")
     access.add_argument("--allow-new-users", action=argparse.BooleanOptionalAction, default=None,
@@ -82,6 +83,7 @@ def flags_to_env(args: argparse.Namespace) -> dict[str, str]:
             moves[old.strip()] = new.strip()
         put("LIBRARY_MOVES", moves)
     put("SITE_NAME", args.site_name)
+    put("PUBLIC_URL", args.public_url)
     put("ALLOW_NEW_USERS", args.allow_new_users)
     put("AUTO_APPROVE_NEW_USERS", args.auto_approve_users)
     put("BEHIND_PROXY", args.behind_proxy)

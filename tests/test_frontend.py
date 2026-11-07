@@ -19,7 +19,7 @@ def frontend_app(tmp_path, extra_config: str = ""):
 def client(tmp_path):
     return frontend_app(tmp_path).test_client()
 
-@pytest.mark.parametrize("path", ["/", "/latest", "/manga/1", "/read/1/1/1", "/settings", "/connect"])
+@pytest.mark.parametrize("path", ["/", "/latest", "/manga/1", "/read/1/1/1", "/settings", "/connect", "/join?code=abc"])
 def test_app_pages_get_the_front_end(client, path):
     response = client.get(path)
     assert response.status_code == 200
