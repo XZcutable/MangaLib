@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { X } from "lucide-react"
 import { isNative } from "../lib/storage"
+import { Tenma } from "./Tenma"
 
 // The camera needs a secure page (https or localhost). The Android app counts as one; a plain-http web
 // address doesn't, but there the phone's own camera app can open the link instead.
@@ -10,6 +11,7 @@ export const canScanQr = Boolean(navigator.mediaDevices?.getUserMedia) && (isNat
 export function QrScanner({ onResult, onClose, hint = "Point the camera at a myMangaLib QR code" }) {
   const video = useRef(null)
   const [error, setError] = useState(null)
+  const [live, setLive] = useState(false)
   const onResultRef = useRef(onResult)
   onResultRef.current = onResult
 
@@ -58,7 +60,20 @@ export function QrScanner({ onResult, onClose, hint = "Point the camera at a myM
         </button>
       </div>
       <div className="relative flex-1 min-h-0">
-        <video ref={video} className="absolute inset-0 w-full h-full object-cover" playsInline muted />
+        <video
+          ref={video}
+          className="absolute inset-0 w-full h-full object-cover"
+          playsInline
+          muted
+          onPlaying={() => setLive(true)}
+        />
+        {/* Tenma holds the spot until the first camera frame arrives */}
+        {!live && !error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black px-6">
+            <Tenma pose="camera" size="h-[60vh] max-h-[40rem]" className="animate-pulse" />
+            <p className="text-sm text-white/80">Starting the camera…</p>
+          </div>
+        )}
         {error && (
           <div className="absolute inset-0 flex items-center justify-center p-6">
             <p className="text-center text-white bg-black/70 rounded-lg p-4">{error}</p>

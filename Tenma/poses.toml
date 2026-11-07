@@ -130,3 +130,7 @@ The exact same pose as the reference image (arms wide, one leg kicked up, tail o
 clean single-color line-art silhouette: solid black lines only, no fill, no shading, no color, no \
 "!!" marks. Transparent background.
 """
+
+[poses.camera]
+used_for = "QR scanner, while the camera starts"
+done = true
