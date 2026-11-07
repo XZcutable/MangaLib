@@ -1,6 +1,6 @@
 [project]
 name = "mymangalib"
-version = "1.8.0"
+version = "1.9.0"
 description = "Host and view your Manga locally"
 license = { text = "CC-BY-NC-SA-4.0" }
 requires-python = ">=3.11"
