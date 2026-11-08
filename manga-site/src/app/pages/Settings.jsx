@@ -12,6 +12,7 @@ import { LibrarySection } from "../components/settings/LibrarySection"
 import { TagsSection } from "../components/settings/TagsSection"
 import { UsersSection } from "../components/settings/UsersSection"
 import { SuggestionsSection } from "../components/settings/SuggestionsSection"
+import { FeedbackSection } from "../components/settings/FeedbackSection"
 import { SettingSwitch } from "../components/settings/SettingSwitch"
 import { UpdatesSection } from "../components/settings/UpdatesSection"
 import { ShareAppSection } from "../components/settings/ShareAppSection"
@@ -85,6 +86,10 @@ export function Settings() {
           ...(features.seriesDetails ? [{
             id: "suggestions",
             label: user.pending_suggestions ? `Suggestions (${user.pending_suggestions})` : "Suggestions",
+          }] : []),
+          ...(features.feedback ? [{
+            id: "feedback",
+            label: user.pending_feedback ? `Feedback (${user.pending_feedback})` : "Feedback",
           }] : []),
           { id: "tags", label: "Tags" },
         ]
@@ -321,6 +326,11 @@ export function Settings() {
           {features.seriesDetails && (
             <div id="suggestions" className="scroll-mt-20">
               <SuggestionsSection />
+            </div>
+          )}
+          {features.feedback && (
+            <div id="feedback" className="scroll-mt-20">
+              <FeedbackSection />
             </div>
           )}
           <div id="tags" className="scroll-mt-20">

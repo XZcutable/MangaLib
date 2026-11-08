@@ -96,7 +96,7 @@ API_V1_PREFIX = "/api/v1/"
 # Endpoints of /api/v1 that work without logging in
 API_PUBLIC_ENDPOINTS = {"api_v1.server_info", "api_v1.login", "api_v1.register", "api_v1.invite_info"}
 # <img> tags can't send headers, so these also accept the token as ?t=
-API_IMAGE_ENDPOINTS = {"api_v1.cover", "api_v1.page_image"}
+API_IMAGE_ENDPOINTS = {"api_v1.cover", "api_v1.page_image", "api_v1.feedback_attachment"}
 
 def api_error(status: int, code: str, message: str):
     return make_response({"error": {"code": code, "message": message}}, status)

@@ -103,6 +103,7 @@ def data_paths(data_dir: str) -> dict[str, str]:
         "CONFIG_PATH": os.path.join(data_dir, "config.toml"),
         "THUMBNAIL_CACHE_PATH": os.path.join(data_dir, "covers"),
         "UPDATE_PATH": os.path.join(data_dir, "updates"),
+        "FEEDBACK_PATH": os.path.join(data_dir, "feedback"),
     }
 
 
@@ -115,6 +116,7 @@ def split_paths(db_dir: str, config_dir: str) -> dict[str, str]:
         "CONFIG_PATH": os.path.join(config_dir, "config.toml"),
         "THUMBNAIL_CACHE_PATH": os.path.join(db_dir, "covers"),
         "UPDATE_PATH": os.path.join(db_dir, "updates"),
+        "FEEDBACK_PATH": os.path.join(db_dir, "feedback"),
     }
 
 

@@ -22,6 +22,8 @@ import { Share } from "./pages/Share"
 import { Logout } from "./pages/Logout"
 import { NotFound } from "./pages/NotFound"
 import { About } from "./pages/About"
+import { Feedback } from "./pages/Feedback"
+import { RouteError } from "./components/RouteError"
 import { BASE_PATH } from "./lib/base"
 export const router = createBrowserRouter([
   { path: "/connect", Component: Connect },
@@ -29,6 +31,8 @@ export const router = createBrowserRouter([
   { path: "/join", Component: Join },
   {
     Component: RequireAuth,
+    // A crashed page shows a Reload / Report this bug screen instead of going blank
+    ErrorBoundary: RouteError,
     children: [
       // The reader is full screen, without the navbar and footer
       { path: "/read/:mangaId/:chapter/:page", Component: Reader },
@@ -53,6 +57,7 @@ export const router = createBrowserRouter([
           { path: "bookmarks", Component: Bookmarks },
           { path: "logout", Component: Logout },
           { path: "about", Component: About },
+          { path: "feedback", Component: Feedback },
           { path: "*", Component: NotFound },
         ],
       },

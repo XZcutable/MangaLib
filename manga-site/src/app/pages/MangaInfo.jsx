@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Link, useParams } from "react-router"
+import { Link, useLocation, useParams } from "react-router"
 import {
   BookOpen,
   BookCheck,
@@ -8,6 +8,7 @@ import {
   CircleCheck,
   Download,
   ExternalLink,
+  Flag,
   Heart,
   LoaderCircle,
   PencilLine,
@@ -33,6 +34,7 @@ import { api, ApiError, imageUrl } from "../lib/api"
 // need the server are hidden.
 export function MangaInfo() {
   const { mangaId } = useParams()
+  const location = useLocation()
   const { theme } = useTheme()
   const { user: account, status } = useAuth()
   const isOffline = status === "offline"
@@ -40,7 +42,8 @@ export function MangaInfo() {
   const [manga, setManga] = useState(null)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [editing, setEditing] = useState(false)
+  // "Wrong series details" on the feedback page opens the details editor here
+  const [editing, setEditing] = useState(() => Boolean(location.state?.editDetails))
   const [showFullSummary, setShowFullSummary] = useState(false)
   const [downloadMenu, setDownloadMenu] = useState(false)
   // Shift of the download menu from its button, so it stays on screen when the button is near the edge
@@ -390,6 +393,16 @@ export function MangaInfo() {
               <PencilLine className="w-4 h-4" />
               {account?.is_admin ? "Edit details" : manga.my_suggestion ? "Suggestion pending" : "Suggest edit"}
             </button>
+            )}
+            {features.feedback && !local && (
+              <Link
+                to={`/feedback?kind=content_problem&manga=${manga.id}`}
+                state={{ from: location.pathname }}
+                className={toggleButton(false)}
+              >
+                <Flag className="w-4 h-4" />
+                Report a problem
+              </Link>
             )}
             {(started || user.is_read) && (
               <button

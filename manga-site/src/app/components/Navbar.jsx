@@ -8,6 +8,7 @@ import {
   History,
   House,
   LogOut,
+  MessageSquareWarning,
   Moon,
   QrCode,
   Rss,
@@ -48,6 +49,8 @@ const accountItems = [
   // Downloads only exist in the Android app
   ...(offlineAvailable ? [{ label: "Downloads", path: "/downloads", icon: Download }] : []),
   { label: "Share", path: "/share", icon: QrCode },
+  // Bug reports, ideas and content requests (servers with API version 8)
+  { label: "Send Feedback", path: "/feedback", icon: MessageSquareWarning },
   { label: "Log Out", path: "/logout", icon: LogOut },
 ]
 
@@ -239,11 +242,15 @@ export function Navbar() {
   const { user, server, servers, switchServer } = useAuth()
   const otherServers = servers.filter((entry) => entry.url !== server)
   const dark = theme === "dark"
-  // Sign-ups and metadata suggestions waiting for an admin
+  // Sign-ups, metadata suggestions and feedback waiting for an admin
   const pendingUsers = user?.pending_users ?? 0
-  const { ratings } = useServerFeatures()
-  const menuItems = accountItems.filter((item) => ratings || item.path !== "/top-rated")
-  const pending = pendingUsers + (user?.pending_suggestions ?? 0)
+  const pendingSuggestions = user?.pending_suggestions ?? 0
+  const { ratings, feedback } = useServerFeatures()
+  const menuItems = accountItems.filter(
+    (item) => (ratings || item.path !== "/top-rated") && (feedback || item.path !== "/feedback"),
+  )
+  const pending = pendingUsers + pendingSuggestions + (user?.pending_feedback ?? 0)
+  const pendingSection = pendingUsers > 0 ? "users" : pendingSuggestions > 0 ? "suggestions" : "feedback"
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -361,7 +368,7 @@ export function Navbar() {
                     return (
                       <Link
                         key={path}
-                        to={showCount ? (pendingUsers > 0 ? "/settings#users" : "/settings#suggestions") : path}
+                        to={showCount ? `/settings#${pendingSection}` : path}
                         onClick={() => setIsAccountOpen(false)}
                         className={menuRow}
                       >
