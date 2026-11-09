@@ -259,8 +259,9 @@ const github = async (path, options = {}) => {
 if (!dryRun) {
   step(`Checking ${REPO} on GitHub`)
   const repo = await github(`/repos/${REPO}`).catch((error) => fail(`${error.message}. Check the token can access ${REPO}.`))
-  // GitHub Actions' own token gets no "permissions" in this answer; its rights come from the workflow
-  if (repo.permissions && !repo.permissions.push) fail(`The token can read ${REPO} but can't create releases there`)
+  // GitHub Actions' own token is reported without push rights here; its rights come from the workflow's
+  // "permissions" (contents: write), so the check only applies to personal tokens
+  if (!ci && !repo.permissions?.push) fail(`The token can read ${REPO} but can't create releases there`)
   const existing = await github(`/repos/${REPO}/releases/tags/v${version}`).catch((error) =>
     error.status === 404 ? null : fail(error.message),
   )
