@@ -7,6 +7,8 @@ section into the release notes on GitHub and starts a new empty one. Use `###` f
 
 ## Unreleased
 
+## 1.10.0 (2026-11-09)
+
 ### Feedback
 
 - **Send feedback from the app.** Report a bug, suggest an idea for the app or server, request a series, or report a problem with one, from the new Feedback page (Settings → Feedback), a series page or the reader.

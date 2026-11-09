@@ -2,7 +2,7 @@
   "name": "mymangalib-app",
   "private": true,
   "license": "CC-BY-NC-SA-4.0",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "type": "module",
   "packageManager": "pnpm@10.34.3",
   "scripts": {
