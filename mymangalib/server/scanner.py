@@ -221,9 +221,11 @@ def scan_manga_path(path: str, rescan_exisitng: bool = False, updated_manga: lis
 
     new_manga: list[Manga] = []
 
+    # Sorted, so new series are added (and numbered) in name order rather than the disk's own order
     manga_to_scan: list[str] = lsDirs(path)
     found_manga_archives: list[str] = lsFiles(path, filters=SUPPORTED_ARCHIVE_TYPES)
     manga_to_scan.extend(found_manga_archives)
+    sort_paths(manga_to_scan)
 
     for manga_name in manga_to_scan:
         manga_path = os.path.join(path, manga_name)
@@ -264,6 +266,8 @@ def scan_path(path: str, rescan_exisitng: bool = False):
 
     manga_folders: list = lsDirs(path)
     stray_archives: list = lsFiles(path, filters=SUPPORTED_ARCHIVE_TYPES)
+    sort_paths(manga_folders)
+    sort_paths(stray_archives)
     # Images by themselves in the root directory will not be supported
     # manga = scan_archive_as_manga(path, stray_archives, rescan_exisitng)
     for archive in stray_archives:
