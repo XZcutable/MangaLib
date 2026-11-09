@@ -106,8 +106,15 @@ const setVersion = () => {
 
 // --- Default: commit, tag and push; GitHub Actions builds and publishes once the tag arrives ---
 if (!ci && !local) {
+  // Git for Windows when it's installed: another git earlier in PATH (e.g. devkitPro's MSYS2 one) may not
+  // support the settings in the user's git config, such as http.sslBackend=schannel. MYMANGALIB_GIT overrides.
+  const gitForWindows = "C:/Program Files/Git/cmd/git.exe"
+  const gitPath =
+    process.env.MYMANGALIB_GIT ||
+    (process.platform === "win32" && existsSync(gitForWindows) ? gitForWindows : "git")
+  const gitCommand = `"${gitPath}"`
   const git = (command, options = {}) =>
-    execSync(`git ${command}`, { cwd: REPO_ROOT, encoding: "utf8", stdio: ["pipe", "pipe", "inherit"], ...options }).trim()
+    execSync(`${gitCommand} ${command}`, { cwd: REPO_ROOT, encoding: "utf8", stdio: ["pipe", "pipe", "inherit"], ...options }).trim()
   const tag = `v${version}`
   if (compare(version, pkg.version) <= 0) fail(`${version} isn't newer than the current version ${pkg.version}`)
 
@@ -153,7 +160,7 @@ if (!ci && !local) {
   }
   step(`Pushing main and ${tag} to GitLab`)
   try {
-    execSync(`git push --atomic origin main ${tag}`, { cwd: REPO_ROOT, stdio: "inherit" })
+    execSync(`${gitCommand} push --atomic origin main ${tag}`, { cwd: REPO_ROOT, stdio: "inherit" })
   } catch {
     fail(`The push failed. The commit and tag are made here; try again with: git push --atomic origin main ${tag}`)
   }
