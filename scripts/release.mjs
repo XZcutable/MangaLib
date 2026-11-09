@@ -8,11 +8,18 @@
 //   pnpm release 1.2.0 --dry-run                  build everything, publish nothing
 //   pnpm release 1.2.0 --skip-docker              don't build or push the Docker image
 //
+// Releasing through GitHub Actions instead (.github/workflows/release.yml):
+//   pnpm release 1.2.0 --tag --notes "What changed"   set the version, commit it and tag v1.2.0 (nothing is
+//                                                     built or pushed); then: git push origin main v1.2.0
+//   The tag reaches GitHub through the GitLab mirror, and the workflow runs this script with --ci, which
+//   builds the committed version as-is and stops if the tag and the version in the files differ.
+//
 // Needs the signing key described in ~/.mymangalib/release.properties and, to publish:
 //   - a GitHub token with "Contents: read and write" on the releases repo, in GITHUB_TOKEN or
 //     ~/.mymangalib/github-token
 //   - for the Docker image, a classic token with the write:packages scope (GHCR doesn't take fine-grained
-//     tokens), in GHCR_TOKEN or ~/.mymangalib/ghcr-token
+//     tokens), in GHCR_TOKEN or ~/.mymangalib/ghcr-token. With GHCR_USER set too (GitHub Actions' own
+//     token), the scope check is skipped.
 // Run it from manga-site (pnpm release) or the repo root (node scripts/release.mjs).
 // Docker runs inside WSL on Windows (MYMANGALIB_WSL_DISTRO, default Ubuntu) and directly elsewhere.
 import { execSync, spawnSync } from "node:child_process"
@@ -46,6 +53,8 @@ const option = (name) => {
 const version = args.find((arg) => /^\d+\.\d+\.\d+$/.test(arg))
 const dryRun = args.includes("--dry-run")
 const skipDocker = args.includes("--skip-docker")
+const tagOnly = args.includes("--tag")
+const ci = args.includes("--ci")
 if (!version) fail("Give the new version, e.g. pnpm release 1.2.0")
 const notes = option("--notes-file")
   ? readFileSync(resolve(option("--notes-file")), "utf8").trim()
@@ -65,6 +74,45 @@ if (minor > 99 || patch > 99) fail("Minor and patch numbers go up to 99 (the And
 if (compare(version, pkg.version) < 0) {
   fail(`${version} is older than the current version ${pkg.version}. Phones only install newer versions.`)
 }
+
+const pyprojectPath = join(REPO_ROOT, "pyproject.toml")
+const pyprojectVersion = () => readFileSync(pyprojectPath, "utf8").match(/^version = "(.*)"\r?$/m)?.[1]
+const setVersion = () => {
+  pkg.version = version
+  writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`)
+  const pyproject = readFileSync(pyprojectPath, "utf8")
+  if (!pyprojectVersion()) fail("No version line in pyproject.toml")
+  writeFileSync(pyprojectPath, pyproject.replace(/^version = ".*"(\r?)$/m, `version = "${version}"$1`))
+}
+
+// --tag: commit the version and tag it here; GitHub Actions builds and publishes it once the tag arrives
+if (tagOnly) {
+  const git = (command) => execSync(`git ${command}`, { cwd: REPO_ROOT, encoding: "utf8" }).trim()
+  const tag = `v${version}`
+  if (git(`tag --list ${tag}`)) fail(`The tag ${tag} already exists`)
+  const versionFiles = '"manga-site/package.json" "pyproject.toml"'
+  if (git(`status --porcelain -- ${versionFiles}`)) fail("package.json or pyproject.toml has uncommitted changes")
+  if (pkg.version !== version || pyprojectVersion() !== version) {
+    step(`Setting the version to ${version} and committing it`)
+    setVersion()
+    git(`commit -q -m "Version ${version}" -- ${versionFiles}`)
+  }
+  step(`Tagging ${tag}`)
+  execSync(`git tag -a ${tag} -F -`, { cwd: REPO_ROOT, input: notes || `myMangaLib ${version}` })
+  const branch = git("rev-parse --abbrev-ref HEAD")
+  console.log(`\nTagged ${tag} on ${branch}. Publish it with:\n  git push origin ${branch} ${tag}`)
+  console.log("GitLab mirrors it to GitHub, where the release workflow builds and publishes it.")
+  process.exit(0)
+}
+
+// --ci: build exactly what was committed and tagged
+if (ci && (pkg.version !== version || pyprojectVersion() !== version)) {
+  fail(
+    `The tag says ${version}, but package.json says ${pkg.version} and pyproject.toml says ${pyprojectVersion()}. ` +
+      "Make the tag with: pnpm release X.Y.Z --tag",
+  )
+}
+
 if (!existsSync(SIGNING_FILE)) fail(`No signing key settings at ${SIGNING_FILE}`)
 
 // Python for packing the server bundle: the project's .venv, or PYTHON
@@ -145,14 +193,17 @@ const github = async (path, options = {}) => {
 if (!dryRun) {
   step(`Checking ${REPO} on GitHub`)
   const repo = await github(`/repos/${REPO}`).catch((error) => fail(`${error.message}. Check the token can access ${REPO}.`))
-  if (!repo.permissions?.push) fail(`The token can read ${REPO} but can't create releases there`)
+  // GitHub Actions' own token gets no "permissions" in this answer; its rights come from the workflow
+  if (repo.permissions && !repo.permissions.push) fail(`The token can read ${REPO} but can't create releases there`)
   const existing = await github(`/repos/${REPO}/releases/tags/v${version}`).catch((error) =>
     error.status === 404 ? null : fail(error.message),
   )
   if (existing) fail(`A release for v${version} already exists: ${existing.html_url}`)
   var defaultBranch = repo.default_branch
 
-  if (!skipDocker) {
+  // GitHub Actions' token can't read /user; the workflow passes the account name as GHCR_USER
+  if (!skipDocker && process.env.GHCR_USER) var ghcrUser = process.env.GHCR_USER
+  else if (!skipDocker) {
     step("Checking the Docker image token")
     const response = await fetch("https://api.github.com/user", { headers: { Authorization: `Bearer ${ghcrToken}` } })
     if (!response.ok) fail(`The Docker image token doesn't work (GitHub ${response.status})`)
@@ -165,13 +216,10 @@ if (!dryRun) {
 }
 
 // --- Build ---
-step(`Setting the version to ${version} (app and server)`)
-pkg.version = version
-writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`)
-const pyprojectPath = join(REPO_ROOT, "pyproject.toml")
-const pyproject = readFileSync(pyprojectPath, "utf8")
-if (!/^version = ".*"\r?$/m.test(pyproject)) fail("No version line in pyproject.toml")
-writeFileSync(pyprojectPath, pyproject.replace(/^version = ".*"(\r?)$/m, `version = "${version}"$1`))
+if (!ci) {
+  step(`Setting the version to ${version} (app and server)`)
+  setVersion()
+}
 
 step("Building the web app")
 // Vite directly (same as "pnpm build"), so the script works whichever pnpm version is installed
@@ -277,7 +325,7 @@ try {
   })
   console.log(`\nPublished ${published.html_url}`)
   console.log(`Installed apps will offer the update the next time they check, and servers download it.`)
-  console.log(`Remember to commit the version change in manga-site/package.json and pyproject.toml.`)
+  if (!ci) console.log(`Remember to commit the version change in manga-site/package.json and pyproject.toml.`)
 } catch (error) {
   await github(`/repos/${REPO}/releases/${release.id}`, { method: "DELETE", retry: true }).catch(() => {})
   fail(`${error.message}. The draft release was removed; nothing was published.`)
