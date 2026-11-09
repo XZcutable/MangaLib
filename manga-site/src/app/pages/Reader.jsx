@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   BookOpen,
+  Flag,
   Info,
   Maximize2,
   MoveLeft,
@@ -17,6 +18,7 @@ import { getLocal, setLocal } from "../lib/storage"
 import { keepScreenOn } from "../lib/native"
 import { VerticalReader } from "../components/VerticalReader"
 import { useAuth } from "../context/AuthContext"
+import { useServerFeatures } from "../lib/features"
 import * as offline from "../lib/offline"
 import { FIT_MODES, STRIP_ASPECT, fitPageSize, getFitMode, setFitMode } from "../lib/pageFit"
 import {
@@ -69,6 +71,7 @@ export function Reader() {
   const navigate = useNavigate()
   const { status } = useAuth()
   const offlineMode = status === "offline"
+  const features = useServerFeatures()
 
   // A downloaded chapter is read from the phone even when online. Offline, previous and next
   // only go to other downloaded chapters.
@@ -502,6 +505,17 @@ export function Reader() {
           {pinned ? <Pin className="bounce-icon w-4 h-4" /> : <PinOff className="bounce-icon w-4 h-4" />}
           <span className="hidden sm:inline">{pinned ? "Always show" : "Tap to show"}</span>
         </button>
+        {features.feedback && !offlineMode && (
+          <Link
+            to={`/feedback?kind=content_problem&manga=${mangaId}&chapter=${chapterNumber}`}
+            state={{ from: `/read/${mangaId}/${chapterNumber}/${pageNumber}` }}
+            className={`${iconButton} flex items-center gap-1.5 text-xs`}
+            aria-label="Report a problem with this chapter"
+            title="Report a problem with this chapter (missing or broken pages…)"
+          >
+            <Flag className="bounce-icon w-4 h-4" />
+          </Link>
+        )}
       </div>
     </div>
   )

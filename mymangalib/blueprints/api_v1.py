@@ -4,9 +4,9 @@ Every route takes and returns JSON, authenticates with `Authorization: Bearer <t
 (from POST /auth/login), and reports errors as {"error": {"code", "message"}}.
 Image routes also accept the token as ?t= because <img> tags can't send headers.
 """
-import hashlib, os
+import hashlib, json, os
 
-from flask import Flask, Blueprint, request, g, current_app, url_for, abort, send_file
+from flask import Flask, Blueprint, request, g, current_app, url_for, abort, send_file, got_request_exception
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import select, func
 from flask_cors import CORS
@@ -18,6 +18,7 @@ from ..enum import Access
 from ..models import Manga, ContentTag, User
 from ..server import library, server_settings, tokens, thumbnails, jobs, repack, updater, invites, languages
 from ..server import metadata as series_metadata
+from ..server import feedback, logbuffer
 from . import manga as manga_views
 from ..version import __version__
 
@@ -32,7 +33,8 @@ bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 # 6: invites (/invites), public_url in /server/info and /server/config, can_invite in /auth/me.
 # 7: the search language (tag:a|b, nsfw:, language:, is:, -), languages in /server/info, language
 #    limited to the fixed codes.
-API_VERSION = 7
+# 8: feedback (/feedback, /admin/feedback), pending_feedback in /auth/me.
+API_VERSION = 8
 IMAGE_MAX_AGE = 10*24*60*60
 MAX_BATCH_SIZE = 100
 DEFAULT_CORS_ORIGINS = [
@@ -48,6 +50,12 @@ def init_app(app: Flask):
         origins = [origin.strip() for origin in origins.split(",") if origin.strip()]
     CORS(app, resources={f"{API_V1_PREFIX}*": {"origins": origins}},
          allow_headers=["Authorization", "Content-Type"], methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+
+    def log_unhandled_error(sender, exception, **extra):
+        # Kept in the log buffer, so a bug report sent soon after includes it
+        logbuffer.logger("server").error("%s %s failed", request.method, request.path, exc_info=exception)
+    # weak=False: blinker would otherwise drop this local function once init_app returns
+    got_request_exception.connect(log_unhandled_error, app, weak=False)
 
     @app.errorhandler(HTTPException)
     def json_errors_for_api(error: HTTPException):
@@ -133,6 +141,7 @@ def account_json(user: User) -> dict:
     if data["is_admin"]:
         data["pending_users"] = db.session.scalar(select(func.count()).select_from(User).where(~User.approved))
         data["pending_suggestions"] = series_metadata.pending_count()
+        data["pending_feedback"] = feedback.pending_count(user)
     if data.get("is_owner"):
         # For the badge on Settings: a newer server version is downloaded (or found)
         update = updater.get().as_json()
@@ -493,6 +502,101 @@ def cover(manga_id: int):
 @api_access()
 def page_image(manga_id: int, chapter_number: int, page_number: int):
     return manga_views.image(manga_id=manga_id, chapter_number=chapter_number, page_number=page_number)
+
+# --- Feedback ---
+# Bug reports, ideas and content requests (server/feedback.py). The owner's inbox is in api_v1_admin.
+
+def feedback_attachment_url(item, attachment) -> str:
+    return api_path("api_v1.feedback_attachment", feedback_id=item.id, attachment_id=attachment.id)
+
+def feedback_detail(item) -> dict:
+    return feedback.feedback_json(item, g.user, feedback_attachment_url, detail=True)
+
+def visible_feedback_or_error(feedback_id: int):
+    """(item, None), or (None, a 404) when it doesn't exist or isn't this user's to see."""
+    item = db.session.get(feedback.Feedback, feedback_id)
+    if item is None or not feedback.can_view(g.user, item):
+        return None, api_error(404, "not_found", "Feedback not found")
+    return item, None
+
+@bp.route("/feedback", methods=["POST"])
+@api_access()
+def send_feedback():
+    """JSON, or multipart/form-data with the JSON in a `data` field and up to 3 `screenshots` files.
+    Fields: kind, title, body, steps, expected, actual (bugs), manga_id and chapter (content_problem),
+    client_log (the app's recent log, bugs only) and context (app version, platform, screen...)."""
+    if request.mimetype == "multipart/form-data":
+        try:
+            body = json.loads(request.form.get("data") or "{}")
+        except ValueError:
+            return api_error(400, "bad_request", "data must be JSON")
+        body = body if isinstance(body, dict) else {}
+        files = request.files.getlist("screenshots")
+    else:
+        body, files = json_body(), []
+    if body.get("kind") != "bug":
+        body.pop("client_log", None)
+
+    item, problem = feedback.create(g.user, body, files, {
+        "server_version": __version__,
+        "api_version": API_VERSION,
+        "server_user_agent": request.user_agent.string[:300],
+    })
+    if problem == "too_many":
+        return api_error(429, "too_many_feedback",
+                         f"You can send up to {feedback.MAX_PER_DAY} reports a day. Try again tomorrow.")
+    if problem:
+        return api_error(400, "bad_request", problem)
+    return {"feedback": feedback_detail(item)}, 201
+
+@bp.route("/feedback/mine")
+@api_access()
+def my_feedback():
+    return {"feedback": [feedback.feedback_json(item, g.user) for item in feedback.list_for_user(g.user)]}
+
+@bp.route("/feedback/<int:feedback_id>")
+@api_access()
+def feedback_item(feedback_id: int):
+    item, error = visible_feedback_or_error(feedback_id)
+    return error or {"feedback": feedback_detail(item)}
+
+@bp.route("/feedback/<int:feedback_id>/comments", methods=["POST"])
+@api_access()
+def comment_feedback(feedback_id: int):
+    """{"body": "..."} adds a reply. When the sender answers a "needs info" question, the item goes back to new."""
+    item, error = visible_feedback_or_error(feedback_id)
+    if error:
+        return error
+    _, problem = feedback.comment(item, g.user, json_body().get("body"))
+    if problem:
+        return api_error(400, "bad_request", problem)
+    return {"feedback": feedback_detail(item)}, 201
+
+@bp.route("/feedback/<int:feedback_id>", methods=["DELETE"])
+@api_access()
+def delete_feedback(feedback_id: int):
+    """The sender can withdraw an item until someone has looked at it; staff can always delete."""
+    item, error = visible_feedback_or_error(feedback_id)
+    if error:
+        return error
+    if not feedback.is_staff_for(g.user, item) and item.status != "new":
+        return api_error(403, "forbidden", "This has already been looked at, so it can't be withdrawn")
+    feedback.delete(item)
+    return {"success": True}
+
+@bp.route("/feedback/<int:feedback_id>/attachments/<int:attachment_id>")
+@api_access()
+def feedback_attachment(feedback_id: int, attachment_id: int):
+    item, error = visible_feedback_or_error(feedback_id)
+    if error:
+        return error
+    attachment = db.session.get(feedback.FeedbackAttachment, attachment_id)
+    if attachment is None or attachment.feedback_id != item.id:
+        return api_error(404, "not_found", "Attachment not found")
+    path = feedback.attachment_path(attachment)
+    if not os.path.isfile(path):
+        return api_error(404, "not_found", "The file is missing on the server")
+    return send_file(path, mimetype=attachment.content_type, max_age=IMAGE_MAX_AGE)
 
 # Account, user, tag, manga and library management routes
 from . import api_v1_admin  # noqa: E402,F401

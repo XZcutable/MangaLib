@@ -15,8 +15,10 @@ from ..enum import Access
 from ..models import ContentTag, Manga, MetadataSuggestion, User, UserChapterData, UserMangaData
 from ..server import scanner, library_paths, move, tokens, server_settings, jobs, repack, updater, disposal, invites
 from ..server import metadata as series_metadata
+from ..server import feedback
 from .api import valid_tag_pattern
-from .api_v1 import account_json, bp, get_manga_or_404, json_body, optional_bool, thumbnail_cache_dir
+from .api_v1 import (account_json, bp, feedback_detail, get_manga_or_404, json_body, optional_bool,
+                     thumbnail_cache_dir)
 
 def normalize_path(path: str) -> str:
     return os.path.normpath(path).replace("\\", "/")
@@ -90,6 +92,7 @@ def delete_user(user_id: int):
     db.session.query(UserChapterData).filter(UserChapterData.user_id == user.id).delete()
     db.session.query(MetadataSuggestion).filter(MetadataSuggestion.user_id == user.id).delete()
     invites.delete_for_user(user.id)
+    feedback.delete_for_user(user.id)
     db.session.delete(user)
     db.session.commit()
     return {"success": True}
@@ -240,6 +243,50 @@ def approve_suggestion(suggestion_id: int):
 def reject_suggestion(suggestion_id: int):
     return review_suggestion(suggestion_id, approve=False)
 
+# --- Feedback inbox (owner: everything; admins: content requests and problems) ---
+
+def staff_feedback_or_error(feedback_id: int):
+    item = db.session.get(feedback.Feedback, feedback_id)
+    if item is None or not feedback.is_staff_for(g.user, item):
+        return None, api_error(404, "not_found", "Feedback not found")
+    return item, None
+
+@bp.route("/admin/feedback")
+@api_access(Access.ADMIN)
+def list_feedback():
+    """?kind= one kind, ?status= one status or "open" (default) or "all"."""
+    kind = request.args.get("kind") or None
+    status = request.args.get("status") or "open"
+    if kind is not None and kind not in feedback.KINDS:
+        return api_error(400, "bad_request", f"kind must be one of: {', '.join(feedback.KINDS)}")
+    if status not in feedback.STATUSES + ("open", "all"):
+        return api_error(400, "bad_request", "Unknown status")
+    items = feedback.inbox(g.user, kind, None if status == "all" else status)
+    return {"feedback": [feedback.feedback_json(item, g.user) for item in items],
+            "kinds": list(feedback.kinds_for(g.user))}
+
+@bp.route("/admin/feedback/<int:feedback_id>")
+@api_access(Access.ADMIN)
+def admin_feedback_item(feedback_id: int):
+    item, error = staff_feedback_or_error(feedback_id)
+    return error or {"feedback": feedback_detail(item)}
+
+@bp.route("/admin/feedback/<int:feedback_id>/status", methods=["POST"])
+@api_access(Access.ADMIN)
+def set_feedback_status(feedback_id: int):
+    """{"status": "done", "note": "optional message for the sender"}"""
+    item, error = staff_feedback_or_error(feedback_id)
+    if error:
+        return error
+    body = json_body()
+    note = body.get("note") or ""
+    if not isinstance(note, str) or len(note) > feedback.LIMITS["comment"]:
+        return api_error(400, "bad_request", "note must be text")
+    problem = feedback.set_status(item, body.get("status"), g.user, note.strip())
+    if problem:
+        return api_error(409, "bad_status", problem)
+    return {"feedback": feedback_detail(item)}
+
 @bp.route("/admin/jobs/<job_id>")
 @api_access(Access.ADMIN)
 def job_status(job_id: str):
@@ -257,6 +304,7 @@ def delete_manga(manga_id: int):
     db.session.query(UserMangaData).filter(UserMangaData.manga_id == manga.id).delete()
     db.session.query(UserChapterData).filter(UserChapterData.manga_id == manga.id).delete()
     db.session.query(MetadataSuggestion).filter(MetadataSuggestion.manga_id == manga.id).delete()
+    feedback.forget_manga(manga.id)
     db.session.delete(manga)
     db.session.commit()
     db.Manga.update_manga_count()

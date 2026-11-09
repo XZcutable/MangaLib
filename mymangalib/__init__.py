@@ -6,7 +6,7 @@ from .blueprints import api, api_v1, settings
 from .constants import ENV
 from .version import __version__
 from . import auth, database, frontend
-from .server import server_settings, updater
+from .server import server_settings, updater, logbuffer
 from .server import scanner, library_paths
 from .blueprints import manga
 
@@ -49,6 +49,11 @@ def create_app(config_file=None):
     # Older config files don't have these
     app.config.setdefault("AUTO_UPDATE", True)
     app.config.setdefault("UPDATE_CHECKS", True)  # The owner's switch in Settings (saved, see server_settings)
+    # Feedback screenshots are the only uploads: 3 images of up to 5 MB plus the report itself
+    app.config.setdefault("MAX_CONTENT_LENGTH", 20 * 1024 * 1024)
+    app.config.setdefault("MAX_FORM_MEMORY_SIZE", 1024 * 1024)  # The report's JSON, including the app's log
+
+    logbuffer.install()
     # Running an update installed from Settings: serve the front end that came with it
     bundled_frontend = os.environ.get("MYMANGALIB_BUNDLE_FRONTEND")
     if bundled_frontend and app.config.get("FRONTEND_PATH"):

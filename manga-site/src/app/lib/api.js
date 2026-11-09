@@ -4,6 +4,7 @@
 
 import { BASE_PATH } from "./base"
 import { reportRestarting, RESTART_CODES } from "./serverStatus"
+import { addLog } from "./logBuffer"
 
 // "" = the server this page came from, at the path it's served at (BASE_PATH)
 let serverUrl = ""
@@ -39,7 +40,9 @@ async function request(path, { method = "GET", body, signal, server, as } = {}) 
   const other = as !== undefined
   const auth = other ? as : token
   const headers = { Accept: "application/json" }
-  if (body !== undefined) headers["Content-Type"] = "application/json"
+  // FormData (file uploads) sets its own multipart Content-Type
+  const isForm = body instanceof FormData
+  if (body !== undefined && !isForm) headers["Content-Type"] = "application/json"
   if (auth) headers.Authorization = `Bearer ${auth}`
 
   let response
@@ -47,16 +50,18 @@ async function request(path, { method = "GET", body, signal, server, as } = {}) 
     response = await fetch(`${serverBase(server ?? serverUrl)}/api/v1${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       signal,
     })
   } catch (error) {
     if (error.name === "AbortError") throw error
+    addLog("warn", `${method} ${path}: can't reach the server`)
     throw new ApiError(0, "network", "Can't reach the server")
   }
 
   const data = await response.json().catch(() => null)
   if (!response.ok) {
+    addLog("warn", `${method} ${path} -> ${response.status} ${data?.error?.code ?? ""} ${data?.error?.message ?? ""}`)
     if (!other) {
       if (response.status === 401 && token) onUnauthorized()
       // An admin flagged the account while the app was open
@@ -155,6 +160,23 @@ export const api = {
   reviewSuggestion: (id, approve) =>
     request(`/admin/metadata/suggestions/${id}/${approve ? "approve" : "reject"}`, { method: "POST" }),
   job: (id) => request(`/admin/jobs/${id}`),
+
+  // Feedback (API version 8). sendFeedback takes the report and a list of image Files.
+  sendFeedback: (report, screenshots = []) => {
+    if (!screenshots.length) return request("/feedback", { method: "POST", body: report })
+    const form = new FormData()
+    form.append("data", JSON.stringify(report))
+    for (const file of screenshots) form.append("screenshots", file, file.name || "screenshot.png")
+    return request("/feedback", { method: "POST", body: form })
+  },
+  myFeedback: () => request("/feedback/mine"),
+  feedback: (id) => request(`/feedback/${id}`),
+  commentFeedback: (id, body) => request(`/feedback/${id}/comments`, { method: "POST", body: { body } }),
+  deleteFeedback: (id) => request(`/feedback/${id}`, { method: "DELETE" }),
+  feedbackInbox: ({ kind, status } = {}) => request(`/admin/feedback${query({ kind, status })}`),
+  feedbackForStaff: (id) => request(`/admin/feedback/${id}`),
+  setFeedbackStatus: (id, status, note) =>
+    request(`/admin/feedback/${id}/status`, { method: "POST", body: { status, note } }),
 
   // Owner
   deleteManga: (id) => request(`/manga/${id}`, { method: "DELETE" }),

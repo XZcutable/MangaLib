@@ -2,12 +2,13 @@
 One worker runs jobs in order, so two jobs never touch the same files at once. Jobs live in memory;
 a restart forgets finished ones, and any half-written file is a ".partial" copy that's cleaned up.
 With JOBS_INLINE set (tests), jobs run straight away in the calling request."""
-import queue, threading, traceback, uuid
+import queue, threading, uuid
 from typing import Callable, Optional
 
 from flask import Flask, current_app
 
 from ..database import db
+from . import logbuffer
 
 KEEP_FINISHED = 50
 
@@ -26,7 +27,7 @@ def _run(app: Flask, job: dict, work: Callable[[dict], Optional[str]]):
             if message:
                 job["message"] = message
         except Exception as error:
-            traceback.print_exc()
+            logbuffer.logger("jobs").exception("Job %s (%s) failed", job["id"], job["kind"])
             db.session.rollback()
             job["status"] = "failed"
             job["error"] = str(error) or error.__class__.__name__

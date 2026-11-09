@@ -223,6 +223,51 @@ class MetadataSuggestion(Model):
     reviewed_by:Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
     reviewed_when:Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
 
+# A bug report, idea or content request sent from the app (server/feedback.py). The owner (and, for
+# content, admins) reviews it. FeedbackEvent holds its timeline, which a future agent worker also posts to.
+class Feedback(Model):
+    __tablename__ = "feedback"
+    id: Mapped[int_pk] = mapped_column(init=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    kind: Mapped[str]  # bug, app_idea, server_idea, content_request, content_problem
+    title: Mapped[str]
+    body: Mapped[str] = mapped_column(default="")
+    status: Mapped[str] = mapped_column(default="new", index=True)
+    steps: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    expected: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    actual: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    # Not foreign keys: the series can be deleted and rescanned under a new id
+    manga_id: Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
+    manga_title: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    chapter: Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
+    context: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)  # JSON: versions, platform, route
+    client_log: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    server_log: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    created: Mapped[Optional[str]] = mapped_column(default=None, index=True)
+    updated: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    # Set when the agent worker (not built yet) claims an item, so two workers don't triage it at once
+    claimed_when: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+
+class FeedbackAttachment(Model):
+    __tablename__ = "feedback_attachment"
+    id: Mapped[int_pk] = mapped_column(init=False)
+    feedback_id: Mapped[int] = mapped_column(ForeignKey("feedback.id"), index=True)
+    file_name: Mapped[str]  # random name in <FEEDBACK_PATH>/<feedback_id>/
+    content_type: Mapped[str]
+    size: Mapped[int]
+    created: Mapped[Optional[str]] = mapped_column(default=None)
+
+class FeedbackEvent(Model):
+    __tablename__ = "feedback_event"
+    id: Mapped[int_pk] = mapped_column(init=False)
+    feedback_id: Mapped[int] = mapped_column(ForeignKey("feedback.id"), index=True)
+    author: Mapped[str]  # user, staff, agent, system
+    kind: Mapped[str]  # comment, status, triage, plan, plan_decision
+    body: Mapped[str] = mapped_column(default="")
+    user_id: Mapped[Optional[int]] = mapped_column(default=None, nullable=True)
+    data: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)  # JSON, e.g. {"from": "new", "to": "done"}
+    created: Mapped[Optional[str]] = mapped_column(default=None)
+
 # An old page image a crunch packed into `archive` but couldn't delete (e.g. a file in use on Windows).
 # The scanner leaves `folder` out while rows point at it, so the images don't come back as a chapter.
 class PendingDeletion(Model):
