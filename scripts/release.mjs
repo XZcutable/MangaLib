@@ -3,16 +3,20 @@
 //   - the server bundle (mymangalib-server-X.Y.Z.tar.gz), which running servers download and apply from Settings
 //   - the Docker image ghcr.io/xzcutable/mangalib, tagged X.Y.Z, X.Y, X and latest
 //
-//   pnpm release 1.2.0 --notes "What changed"     publish version 1.2.0
-//   pnpm release 1.2.0 --notes-file notes.md      notes from a file
-//   pnpm release 1.2.0 --dry-run                  build everything, publish nothing
-//   pnpm release 1.2.0 --skip-docker              don't build or push the Docker image
+//   pnpm release 1.2.0                 release 1.2.0 through GitHub Actions (.github/workflows/release.yml):
+//                                      moves CHANGELOG.md's "Unreleased" section under "1.2.0", sets the
+//                                      version, commits "Version 1.2.0", tags v1.2.0 with those notes and
+//                                      pushes main + the tag to GitLab. The GitLab mirror copies them to
+//                                      GitHub, where the workflow tests, builds and publishes the release.
+//   pnpm release 1.2.0 --no-push       the same, but stop before pushing
 //
-// Releasing through GitHub Actions instead (.github/workflows/release.yml):
-//   pnpm release 1.2.0 --tag --notes "What changed"   set the version, commit it and tag v1.2.0 (nothing is
-//                                                     built or pushed); then: git push origin main v1.2.0
-//   The tag reaches GitHub through the GitLab mirror, and the workflow runs this script with --ci, which
-//   builds the committed version as-is and stops if the tag and the version in the files differ.
+// Building and publishing from this PC instead (notes from --notes, or else the Unreleased section):
+//   pnpm release 1.2.0 --local                    publish version 1.2.0
+//   pnpm release 1.2.0 --local --notes "..."      with these notes (--notes-file notes.md: from a file)
+//   pnpm release 1.2.0 --dry-run                  build everything, publish nothing
+//   pnpm release 1.2.0 --local --skip-docker      don't build or push the Docker image
+// The workflow runs it with --ci: it builds the committed version as-is (notes from the tag) and stops if
+// the tag and the version in the files differ.
 //
 // Needs the signing key described in ~/.mymangalib/release.properties and, to publish:
 //   - a GitHub token with "Contents: read and write" on the releases repo, in GITHUB_TOKEN or
@@ -53,12 +57,27 @@ const option = (name) => {
 const version = args.find((arg) => /^\d+\.\d+\.\d+$/.test(arg))
 const dryRun = args.includes("--dry-run")
 const skipDocker = args.includes("--skip-docker")
-const tagOnly = args.includes("--tag")
 const ci = args.includes("--ci")
+const local = args.includes("--local") || dryRun
+const noPush = args.includes("--no-push")
 if (!version) fail("Give the new version, e.g. pnpm release 1.2.0")
-const notes = option("--notes-file")
+let notes = option("--notes-file")
   ? readFileSync(resolve(option("--notes-file")), "utf8").trim()
   : (option("--notes") ?? "").trim()
+
+// --- CHANGELOG.md: new entries wait under "## Unreleased" until a release moves them under its version ---
+const changelogPath = join(REPO_ROOT, "CHANGELOG.md")
+const readChangelog = () => {
+  const text = existsSync(changelogPath) ? readFileSync(changelogPath, "utf8") : ""
+  const lines = text.split(/\r?\n/)
+  const start = lines.findIndex((line) => /^## Unreleased\s*$/i.test(line))
+  if (start < 0) return { text, lines, start, end: start, entries: "" }
+  let end = lines.findIndex((line, index) => index > start && /^## /.test(line))
+  if (end < 0) end = lines.length
+  return { text, lines, start, end, entries: lines.slice(start + 1, end).join("\n").trim() }
+}
+// A version's headings are ### in the changelog and one level up in the release notes
+const releaseNotes = (entries) => entries.replace(/^(#{3,})(?=\s)/gm, (hashes) => hashes.slice(1))
 
 // --- Checks before building anything ---
 const packagePath = join(APP_DIR, "package.json")
@@ -85,23 +104,61 @@ const setVersion = () => {
   writeFileSync(pyprojectPath, pyproject.replace(/^version = ".*"(\r?)$/m, `version = "${version}"$1`))
 }
 
-// --tag: commit the version and tag it here; GitHub Actions builds and publishes it once the tag arrives
-if (tagOnly) {
-  const git = (command) => execSync(`git ${command}`, { cwd: REPO_ROOT, encoding: "utf8" }).trim()
+// --- Default: commit, tag and push; GitHub Actions builds and publishes once the tag arrives ---
+if (!ci && !local) {
+  const git = (command, options = {}) =>
+    execSync(`git ${command}`, { cwd: REPO_ROOT, encoding: "utf8", stdio: ["pipe", "pipe", "inherit"], ...options }).trim()
   const tag = `v${version}`
-  if (git(`tag --list ${tag}`)) fail(`The tag ${tag} already exists`)
-  const versionFiles = '"manga-site/package.json" "pyproject.toml"'
-  if (git(`status --porcelain -- ${versionFiles}`)) fail("package.json or pyproject.toml has uncommitted changes")
-  if (pkg.version !== version || pyprojectVersion() !== version) {
-    step(`Setting the version to ${version} and committing it`)
-    setVersion()
-    git(`commit -q -m "Version ${version}" -- ${versionFiles}`)
-  }
-  step(`Tagging ${tag}`)
-  execSync(`git tag -a ${tag} -F -`, { cwd: REPO_ROOT, input: notes || `myMangaLib ${version}` })
+  if (compare(version, pkg.version) <= 0) fail(`${version} isn't newer than the current version ${pkg.version}`)
+
+  step("Checking the repository")
   const branch = git("rev-parse --abbrev-ref HEAD")
-  console.log(`\nTagged ${tag} on ${branch}. Publish it with:\n  git push origin ${branch} ${tag}`)
-  console.log("GitLab mirrors it to GitHub, where the release workflow builds and publishes it.")
+  if (branch !== "main") fail(`Releases are made from main, but this is ${branch}`)
+  if (git('status --porcelain -- "manga-site/package.json" "pyproject.toml"')) {
+    fail("package.json or pyproject.toml has uncommitted changes. Commit or undo them first.")
+  }
+  git("fetch -q origin main --tags")
+  try {
+    git("merge-base --is-ancestor origin/main HEAD")
+  } catch {
+    fail("main is behind GitLab (origin/main). Pull first: git pull")
+  }
+  if (git(`tag --list ${tag}`)) fail(`The tag ${tag} already exists`)
+
+  const changelog = readChangelog()
+  if (changelog.start < 0) fail('CHANGELOG.md has no "## Unreleased" section')
+  if (!changelog.entries && !notes) fail('Nothing under "## Unreleased" in CHANGELOG.md. Write what changed there first.')
+
+  step(`Moving the Unreleased notes in CHANGELOG.md under ${version}`)
+  const date = new Date().toLocaleDateString("en-CA") // YYYY-MM-DD, local time
+  const newline = changelog.text.includes("\r\n") ? "\r\n" : "\n"
+  const { lines, start, end } = changelog
+  const entries = changelog.entries || notes
+  const updated = [...lines.slice(0, start + 1), "", `## ${version} (${date})`, "", entries, "", ...lines.slice(end)]
+  writeFileSync(changelogPath, updated.join(newline))
+  notes = notes || releaseNotes(entries)
+
+  step(`Setting the version to ${version} and committing it`)
+  setVersion()
+  const versionFiles = '"manga-site/package.json" "pyproject.toml" "CHANGELOG.md"'
+  git(`add -- ${versionFiles}`)
+  git(`commit -q -m "Version ${version}" -- ${versionFiles}`)
+  // verbatim: otherwise git drops lines starting with # (the notes' headings) as comments
+  git(`tag -a ${tag} --cleanup=verbatim -F -`, { input: `${notes}\n` })
+  console.log(`\nCommitted "Version ${version}" and tagged ${tag}. Release notes:\n\n${notes}\n`)
+
+  if (noPush) {
+    console.log(`Not pushed (--no-push). Publish it with: git push --atomic origin main ${tag}`)
+    process.exit(0)
+  }
+  step(`Pushing main and ${tag} to GitLab`)
+  try {
+    execSync(`git push --atomic origin main ${tag}`, { cwd: REPO_ROOT, stdio: "inherit" })
+  } catch {
+    fail(`The push failed. The commit and tag are made here; try again with: git push --atomic origin main ${tag}`)
+  }
+  console.log(`\nPushed. GitLab mirrors it to GitHub, where the release workflow tests, builds and publishes it:`)
+  console.log(`  https://github.com/${REPO}/actions/workflows/release.yml`)
   process.exit(0)
 }
 
@@ -109,9 +166,11 @@ if (tagOnly) {
 if (ci && (pkg.version !== version || pyprojectVersion() !== version)) {
   fail(
     `The tag says ${version}, but package.json says ${pkg.version} and pyproject.toml says ${pyprojectVersion()}. ` +
-      "Make the tag with: pnpm release X.Y.Z --tag",
+      "Make the release with: pnpm release X.Y.Z",
   )
 }
+// --local: the Unreleased notes, unless --notes says otherwise
+if (local && !notes) notes = releaseNotes(readChangelog().entries)
 
 if (!existsSync(SIGNING_FILE)) fail(`No signing key settings at ${SIGNING_FILE}`)
 

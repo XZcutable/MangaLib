@@ -1,5 +1,6 @@
 # Builds and publishes a release when a version tag (v1.2.3) arrives, which happens when it's pushed to
-# GitLab and the push mirror copies it here. Make the tag with: pnpm release 1.2.3 --tag --notes "..."
+# GitLab and the push mirror copies it here. `pnpm release 1.2.3` makes and pushes the tag, with the notes
+# from CHANGELOG.md's Unreleased section as its message (the release text).
 # It runs scripts/release.mjs, the same script as a release from the PC: signed APK + server bundle on
 # the GitHub release, Docker image on ghcr.io/xzcutable/mangalib.
 #
@@ -43,6 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          lfs: true # images, icons and the Gradle wrapper are in Git LFS (the GitLab mirror copies them)
 
       - name: Pick the version and release notes
         # A tag push publishes the tag's version; a manual run test-builds package.json's version.
