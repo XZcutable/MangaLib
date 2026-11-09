@@ -68,6 +68,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+      - name: Install the server's packages
+        # make_server_bundle.py imports mymangalib (for the update protocol number), which needs Flask
+        run: pip install .
       - uses: actions/setup-node@v5
         with:
           node-version: 22
