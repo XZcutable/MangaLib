@@ -1,4 +1,5 @@
 """Library queries and per-user reading state, shared by the old /api routes and /api/v1."""
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Select, select, func
@@ -223,9 +224,24 @@ def progress_fraction(user_data: UserMangaData, total_chapters: int, pages_in_cu
     within_chapter = user_data.current_page / pages_in_current_chapter if pages_in_current_chapter else 0
     return round(min(1.0, ((user_data.current_chapter - 1) + within_chapter) / total_chapters), 4)
 
-def save_progress(user_id: int, manga: Manga, chapter_number, page_number) -> Optional[UserMangaData]:
+def _parse_time(value) -> Optional[datetime]:
+    """A stored last_seen or a client's ISO time (with "Z" or an offset) as an aware UTC datetime."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+def save_progress(user_id: int, manga: Manga, chapter_number, page_number, read_at: Optional[str] = None) -> Optional[UserMangaData]:
     """Saves the reader position. Returns None when the chapter or page doesn't exist.
-    Reaching the last page of the last chapter marks the manga read and takes it off the queue."""
+    Reaching the last page of the last chapter marks the manga read and takes it off the queue.
+
+    `read_at` is when the page was read, for positions the app queued while offline. A position
+    older than the saved one only marks its chapter read: it doesn't move the reader back."""
     chapter: Chapter = db.Chapter.fromManga(manga, chapter_number)
     if chapter is None:
         return None
@@ -237,14 +253,25 @@ def save_progress(user_id: int, manga: Manga, chapter_number, page_number) -> Op
     if user_data.new:
         db.session.add(user_data)
 
-    user_data.current_chapter = chapter.number
-    user_data.current_page = page.number
-    user_data.last_seen = db.getDatetimeISONow()
-
-    if page.number >= len(chapter.pages):
+    last_page = page.number >= len(chapter.pages)
+    if last_page:
         _mark_chapters(user_id, manga.id, [chapter.number], True)
 
-    if chapter.number >= len(manga.chapters) and page.number >= len(chapter.pages):
+    now = datetime.now(timezone.utc)
+    when = _parse_time(read_at)
+    if when is not None:
+        when = min(when, now)  # A phone clock ahead of the server's can't claim the future
+        saved = _parse_time(user_data.last_seen)
+        if saved is not None and saved > when:
+            db.session.commit()
+            return user_data
+
+    user_data.current_chapter = chapter.number
+    user_data.current_page = page.number
+    # The time it was read, so a second device's queue can't push back a later position either
+    user_data.last_seen = str(when or now)
+
+    if chapter.number >= len(manga.chapters) and last_page:
         user_data.is_read = True
         user_data.is_queued = False
         user_data.current_page = 1

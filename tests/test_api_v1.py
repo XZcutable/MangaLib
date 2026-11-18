@@ -254,6 +254,38 @@ def test_progress_persists_and_last_page_marks_read(client, auth):
     bad = client.put(f"/api/v1/manga/{alpha}/progress", headers=auth, json={"chapter": "1"})
     assert bad.status_code == 400
 
+def test_offline_progress_older_than_saved_position_is_not_applied(client, auth):
+    alpha = manga_id_by_title(client, auth, "Alpha")
+    progress = lambda body: client.put(f"/api/v1/manga/{alpha}/progress", headers=auth, json=body)
+    # Read online just now: chapter 2, page 2
+    assert progress({"chapter": 2, "page": 2}).status_code == 200
+
+    # A queue from a phone that read chapter 1 earlier arrives later
+    stale = progress({"chapter": 1, "page": 3, "read_at": "2020-01-01T10:00:00.000Z"})
+    assert stale.status_code == 200
+    info = client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()
+    assert info["resume"] == {"chapter": 2, "page": 2}
+    # Its last page still counts: the chapter was read
+    assert next(chapter for chapter in info["chapters"] if chapter["number"] == 1)["is_read"] is True
+
+    # A newer offline position wins, and a time in the future is treated as now
+    assert progress({"chapter": 2, "page": 1, "read_at": "2999-01-01T00:00:00Z"}).status_code == 200
+    assert client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()["resume"] == {"chapter": 2, "page": 1}
+    # ...so an online save right after still goes through
+    assert progress({"chapter": 1, "page": 1}).status_code == 200
+    assert client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()["resume"] == {"chapter": 1, "page": 1}
+
+    assert progress({"chapter": 1, "page": 1, "read_at": 5}).status_code == 400
+
+def test_offline_progress_is_applied_on_first_open(client, auth):
+    alpha = manga_id_by_title(client, auth, "Alpha")
+    response = client.put(f"/api/v1/manga/{alpha}/progress", headers=auth,
+                          json={"chapter": 1, "page": 2, "read_at": "2020-01-01T10:00:00Z"})
+    assert response.status_code == 200
+    info = client.get(f"/api/v1/manga/{alpha}", headers=auth).get_json()
+    assert info["resume"] == {"chapter": 1, "page": 2}
+    assert info["user"]["last_seen"].startswith("2020-01-01 10:00:00")
+
 def test_state_toggles_feed_lists(client, auth):
     beta = manga_id_by_title(client, auth, "Beta")
     user = client.put(f"/api/v1/manga/{beta}/state", headers=auth, json={"is_favorite": True, "is_queued": True}).get_json()["user"]

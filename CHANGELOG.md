@@ -7,6 +7,13 @@ section into the release notes on GitHub and starts a new empty one. Use `###` f
 
 ## Unreleased
 
+### Fixes
+
+- Android: the on-screen keyboard no longer covers the server address and login fields; the screen moves up so you can see what you type.
+- Offline reading picks up where you left off, even if you last read online without going back to the series page.
+- Progress made offline no longer moves you back when it syncs: if you've read further since (online or on another device), the server keeps the newer spot. Chapters you finished offline are still marked read.
+- Offline, when the chapter you stopped in isn't downloaded, the series page says so and offers the next downloaded chapter, instead of quietly starting over.
+
 ## 1.10.0 (2026-11-09)
 
 ### Feedback

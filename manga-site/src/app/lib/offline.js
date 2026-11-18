@@ -432,28 +432,38 @@ export async function usage(mangaId) {
 // --- Progress made offline ---
 
 // Saves the reader position. Without a connection it's queued: every finished chapter (its last
-// page marks it read on the server) and the latest position for each manga.
+// page marks it read on the server) and the latest position for each manga. Each item carries the
+// time it was read, so the server keeps a newer position it got in the meantime (another device,
+// or this one online) instead of going back to it.
 export async function saveProgress(mangaId, chapter, page, isLastPage = false) {
+  const readAt = new Date().toISOString()
   try {
-    await api.saveProgress(mangaId, chapter, page)
+    const { user } = await api.saveProgress(mangaId, chapter, page)
+    rememberProgress(mangaId, chapter, page, isLastPage, user)
   } catch (error) {
     if (!offlineAvailable || !(error instanceof ApiError) || error.status !== 0) return
     const key = syncKey(serverKey())
     const queue = JSON.parse((await getItem(key)) ?? "[]").filter(
       (item) => item.manga !== mangaId || item.last,
     )
-    queue.push({ manga: mangaId, chapter, page, last: isLastPage })
+    queue.push({ manga: mangaId, chapter, page, last: isLastPage, read_at: readAt })
     await setItem(key, JSON.stringify(queue))
-    rememberOfflineProgress(mangaId, chapter, page, isLastPage)
+    rememberProgress(mangaId, chapter, page, isLastPage, null, readAt)
   }
 }
 
-// So the offline series page offers "Continue" from where reading stopped
-function rememberOfflineProgress(mangaId, chapter, page, isLastPage) {
+// Keeps a downloaded series' saved details in step with reading, online too, so the offline series
+// page offers "Continue" from where reading stopped. `user` is the server's answer, when it gave one.
+function rememberProgress(mangaId, chapter, page, isLastPage, user, readAt = new Date().toISOString()) {
   const info = manifest().manga[mangaId]?.info
   if (!info) return
-  info.resume = { chapter: Number(chapter), page: Number(page) }
-  info.user = { ...(info.user ?? { is_favorite: false, is_queued: false, is_read: false }), last_seen: new Date().toISOString() }
+  if (user) {
+    info.user = { ...(info.user ?? {}), ...user }
+    info.resume = { chapter: user.current_chapter, page: user.current_page }
+  } else {
+    info.resume = { chapter: Number(chapter), page: Number(page) }
+    info.user = { ...(info.user ?? { is_favorite: false, is_queued: false, is_read: false }), last_seen: readAt }
+  }
   if (isLastPage) {
     const entry = info.chapters?.find((item) => item.number === Number(chapter))
     if (entry) entry.is_read = true
@@ -471,7 +481,7 @@ export async function flushProgress() {
     while (queue.length) {
       const item = queue[0]
       try {
-        await api.saveProgress(item.manga, item.chapter, item.page)
+        await api.saveProgress(item.manga, item.chapter, item.page, item.read_at)
       } catch (error) {
         if (error instanceof ApiError && error.status === 0) break // Still offline; try later
       }

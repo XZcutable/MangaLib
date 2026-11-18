@@ -127,8 +127,9 @@ export const api = {
   random: (unread = false) => request(`/manga/random${unread ? "?unread=1" : ""}`),
   manga: (id, signal) => request(`/manga/${id}`, { signal }),
   chapter: (id, chapter, signal) => request(`/manga/${id}/chapters/${chapter}`, { signal }),
-  saveProgress: (id, chapter, page) =>
-    request(`/manga/${id}/progress`, { method: "PUT", body: { chapter, page } }),
+  // readAt: when it was read, for progress queued offline (older servers ignore it)
+  saveProgress: (id, chapter, page, readAt = undefined) =>
+    request(`/manga/${id}/progress`, { method: "PUT", body: { chapter, page, read_at: readAt } }),
   setState: (id, state) => request(`/manga/${id}/state`, { method: "PUT", body: state }),
   suggestMetadata: (id, changes) =>
     request(`/manga/${id}/metadata/suggestions`, { method: "POST", body: { changes } }),

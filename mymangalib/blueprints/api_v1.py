@@ -433,8 +433,12 @@ def save_progress(manga_id: int):
     chapter, page = body.get("chapter"), body.get("page")
     if not isinstance(chapter, int) or not isinstance(page, int):
         return api_error(400, "bad_request", "chapter and page must be numbers")
+    # Optional: when it was read, for progress made offline. An older position doesn't replace a newer one.
+    read_at = body.get("read_at")
+    if read_at is not None and not isinstance(read_at, str):
+        return api_error(400, "bad_request", "read_at must be an ISO date string")
 
-    user_data = library.save_progress(g.user.id, manga, chapter, page)
+    user_data = library.save_progress(g.user.id, manga, chapter, page, read_at=read_at)
     if user_data is None:
         return api_error(404, "not_found", f"Chapter {chapter} page {page} not found")
     return {"user": user_data.toJson()}

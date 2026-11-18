@@ -174,14 +174,25 @@ export function MangaInfo() {
   // Offline, only downloaded chapters open; the resume point counts only if it's one of them
   const readable = (number) => !local || onPhone.has(number)
   const atBeginning = resume.chapter === 1 && resume.page === 1
-  const started = user.last_seen !== null && !user.is_read && !atBeginning && readable(resume.chapter)
-  const firstOnPhone = [...onPhone][0]
+  const hasProgress = user.last_seen !== null && !user.is_read && !atBeginning
+  const started = hasProgress && readable(resume.chapter)
+  // Offline with the resume chapter not downloaded: go on from the next downloaded chapter, and say why
+  const resumeMissing = hasProgress && !readable(resume.chapter)
+  const downloadedNumbers = [...onPhone].sort((a, b) => a - b)
+  const fallbackChapter = resumeMissing
+    ? (downloadedNumbers.find((number) => number > resume.chapter) ?? downloadedNumbers[0])
+    : downloadedNumbers[0]
   const readLink =
     !local || readable(resume.chapter)
       ? `/read/${manga.id}/${resume.chapter}/${resume.page}`
-      : firstOnPhone !== undefined
-        ? `/read/${manga.id}/${firstOnPhone}/1`
+      : fallbackChapter !== undefined
+        ? `/read/${manga.id}/${fallbackChapter}/1`
         : null
+  const readLabel = started
+    ? `Continue chapter ${resume.chapter}, page ${resume.page}`
+    : resumeMissing && fallbackChapter !== undefined
+      ? `Read chapter ${fallbackChapter}`
+      : "Start reading"
   const savedOnPhone = Boolean(downloads.manga[manga.id])
   const muted = dark ? "text-gray-400" : "text-gray-600"
   const toggleButton = (active) =>
@@ -219,6 +230,8 @@ export function MangaInfo() {
           {local && (
             <p className="mb-4 text-sm text-amber-500">
               Offline: {onPhone.size} {onPhone.size === 1 ? "chapter is" : "chapters are"} on this {offline.deviceName}.
+              {resumeMissing &&
+                ` You stopped at chapter ${resume.chapter}, page ${resume.page}, which isn't downloaded.`}
             </p>
           )}
 
@@ -275,7 +288,7 @@ export function MangaInfo() {
               className="inline-flex items-center gap-2 px-5 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors"
             >
               <BookOpen className="w-4 h-4" />
-              {started ? `Continue chapter ${resume.chapter}, page ${resume.page}` : "Start reading"}
+              {readLabel}
             </Link>
             )}
             {!local && (
