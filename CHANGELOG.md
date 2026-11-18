@@ -7,6 +7,8 @@ section into the release notes on GitHub and starts a new empty one. Use `###` f
 
 ## Unreleased
 
+## 1.10.1 (2026-11-18)
+
 ### Fixes
 
 - Android: the on-screen keyboard no longer covers the server address and login fields; the screen moves up so you can see what you type.
